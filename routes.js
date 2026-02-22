@@ -51,12 +51,18 @@ router.post('/add', async (req, res) => {
         // Busca o documento atual para verificar duplicidade de IP
         const docAtual = await lotacaoSala.findOne({});
         
-        // Verifica se o IP já existe no histórico (assumindo que agora historico guarda objetos ou strings)
-        // A verificação cobre tanto o formato antigo (string) quanto o novo (objeto)
-        const jaCheckou = docAtual?.historico?.some(item => (item.ip === ip) || (item === ip));
+        // Verifica se o NOME já existe no histórico (Permite mesmo Wi-Fi/IP, bloqueia apenas nomes repetidos)
+        // Normalização: Remove acentos e espaços extras para comparação (Ex: "João" == "Joao")
+        const normalizar = (texto) => texto.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+        
+        const nomeLimpo = normalizar(nome);
 
-        if (jaCheckou) {
-            return res.status(403).json({ sucesso: false, mensagem: "Você já fez check-in hoje!" });
+        const nomeJaExiste = docAtual?.historico?.some(item => {
+            return typeof item === 'object' && item.nome && normalizar(item.nome) === nomeLimpo;
+        });
+
+        if (nomeJaExiste) {
+            return res.status(403).json({ sucesso: false, mensagem: "Este nome já está na lista de presença!" });
         }
 
         const resultado = await lotacaoSala.findOneAndUpdate(

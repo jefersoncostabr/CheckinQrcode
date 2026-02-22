@@ -1,4 +1,10 @@
 async function confirmar() {
+    // Verifica se este dispositivo já salvou um check-in hoje
+    if (localStorage.getItem('checkin_realizado')) {
+        alert("Você já confirmou presença neste dispositivo!");
+        return;
+    }
+
     const nomeInput = document.getElementById('nomeInput');
     const nome = nomeInput.value.trim();
 
@@ -18,6 +24,7 @@ async function confirmar() {
         });
         const data = await res.json();
         if(data.sucesso) { 
+            localStorage.setItem('checkin_realizado', 'true'); // Marca neste celular que já foi feito
             btn.innerText = 'Presença Confirmada! ✅';
             btn.style.backgroundColor = '#28a745';
         } else { 
