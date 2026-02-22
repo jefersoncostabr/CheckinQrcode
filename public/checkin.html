@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Check-in</title>
+    <!-- css -->
+    <link rel="stylesheet" href="checkin.css">
+</head>
+<body>
+    <h1>Check-in de Presença</h1>
+    <p>Clique no botão abaixo para confirmar.</p>
+    
+    <!-- Campo para inserir o nome -->
+    <div style="margin-bottom: 15px;">
+        <input type="text" id="nomeInput" placeholder="Digite seu nome completo" required 
+               style="padding: 10px; font-size: 1rem; width: 80%; max-width: 300px; border-radius: 5px; border: 1px solid #ccc;">
+    </div>
+
+    <!-- O ID 'btn' é necessário para o script funcionar -->
+    <button id="btn" onclick="confirmar()">Confirmar Presença</button>
+
+    <!-- ESTA LINHA É A CORREÇÃO: Importa o script que contém a função confirmar() -->
+    <script src="/checkin.js"></script>
+</body>
+</html>

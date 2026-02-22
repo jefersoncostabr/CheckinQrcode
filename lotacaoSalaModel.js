@@ -1,14 +1,11 @@
 import mongoose from 'mongoose'
 
 const lotacaoSalaSchema = new mongoose.Schema({
-    quantidade: {
-        type: Number,
-        default: 0
-    },
-    historico: {
-        type: [String],
-        default: []
-    }
+    historico: [{
+        nome: { type: String, required: true },
+        ip: { type: String, required: true },
+        data: { type: Date, default: Date.now }
+    }]
 })
 
 export default mongoose.model('LotacaoSala', lotacaoSalaSchema, 'lotacaoSala')

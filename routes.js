@@ -1,5 +1,11 @@
 import express from 'express'
 import lotacaoSala from './lotacaoSalaModel.js'
+import path from 'path'
+import { fileURLToPath } from 'url'
+
+// Helper para obter o __dirname em módulos ES
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
 
 const router = express.Router()
 
@@ -18,17 +24,40 @@ router.get('/qtd', async (req, res) => {
     }
 })
 
-// Mantido como GET para funcionar ao abrir o link direto no navegador (QR Code)
+// Rota de interface: Exibe o botão para confirmar (Evita robôs/previews)
 router.get('/add', async (req, res) => {
-    // Captura o IP real (considerando proxy do Render ou local)
+    // Agora, em vez de enviar o HTML como string, enviamos o arquivo físico.
+    // O path.join constrói o caminho correto para o arquivo na pasta 'public'.
+    res.sendFile(path.join(__dirname, 'public', 'checkin.html'));
+})
+
+// Nova rota POST que realmente salva os dados (chamada pelo botão)
+router.post('/add', async (req, res) => {
     const ip = req.headers['x-forwarded-for'] 
         ? req.headers['x-forwarded-for'].split(',')[0].trim() 
         : req.socket.remoteAddress
+    
+    const { nome } = req.body;
+
+    if (!nome) {
+        return res.status(400).json({ sucesso: false, mensagem: "Nome é obrigatório." });
+    }
 
     try {
+        // Busca o documento atual para verificar duplicidade de IP
+        const docAtual = await lotacaoSala.findOne({});
+        
+        // Verifica se o IP já existe no histórico (assumindo que agora historico guarda objetos ou strings)
+        // A verificação cobre tanto o formato antigo (string) quanto o novo (objeto)
+        const jaCheckou = docAtual?.historico?.some(item => (item.ip === ip) || (item === ip));
+
+        if (jaCheckou) {
+            return res.status(403).json({ sucesso: false, mensagem: "Você já fez check-in hoje!" });
+        }
+
         const resultado = await lotacaoSala.findOneAndUpdate(
             {},
-            { $push: { historico: ip } },
+            { $push: { historico: { nome: nome, ip: ip, data: new Date() } } },
             { new: true, upsert: true }
         )
         res.json({ sucesso: true, mensagem: "Check-in realizado!", novaQuantidade: resultado.historico.length })
@@ -38,7 +67,7 @@ router.get('/add', async (req, res) => {
     }
 })
 
-router.get('/reduce', async (req, res) => {
+router.delete('/reduce', async (req, res) => {
     try {
         const resultado = await lotacaoSala.findOneAndUpdate(
             { "historico.0": { $exists: true } }, // Só reduz se a lista não estiver vazia
@@ -54,7 +83,7 @@ router.get('/reduce', async (req, res) => {
     }
 })
 
-router.post('/clean', async (req, res) => {
+router.delete('/clean', async (req, res) => {
     try {
         await lotacaoSala.findOneAndUpdate({}, { $set: { historico: [] } }, { new: true, upsert: true })
         res.json({ sucesso: true, mensagem: "Histórico limpo!", novaQuantidade: 0 })

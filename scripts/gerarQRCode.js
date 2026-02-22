@@ -1,7 +1,7 @@
 import { generateQRCodeFile } from './qrCodeService.js';
 import path from 'path';
 
-const url = 'http://localhost:3000/add';
+const url = 'https://checkinqrcode.onrender.com/add';
 const outputFileName = 'presenca.png';
 const outputPath = path.resolve(outputFileName); // Garante que o caminho seja absoluto na raiz do projeto
 
