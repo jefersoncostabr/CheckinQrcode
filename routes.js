@@ -33,10 +33,14 @@ router.get('/add', async (req, res) => {
 
 // Nova rota POST que realmente salva os dados (chamada pelo botão)
 router.post('/add', async (req, res) => {
-    const ip = req.headers['x-forwarded-for'] 
+    let ip = req.headers['x-forwarded-for'] 
         ? req.headers['x-forwarded-for'].split(',')[0].trim() 
         : req.socket.remoteAddress
     
+    // Normaliza o IP para IPv4 se for localhost ou mapeado
+    if (ip === '::1') ip = '127.0.0.1';
+    if (ip && ip.startsWith('::ffff:')) ip = ip.replace('::ffff:', '');
+
     const { nome } = req.body;
 
     if (!nome) {
