@@ -1,3 +1,4 @@
+// comentário teste(remover)
 import express from 'express';
 import path from 'path';
 import { generateQRCodeFile } from './scripts/qrCodeService.js';

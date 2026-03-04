@@ -1,3 +1,4 @@
+// comentário teste(remover)
 import 'dotenv/config' // Carrega variáveis do arquivo .env
 import app from './app.js'
 import mongoose from 'mongoose'

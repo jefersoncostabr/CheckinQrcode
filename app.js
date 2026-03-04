@@ -1,3 +1,4 @@
+// comentário teste(remover)
 import express from 'express'
 import routes from './routes.js'
 import adminRoutes from './adminRoutes.js'

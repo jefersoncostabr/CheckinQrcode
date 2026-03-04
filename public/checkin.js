@@ -1,3 +1,4 @@
+// comentário teste(remover)
 async function confirmar() {
     // Verifica se este dispositivo já salvou um check-in hoje
     if (localStorage.getItem('checkin_realizado')) {

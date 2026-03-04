@@ -1,3 +1,4 @@
+// comentário teste(remover)
 import express from 'express'
 import lotacaoSala from './lotacaoSalaModel.js'
 import path from 'path'

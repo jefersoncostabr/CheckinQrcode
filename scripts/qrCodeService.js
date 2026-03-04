@@ -1,3 +1,4 @@
+// comentário teste(remover)
 import QRCode from 'qrcode';
 
 /**
