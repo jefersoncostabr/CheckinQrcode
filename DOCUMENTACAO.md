@@ -37,8 +37,14 @@
 ### F. Realizar o Check-in (Adicionar uma pessoa)
 - **Rota:** `/add`
 - **Método:** `POST`
-- **Descrição:** Rota chamada pela página de confirmação para efetivamente registrar uma presença. O sistema salva o IP do requisitante para contagem.
+- **Descrição:** Rota chamada pela página de confirmação para efetivamente registrar uma presença. Requer o envio do campo `nome` no corpo da requisição. O sistema valida se o nome já existe na lista (evitando duplicatas) e salva o IP.
 - **Retorno:** JSON com mensagem e a nova quantidade. Ex: `{ "sucesso": true, "mensagem": "Check-in realizado!", "novaQuantidade": 11 }`.
+
+### G. Exibir Relatório de Presença
+- **Rota:** `/relatorio`
+- **Método:** `GET`
+- **Descrição:** Exibe uma página HTML com o relatório de presença. A página mostra a quantidade total de pessoas e uma lista com o nome e a data/hora do check-in de cada uma. Inclui um botão para copiar apenas os nomes para a área de transferência.
+- **Retorno:** Uma página HTML.
 
 ## 2. Rotas de Administração
 
