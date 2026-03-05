@@ -46,25 +46,42 @@
 - **Descrição:** Exibe uma página HTML com o relatório de presença. A página mostra a quantidade total de pessoas e uma lista com o nome e a data/hora do check-in de cada uma. Inclui um botão para copiar apenas os nomes para a área de transferência.
 - **Retorno:** Uma página HTML.
 
+### H. Resetar Memória do Dispositivo (LocalStorage)
+- **Rota:** `/resetls`
+- **Método:** `GET`
+- **Descrição:** Limpa o armazenamento local do navegador (localStorage) e redireciona o usuário de volta para a tela de check-in. Útil para desbloquear dispositivos que impedem novos cadastros indevidamente (ex: "Você já confirmou presença").
+- **Retorno:** Script HTML que executa a limpeza e redirecionamento.
+
 ## 2. Rotas de Administração
 
 **Prefixo:** `/adm`
 
-### A. Gerar QR Code de Check-in
-- **Rota:** `/gerar-qrcode`
+### A. Acessar Painel de Administração
+- **Rota:** `/adm`
 - **Método:** `GET`
-- **Descrição:** Gera um novo arquivo de imagem `presenca_gerada_api.png` na raiz do projeto com o QR Code para a rota de check-in. A URL é construída dinamicamente com base no host do servidor.
-- **Retorno:** JSON com mensagem de sucesso, nome do arquivo e a URL utilizada. Ex: `{ "sucesso": true, "mensagem": "QR Code gerado...", "arquivo": "presenca_gerada_api.png", "url": "http://localhost:3000/add" }`.
+- **Descrição:** Exibe a página HTML do painel de administração, que permite executar diversas funções de controle e gestão do sistema.
+- **Retorno:** Uma página HTML.
 
-## 3. Como Gerar o QR Code (Manualmente)
+### B. Gerar QR Code de Check-in
+- **Rota:** `/adm/gerar-qrcode`
+- **Método:** `GET`
+- **Descrição:** Gera um novo arquivo de imagem (`presenca_gerada_api.png`) na raiz do projeto com o QR Code para a rota de check-in. A URL é construída dinamicamente com base no host do servidor. **Esta rota é chamada pelo painel de administração.**
+- **Retorno:** JSON com mensagem de sucesso, nome do arquivo e a URL utilizada. Ex: `{ "sucesso": true, "mensagem": "QR Code gerado com sucesso!", "arquivo": "presenca_gerada_api.png", "url": "http://localhost:3000/add" }`.
 
-1. Abra o terminal na pasta do projeto.
-2. Instale a biblioteca necessária (apenas na primeira vez):
-   ```bash
-   npm install qrcode
-   ```
-3. Execute o comando para gerar a imagem:
-   ```bash
-   node scripts/gQRC.js
-   ```
-4. O arquivo **`presenca_customizada.png`** será gerado na raiz do projeto.
+## 3. Como Gerar o QR Code
+
+A geração do QR Code pode ser feita de duas maneiras:
+
+### A. Pelo Painel de Administração (Recomendado)
+
+1. Acesse o painel de administração em `http://localhost:3000/adm`.
+2. Clique no botão "Gerar Novo QR Code".
+3. O sistema criará o arquivo `presenca_gerada_api.png` na pasta raiz do projeto e exibirá uma mensagem de confirmação.
+
+### B. Manualmente (via Rota de API)
+
+Você também pode gerar o QR Code acessando diretamente a rota da API no seu navegador ou via `curl`:
+
+- **URL:** `http://localhost:3000/adm/gerar-qrcode`
+
+Isso irá executar a mesma ação do botão no painel de administração.

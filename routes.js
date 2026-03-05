@@ -1,8 +1,8 @@
-// comentário teste(remover)
 import express from 'express'
 import lotacaoSala from './lotacaoSalaModel.js'
 import path from 'path'
 import { fileURLToPath } from 'url'
+import { generateQRCodeFile } from './scripts/qrCodeService.js'
 
 // Helper para obter o __dirname em módulos ES
 const __filename = fileURLToPath(import.meta.url)
@@ -104,81 +104,59 @@ router.delete('/clean', async (req, res) => {
     }
 })
 
-router.get('/relatorio', async (req, res) => {
+router.get('/resetls', (req, res) => {
+    res.send(`
+        <script>
+            // Limpa todo o armazenamento local do navegador para este site
+            localStorage.clear();
+            alert('Memória do dispositivo limpa! Você pode realizar o check-in novamente.');
+            // Redireciona de volta para a página de check-in
+            window.location.href = '/add';
+        </script>
+    `)
+})
+
+// Nova rota de API para fornecer os dados do relatório em JSON
+router.get('/api/relatorio', async (req, res) => {
     try {
-        const resultado = await lotacaoSala.findOne()
-        const historico = resultado?.historico || []
-        const quantidade = historico.length
-
-        const listaItens = historico.map(h => 
-            `<li><strong>${h.nome}</strong> <span style="color:#666; font-size:0.9em;">(${new Date(h.data).toLocaleString('pt-BR')})</span></li>`
-        ).join('')
-
-        const html = `
-        <!DOCTYPE html>
-        <html lang="pt-BR">
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Relatório de Presença</title>
-            <style>
-                body { font-family: Arial, sans-serif; margin: 20px; max-width: 800px; margin: 0 auto; padding: 20px; }
-                h1 { color: #2c3e50; text-align: center; }
-                .resumo { background: #e8f4f8; padding: 15px; border-radius: 8px; text-align: center; margin-bottom: 20px; font-size: 1.2em; }
-                ul { list-style-type: none; padding: 0; }
-                li { background: #fff; border-bottom: 1px solid #eee; padding: 10px; display: flex; justify-content: space-between; align-items: center; }
-                li:nth-child(even) { background-color: #f9f9f9; }
-                .header-lista { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-                .btn-copiar { background-color: #28a745; color: white; border: none; padding: 8px 12px; border-radius: 5px; cursor: pointer; font-size: 0.9em; transition: background-color 0.2s; }
-                .btn-copiar:hover { background-color: #218838; }
-            </style>
-        </head>
-        <body>
-            <h1>Relatório de Presença</h1>
-            <div class="resumo">
-                <strong>Quantidade Total:</strong> ${quantidade} pessoas
-            </div>
-            <div class="header-lista">
-                <h3>Lista de Nomes:</h3>
-                ${quantidade > 0 ? '<button id="btnCopiar" class="btn-copiar">Copiar Nomes</button>' : ''}
-            </div>
-            <ul id="listaNomes">
-                ${listaItens || '<li style="text-align:center; color: #888;">Nenhum registro encontrado.</li>'}
-            </ul>
-            <div style="text-align: center;">
-                <p> by Jeferson Costa<p/>
-            </div>
-
-            <script>
-                const btnCopiar = document.getElementById('btnCopiar');
-                if (btnCopiar) {
-                    btnCopiar.addEventListener('click', () => {
-                        const nomes = Array.from(document.querySelectorAll('#listaNomes li strong')).map(el => el.innerText);
-                        const textoParaCopiar = nomes.join('\\n');
-                        
-                        navigator.clipboard.writeText(textoParaCopiar).then(() => {
-                            const originalText = btnCopiar.innerText;
-                            btnCopiar.innerText = 'Copiado!';
-                            btnCopiar.style.backgroundColor = '#007bff';
-                            setTimeout(() => {
-                                btnCopiar.innerText = originalText;
-                                btnCopiar.style.backgroundColor = '#28a745';
-                            }, 2000);
-                        }).catch(err => {
-                            console.error('Erro ao copiar nomes para a área de transferência: ', err);
-                            alert('Não foi possível copiar os nomes.');
-                        });
-                    });
-                }
-            </script>
-        </body>
-        </html>
-        `
-        res.send(html)
+        const resultado = await lotacaoSala.findOne();
+        const historico = resultado?.historico || [];
+        res.json(historico);
     } catch (error) {
-        console.error("Erro ao gerar relatório:", error)
-        res.status(500).send("Erro ao gerar o relatório.")
+        console.error("Erro ao buscar dados para o relatório:", error);
+        res.status(500).json({ sucesso: false, mensagem: "Erro ao buscar os dados do relatório." });
     }
+});
+
+// Rota de interface: Exibe a página de relatório estática
+router.get('/relatorio', (req, res) => {
+    // O arquivo HTML agora busca os dados dinamicamente da /api/relatorio
+    res.sendFile(path.join(__dirname, 'public', 'relatorio.html'));
+})
+
+// Rota para gerar o QR Code e salvar em arquivo, chamada pelo painel ADM
+router.get('/adm/gerar-qrcode', async (req, res) => {
+    const baseUrl = `${req.protocol}://${req.get('host')}`;
+    const checkinUrl = `${baseUrl}/add`;
+    const filePath = path.join(__dirname, 'presenca_gerada_api.png');
+
+    try {
+        await generateQRCodeFile(checkinUrl, filePath);
+        res.json({ 
+            sucesso: true, 
+            mensagem: "QR Code gerado com sucesso!", 
+            arquivo: "presenca_gerada_api.png", 
+            url: checkinUrl 
+        });
+    } catch (error) {
+        console.error("Erro ao gerar QR Code via painel ADM:", error);
+        res.status(500).json({ sucesso: false, mensagem: "Falha ao gerar o QR Code." });
+    }
+});
+
+// Rota de interface: Exibe a página de administração
+router.get('/adm', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'adm.html'));
 })
 
 export default router

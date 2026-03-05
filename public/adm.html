@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel de Administração</title>
+    <link rel="stylesheet" href="admEstilo.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Painel de Administração</h1>
+
+        <div class="card">
+            <h2>Controle de Presença</h2>
+            <div class="info-display">
+                <p><strong>Pessoas na sala:</strong> <span id="quantidadeAtual">...</span></p>
+            </div>
+            <div class="actions">
+                <button id="btnAtualizarQtd">Atualizar Contagem</button>
+                <button id="btnReduzir" class="btn-danger">Remover Último Check-in</button>
+                <button id="btnLimpar" class="btn-danger">Zerar Contagem</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Gestão do Sistema</h2>
+            <div class="actions">
+                <button id="btnGerarQRCode">Gerar Novo QR Code</button>
+                <a href="/relatorio" class="btn-secondary" target="_blank">Ver Relatório de Presença</a>
+                <a href="/resetls" class="btn-secondary" target="_blank">Resetar Memória de Check-in (para um dispositivo)</a>
+            </div>
+        </div>
+
+        <div id="status" class="status-message">
+            <p>Pronto.</p>
+        </div>
+         <div style="text-align: center; margin-top: 20px;">
+            <p> by Jeferson Costa<p/>
+        </div>
+    </div>
+
+    <script src="admScript.js"></script>
+</body>
+</html>

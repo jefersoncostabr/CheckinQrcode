@@ -1,8 +1,19 @@
 // comentário teste(remover)
+
+// Função para obter a data de hoje no formato YYYY-MM-DD
+const getTodayString = () => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
 async function confirmar() {
-    // Verifica se este dispositivo já salvou um check-in hoje
-    if (localStorage.getItem('checkin_realizado')) {
-        alert("Você já confirmou presença neste dispositivo!");
+    const storageKey = `checkin_realizado_${getTodayString()}`;
+    // Verifica se este dispositivo já salvou um check-in na data de hoje
+    if (localStorage.getItem(storageKey)) {
+        alert("Você já confirmou presença neste dispositivo hoje!");
         return;
     }
 
@@ -25,7 +36,7 @@ async function confirmar() {
         });
         const data = await res.json();
         if(data.sucesso) { 
-            localStorage.setItem('checkin_realizado', 'true'); // Marca neste celular que já foi feito
+            localStorage.setItem(storageKey, 'true'); // Marca neste celular que já foi feito hoje
             btn.innerText = 'Presença Confirmada! ✅';
             btn.style.backgroundColor = '#28a745';
         } else { 

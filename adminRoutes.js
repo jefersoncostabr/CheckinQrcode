@@ -1,7 +1,6 @@
 // comentário teste(remover)
 import express from 'express';
-import path from 'path';
-import { generateQRCodeFile } from './scripts/qrCodeService.js';
+import { generateQRCodeBuffer } from './scripts/qrCodeService.js';
 
 const router = express.Router();
 
@@ -13,20 +12,19 @@ router.get('/gerar-qrcode', async (req, res) => {
     // Constrói a URL base dinamicamente (http://localhost:3000)
     const baseUrl = `${req.protocol}://${req.get('host')}`;
     const checkinUrl = `${baseUrl}/add`;
-    const outputFileName = 'presenca_gerada_api.png';
-    const outputPath = path.resolve(outputFileName); // Salva na raiz do projeto
 
     try {
-        await generateQRCodeFile(checkinUrl, outputPath);
-        res.json({
-            sucesso: true,
-            mensagem: `QR Code gerado com sucesso!`,
-            arquivo: outputFileName,
-            url: checkinUrl
-        });
+        const buffer = await generateQRCodeBuffer(checkinUrl);
+        
+        // Se passar ?download=true na URL, baixa o arquivo. Caso contrário, exibe na tela (inline).
+        const disposition = req.query.download === 'true' ? 'attachment' : 'inline';
+        
+        res.setHeader('Content-Disposition', `${disposition}; filename="qrcode_checkin.png"`);
+        res.type('png');
+        res.send(buffer);
     } catch (error) {
         console.error("Erro ao gerar QR Code via API:", error);
-        res.status(500).json({ sucesso: false, mensagem: "Falha ao gerar o arquivo QR Code." });
+        res.status(500).send("Falha ao gerar o QR Code.");
     }
 });
 

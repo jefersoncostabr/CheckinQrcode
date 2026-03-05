@@ -1,0 +1,130 @@
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f4f7f6;
+    color: #333;
+    margin: 0;
+    padding: 20px;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    min-height: 100vh;
+}
+
+.container {
+    width: 100%;
+    max-width: 900px;
+}
+
+h1,
+h2 {
+    color: #2c3e50;
+    text-align: center;
+}
+
+h1 {
+    margin-bottom: 30px;
+}
+
+h2 {
+    margin-top: 0;
+    border-bottom: 1px solid #ecf0f1;
+    padding-bottom: 10px;
+    margin-bottom: 20px;
+}
+
+.card {
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    padding: 25px;
+    margin-bottom: 25px;
+}
+
+.info-display {
+    text-align: center;
+    font-size: 1.5em;
+    margin-bottom: 20px;
+    background-color: #e8f4f8;
+    padding: 15px;
+    border-radius: 5px;
+}
+
+#quantidadeAtual {
+    font-weight: bold;
+    color: #2980b9;
+}
+
+.actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    justify-content: center;
+}
+
+button,
+.btn-secondary {
+    font-size: 1em;
+    padding: 12px 20px;
+    border-radius: 5px;
+    border: none;
+    cursor: pointer;
+    transition:
+        background-color 0.3s,
+        transform 0.2s;
+    color: white;
+    text-decoration: none;
+    display: inline-block;
+    text-align: center;
+}
+
+button:hover,
+.btn-secondary:hover {
+    transform: translateY(-2px);
+}
+
+#btnAtualizarQtd,
+#btnGerarQRCode {
+    background-color: #3498db;
+}
+#btnAtualizarQtd:hover,
+#btnGerarQRCode:hover {
+    background-color: #2980b9;
+}
+
+.btn-danger {
+    background-color: #e74c3c;
+}
+.btn-danger:hover {
+    background-color: #c0392b;
+}
+
+.btn-secondary {
+    background-color: #7f8c8d;
+}
+.btn-secondary:hover {
+    background-color: #6c7a7b;
+}
+
+.status-message {
+    margin-top: 20px;
+    padding: 15px;
+    border-radius: 5px;
+    text-align: center;
+    font-family: 'Courier New', Courier, monospace;
+    background-color: #ecf0f1;
+    border: 1px solid #bdc3c7;
+    color: #2c3e50;
+    word-wrap: break-word;
+}
+
+.status-message.success {
+    background-color: #dff0d8;
+    border-color: #d6e9c6;
+    color: #3c763d;
+}
+
+.status-message.error {
+    background-color: #f2dede;
+    border-color: #ebccd1;
+    color: #a94442;
+}
