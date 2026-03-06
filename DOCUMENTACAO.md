@@ -65,8 +65,8 @@
 ### B. Gerar QR Code de Check-in
 - **Rota:** `/adm/gerar-qrcode`
 - **Método:** `GET`
-- **Descrição:** Gera um novo arquivo de imagem (`presenca_gerada_api.png`) na raiz do projeto com o QR Code para a rota de check-in. A URL é construída dinamicamente com base no host do servidor. **Esta rota é chamada pelo painel de administração.**
-- **Retorno:** JSON com mensagem de sucesso, nome do arquivo e a URL utilizada. Ex: `{ "sucesso": true, "mensagem": "QR Code gerado com sucesso!", "arquivo": "presenca_gerada_api.png", "url": "http://localhost:3000/add" }`.
+- **Descrição:** Gera um QR Code em memória e o retorna como um Data URI, pronto para ser exibido na tela ou baixado. A URL de check-in é construída dinamicamente. **Esta rota é chamada pelo painel de administração.**
+- **Retorno:** JSON com mensagem de sucesso, a URL de check-in e o Data URI da imagem do QR Code. Ex: `{ "sucesso": true, "mensagem": "QR Code gerado com sucesso!", "url": "http://host/add?sala=...", "qrCodeDataUri": "data:image/png;base64,..." }`.
 
 ## 3. Como Gerar o QR Code
 
@@ -76,7 +76,7 @@ A geração do QR Code pode ser feita de duas maneiras:
 
 1. Acesse o painel de administração em `http://localhost:3000/adm`.
 2. Clique no botão "Gerar Novo QR Code".
-3. O sistema criará o arquivo `presenca_gerada_api.png` na pasta raiz do projeto e exibirá uma mensagem de confirmação.
+3. O sistema exibirá o QR Code na tela, junto com um botão para fazer o download da imagem.
 
 ### B. Manualmente (via Rota de API)
 
@@ -84,4 +84,4 @@ Você também pode gerar o QR Code acessando diretamente a rota da API no seu na
 
 - **URL:** `http://localhost:3000/adm/gerar-qrcode`
 
-Isso irá executar a mesma ação do botão no painel de administração.
+Isso irá retornar um JSON com os dados do QR Code. A ação do painel administrativo é a forma recomendada de uso.

@@ -30,4 +30,4 @@ Este documento resume todas as rotas disponíveis, separadas entre páginas púb
 ### Administração
 | Método   | Rota                | Descrição                                        |
 | :------- | :------------------ | :----------------------------------------------- |
-| `GET`    | `/adm/gerar-qrcode` | Gera o arquivo de imagem do QR Code no servidor. |
+| `GET`    | `/adm/gerar-qrcode` | Gera um QR Code e retorna como Data URI (JSON).  |

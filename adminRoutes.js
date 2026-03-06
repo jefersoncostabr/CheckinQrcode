@@ -24,20 +24,23 @@ router.get('/gerar-qrcode', async (req, res) => {
     }
 
     const checkinUrl = `${baseUrl}/add?sala=${encodeURIComponent(sala)}`;
-    const filePath = path.join(__dirname, '..', 'presenca_gerada_api.png');
 
     try {
-        await generateQRCodeFile(checkinUrl, filePath);
+        const qrCodeBuffer = await generateQRCodeBuffer(checkinUrl);
 
         if (req.query.download === 'true') {
-            return res.download(filePath, 'qrcode_checkin.png');
+            res.setHeader('Content-Disposition', 'attachment; filename=qrcode_checkin.png');
+            res.setHeader('Content-Type', 'image/png');
+            return res.send(qrCodeBuffer);
         }
+
+        const qrCodeDataUri = `data:image/png;base64,${qrCodeBuffer.toString('base64')}`;
 
         res.json({
             sucesso: true,
             mensagem: 'QR Code gerado com sucesso!',
-            arquivo: 'presenca_gerada_api.png',
             url: checkinUrl,
+            qrCodeDataUri: qrCodeDataUri,
         });
     } catch (error) {
         console.error('Erro ao gerar QR Code via API:', error);

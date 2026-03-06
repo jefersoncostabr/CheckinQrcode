@@ -189,8 +189,34 @@ document.addEventListener('DOMContentLoaded', () => {
 
         updateStatus('Gerando QR Code, aguarde...', 'info');
         await apiRequest(`/adm/gerar-qrcode?sala=${encodeURIComponent(sala)}`, { method: 'GET' }, (data) => {
-            const qrCodeMessage = `${data.mensagem}<br>Arquivo: <strong>${data.arquivo}</strong><br>URL: ${data.url}`;
-            updateStatus(qrCodeMessage, 'success');
+            // Limpa a área de status antes de adicionar o novo conteúdo
+            statusEl.innerHTML = '';
+            statusEl.className = 'status-message success'; // Aplica a classe de sucesso
+
+            // Cria e exibe a imagem do QR Code
+            const img = document.createElement('img');
+            img.src = data.qrCodeDataUri;
+            img.alt = `QR Code para a sala ${sala}`;
+            img.style.maxWidth = '300px';
+            img.style.display = 'block';
+            img.style.margin = '10px auto';
+
+            // Cria e exibe o botão/link de download
+            const downloadLink = document.createElement('a');
+            downloadLink.href = data.qrCodeDataUri;
+            downloadLink.download = `qrcode_${sala.replace(/\s+/g, '_')}.png`;
+            downloadLink.innerText = 'Baixar QR Code';
+            downloadLink.style.display = 'inline-block';
+            downloadLink.style.marginTop = '15px';
+            downloadLink.style.padding = '10px 15px';
+            downloadLink.style.backgroundColor = '#007bff';
+            downloadLink.style.color = 'white';
+            downloadLink.style.textDecoration = 'none';
+            downloadLink.style.borderRadius = '5px';
+
+            // Adiciona os novos elementos à página
+            statusEl.appendChild(img);
+            statusEl.appendChild(downloadLink);
         });
     });
 
