@@ -6,6 +6,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Botões
     const btnAtualizarQtd = document.getElementById('btnAtualizarQtd');
     const btnReduzir = document.getElementById('btnReduzir');
+    const btnAddPresenca = document.getElementById('btnAddPresenca');
     const btnLimpar = document.getElementById('btnLimpar');
     const btnGerarQRCode = document.getElementById('btnGerarQRCode');
 
@@ -66,6 +67,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- EVENT LISTENERS ---
 
     btnAtualizarQtd.addEventListener('click', fetchQuantidade);
+
+    btnAddPresenca.addEventListener('click', () => {
+        window.location.href = '/adm/adicionar-manual';
+    });
 
     btnReduzir.addEventListener('click', async () => {
         if (!confirm('Tem certeza que deseja remover o último check-in? Esta ação não pode ser desfeita.')) {

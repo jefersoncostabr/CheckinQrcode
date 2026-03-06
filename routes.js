@@ -154,6 +154,11 @@ router.get('/adm/gerar-qrcode', async (req, res) => {
     }
 });
 
+// Rota para o ADM adicionar presença manualmente (interface visual)
+router.get('/adm/adicionar-manual', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'admAdd.html'));
+})
+
 // Rota de interface: Exibe a página de administração
 router.get('/adm', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'adm.html'));

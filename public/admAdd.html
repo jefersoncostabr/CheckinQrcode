@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Adicionar Presença Manualmente</title>
+    <!-- Reutiliza o CSS do check-in para manter o padrão visual -->
+    <link rel="stylesheet" href="/checkin.css">
+    <style>
+        /* Ajustes específicos para a tela de ADM */
+        .btn-voltar {
+            background-color: #6c757d;
+            margin-top: 10px;
+        }
+        .btn-voltar:hover {
+            background-color: #5a6268;
+        }
+        .status-msg {
+            margin-top: 10px;
+            font-weight: bold;
+            height: 20px; /* Reserva espaço */
+        }
+    </style>
+</head>
+<body>
+    <h1>Adicionar Presença (ADM)</h1>
+    <p>Digite o nome para adicionar à lista.</p>
+    
+    <div style="margin-bottom: 15px;">
+        <input type="text" id="nomeInput" placeholder="Nome da pessoa" required 
+               style="padding: 10px; font-size: 1rem; width: 80%; max-width: 300px; border-radius: 5px; border: 1px solid #ccc;">
+    </div>
+
+    <button id="btn" onclick="adicionarManual()">Confirmar Presença</button>
+    <button class="btn-voltar" onclick="window.location.href='/adm'">Voltar ao Painel</button>
+
+    <div id="statusMsg" class="status-msg"></div>
+
+    <script>
+        const nomeInput = document.getElementById('nomeInput');
+        const statusMsg = document.getElementById('statusMsg');
+
+        // Foca no input ao abrir a página
+        nomeInput.focus();
+
+        // Permite adicionar apertando ENTER
+        nomeInput.addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') {
+                adicionarManual();
+            }
+        });
+
+        async function adicionarManual() {
+            const nome = nomeInput.value.trim();
+            if (!nome) return;
+
+            try {
+                const res = await fetch('/add', { 
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ nome: nome })
+                });
+                const data = await res.json();
+                
+                if(data.sucesso) { 
+                    statusMsg.style.color = 'green';
+                    statusMsg.innerText = `"${nome}" adicionado com sucesso! (Total: ${data.novaQuantidade})`;
+                    nomeInput.value = ''; // Limpa o campo para o próximo
+                    nomeInput.focus();    // Mantém o foco no input
+                } else { 
+                    statusMsg.style.color = 'red';
+                    statusMsg.innerText = data.mensagem;
+                    // Não limpa o input em caso de erro (ex: nome duplicado) para permitir correção
+                }
+            } catch (e) { 
+                statusMsg.style.color = 'red';
+                statusMsg.innerText = 'Erro de conexão.';
+            }
+        }
+    </script>
+</body>
+</html>
