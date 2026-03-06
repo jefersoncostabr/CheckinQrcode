@@ -14,6 +14,12 @@
             <h2>Controle de Presença</h2>
             <div class="info-display">
                 <p><strong>Pessoas na sala:</strong> <span id="quantidadeAtual">...</span></p>
+                <p>
+                    <strong>Sala:</strong>
+                    <select id="salaFiltro" style="min-width: 220px;">
+                        <option value="">Todas as Salas</option>
+                    </select>
+                </p>
             </div>
             <div class="actions">
                 <button id="btnAtualizarQtd" class="btn-primary">Atualizar Contagem</button>
@@ -24,7 +30,24 @@
         </div>
 
         <div class="card">
+            <h2>Salas do Evento</h2>
+            <div class="actions">
+                <input type="text" id="salaInput" placeholder="Nome da sala" style="flex: 1; min-width: 180px;" />
+                <button id="btnAddSala" class="btn-primary">Adicionar Sala</button>
+            </div>
+            <ul id="listaSalas" style="margin-top: 10px; padding-left: 20px;"></ul>
+        </div>
+
+        <div class="card">
             <h2>Gestão do Sistema</h2>
+            <div class="info-display">
+                <p>
+                    <strong>Gerar QR Code para sala:</strong>
+                    <select id="salaSelect" style="min-width: 220px;">
+                        <option value="">Selecione uma sala</option>
+                    </select>
+                </p>
+            </div>
             <div class="actions">
                 <button id="btnGerarQRCode">Gerar Novo QR Code</button>
                 <a href="/relatorio" class="btn-secondary" target="_blank">Ver Relatório de Presença</a>

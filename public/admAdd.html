@@ -27,6 +27,11 @@
     <p>Digite o nome para adicionar à lista.</p>
     
     <div style="margin-bottom: 15px;">
+        <label for="salaSelect" style="display:block; margin-bottom: 6px; font-weight: bold;">Sala:</label>
+        <select id="salaSelect" style="padding: 10px; font-size: 1rem; width: 80%; max-width: 320px; border-radius: 5px; border: 1px solid #ccc;"></select>
+    </div>
+
+    <div style="margin-bottom: 15px;">
         <input type="text" id="nomeInput" placeholder="Nome da pessoa" required 
                style="padding: 10px; font-size: 1rem; width: 80%; max-width: 300px; border-radius: 5px; border: 1px solid #ccc;">
     </div>
@@ -38,10 +43,35 @@
 
     <script>
         const nomeInput = document.getElementById('nomeInput');
+        const salaSelect = document.getElementById('salaSelect');
         const statusMsg = document.getElementById('statusMsg');
 
         // Foca no input ao abrir a página
         nomeInput.focus();
+
+        async function carregarSalas() {
+            try {
+                const response = await fetch('/api/salas');
+                if (!response.ok) throw new Error('Falha ao carregar salas.');
+                const data = await response.json();
+                const salas = Array.isArray(data.salas) ? data.salas : [];
+
+                salaSelect.innerHTML = '';
+                salas.forEach(sala => {
+                    const opt = document.createElement('option');
+                    opt.value = sala;
+                    opt.textContent = sala;
+                    salaSelect.appendChild(opt);
+                });
+
+                if (salas.length === 0) {
+                    salaSelect.innerHTML = '<option value="">Nenhuma sala cadastrada</option>';
+                }
+            } catch (err) {
+                console.error('Erro ao carregar salas:', err);
+                salaSelect.innerHTML = '<option value="">Erro ao carregar salas</option>';
+            }
+        }
 
         // Permite adicionar apertando ENTER
         nomeInput.addEventListener('keypress', function (e) {
@@ -52,19 +82,25 @@
 
         async function adicionarManual() {
             const nome = nomeInput.value.trim();
+            const sala = salaSelect.value;
             if (!nome) return;
+            if (!sala) {
+                statusMsg.style.color = 'red';
+                statusMsg.innerText = 'Selecione uma sala antes de adicionar a presença.';
+                return;
+            }
 
             try {
                 const res = await fetch('/add', { 
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ nome: nome })
+                    body: JSON.stringify({ nome: nome, sala })
                 });
                 const data = await res.json();
-                
+
                 if(data.sucesso) { 
                     statusMsg.style.color = 'green';
-                    statusMsg.innerText = `"${nome}" adicionado com sucesso! (Total: ${data.novaQuantidade})`;
+                    statusMsg.innerText = `"${nome}" adicionado com sucesso! (Total na sala: ${data.novaQuantidade})`;
                     nomeInput.value = ''; // Limpa o campo para o próximo
                     nomeInput.focus();    // Mantém o foco no input
                 } else { 
@@ -77,6 +113,8 @@
                 statusMsg.innerText = 'Erro de conexão.';
             }
         }
+
+        carregarSalas();
     </script>
 </body>
 </html>

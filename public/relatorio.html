@@ -10,9 +10,15 @@
     <h1>Relatório de Presença</h1>
     <div class="resumo">
         <strong>Quantidade Total:</strong> <span id="quantidadeTotal">0</span> pessoas
+        <span style="margin-left: 20px;">
+            <strong>Filtrar por sala:</strong>
+            <select id="salaFiltroRelatorio">
+                <option value="">Todas as salas</option>
+            </select>
+        </span>
     </div>
     <div class="header-lista">
-        <h3>Lista de Nomes:</h3>
+        <h3>Lista de Presença:</h3>
         <button id="btnCopiar" class="btn-copiar" style="display: none;">Copiar Nomes</button>
     </div>
     <ul id="listaNomes">

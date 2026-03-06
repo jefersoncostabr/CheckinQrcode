@@ -1,30 +1,47 @@
 // comentário teste(remover)
 import express from 'express';
-import { generateQRCodeBuffer } from './scripts/qrCodeService.js';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { generateQRCodeFile, generateQRCodeBuffer } from './scripts/qrCodeService.js';
+
+// Helper para obter o __dirname em módulos ES
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const router = express.Router();
 
 /**
  * Rota para gerar um QR Code para a URL de check-in.
- * O arquivo é salvo na raiz do projeto.
+ * Retorna JSON com a URL de destino e o caminho do arquivo gerado.
+ * Se passar ?download=true, retorna o PNG diretamente.
  */
 router.get('/gerar-qrcode', async (req, res) => {
-    // Constrói a URL base dinamicamente (http://localhost:3000)
     const baseUrl = `${req.protocol}://${req.get('host')}`;
-    const checkinUrl = `${baseUrl}/add`;
+    const sala = req.query.sala;
+
+    if (!sala) {
+        return res.status(400).json({ sucesso: false, mensagem: 'Parâmetro sala é obrigatório.' });
+    }
+
+    const checkinUrl = `${baseUrl}/add?sala=${encodeURIComponent(sala)}`;
+    const filePath = path.join(__dirname, '..', 'presenca_gerada_api.png');
 
     try {
-        const buffer = await generateQRCodeBuffer(checkinUrl);
-        
-        // Se passar ?download=true na URL, baixa o arquivo. Caso contrário, exibe na tela (inline).
-        const disposition = req.query.download === 'true' ? 'attachment' : 'inline';
-        
-        res.setHeader('Content-Disposition', `${disposition}; filename="qrcode_checkin.png"`);
-        res.type('png');
-        res.send(buffer);
+        await generateQRCodeFile(checkinUrl, filePath);
+
+        if (req.query.download === 'true') {
+            return res.download(filePath, 'qrcode_checkin.png');
+        }
+
+        res.json({
+            sucesso: true,
+            mensagem: 'QR Code gerado com sucesso!',
+            arquivo: 'presenca_gerada_api.png',
+            url: checkinUrl,
+        });
     } catch (error) {
-        console.error("Erro ao gerar QR Code via API:", error);
-        res.status(500).send("Falha ao gerar o QR Code.");
+        console.error('Erro ao gerar QR Code via API:', error);
+        res.status(500).json({ sucesso: false, mensagem: 'Falha ao gerar o QR Code.' });
     }
 });
 

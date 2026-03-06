@@ -9,6 +9,15 @@ const getTodayString = () => {
     return `${year}-${month}-${day}`;
 }
 
+// Extrai a sala da query string, ex: /add?sala=Sala%201
+const salaAtual = new URLSearchParams(window.location.search).get('sala') || '';
+
+// Atualiza o título na tela para indicar a sala
+const tituloEl = document.querySelector('h1');
+if (tituloEl) {
+    tituloEl.textContent = salaAtual ? `Check-in - ${salaAtual}` : 'Check-in de Presença';
+}
+
 async function confirmar() {
     const storageKey = `checkin_realizado_${getTodayString()}`;
     // Verifica se este dispositivo já salvou um check-in na data de hoje
@@ -25,6 +34,11 @@ async function confirmar() {
         return;
     }
 
+    if (!salaAtual) {
+        alert('Sala não especificada. Use o QR Code ou abra a página com ?sala=NomeDaSala.');
+        return;
+    }
+
     const btn = document.getElementById('btn');
     btn.disabled = true; btn.innerText = 'Registrando...';
     
@@ -32,7 +46,7 @@ async function confirmar() {
         const res = await fetch('/add', { 
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ nome: nome })
+            body: JSON.stringify({ nome: nome, sala: salaAtual })
         });
         const data = await res.json();
         if(data.sucesso) { 

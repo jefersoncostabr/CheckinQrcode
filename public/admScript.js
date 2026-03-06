@@ -2,6 +2,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // Elementos da UI
     const quantidadeAtualEl = document.getElementById('quantidadeAtual');
     const statusEl = document.getElementById('status');
+    const salaFiltro = document.getElementById('salaFiltro');
+    const salaSelect = document.getElementById('salaSelect');
+    const listaSalasEl = document.getElementById('listaSalas');
 
     // Botões
     const btnAtualizarQtd = document.getElementById('btnAtualizarQtd');
@@ -9,6 +12,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnAddPresenca = document.getElementById('btnAddPresenca');
     const btnLimpar = document.getElementById('btnLimpar');
     const btnGerarQRCode = document.getElementById('btnGerarQRCode');
+    const btnAddSala = document.getElementById('btnAddSala');
 
     // --- FUNÇÕES AUXILIARES ---
 
@@ -51,14 +55,80 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // --- GERENCIAMENTO DE SALAS ---
+
+    async function carregarSalas() {
+        await apiRequest('/api/salas', { method: 'GET' }, (data) => {
+            const salas = Array.isArray(data.salas) ? data.salas : [];
+
+            // Preenche o filtro e o select para QR Code
+            salaFiltro.innerHTML = '<option value="">Todas as Salas</option>';
+            salaSelect.innerHTML = '<option value="">Selecione uma sala</option>';
+            listaSalasEl.innerHTML = '';
+
+            salas.forEach(sala => {
+                const opt = document.createElement('option');
+                opt.value = sala;
+                opt.textContent = sala;
+                salaFiltro.appendChild(opt);
+
+                const opt2 = opt.cloneNode(true);
+                salaSelect.appendChild(opt2);
+
+                const li = document.createElement('li');
+                li.textContent = sala;
+                const btnExcluir = document.createElement('button');
+                btnExcluir.textContent = 'Excluir';
+                btnExcluir.style.marginLeft = '10px';
+                btnExcluir.addEventListener('click', () => removerSala(sala));
+                li.appendChild(btnExcluir);
+                listaSalasEl.appendChild(li);
+            });
+
+            // Atualiza a contagem com a sala selecionada
+            fetchQuantidade();
+        });
+    }
+
+    async function adicionarSala() {
+        const input = document.getElementById('salaInput');
+        const sala = input.value.trim();
+        if (!sala) {
+            updateStatus('Digite o nome da sala antes de adicionar.', 'error');
+            return;
+        }
+
+        await apiRequest('/api/salas', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sala })
+        }, (data) => {
+            input.value = '';
+            updateStatus('Sala adicionada com sucesso.', 'success');
+            carregarSalas();
+        });
+    }
+
+    async function removerSala(sala) {
+        if (!confirm(`Tem certeza que deseja remover a sala "${sala}"?`)) return;
+
+        await apiRequest(`/api/salas?sala=${encodeURIComponent(sala)}`, { method: 'DELETE' }, (data) => {
+            updateStatus('Sala removida com sucesso.', 'success');
+            carregarSalas();
+        });
+    }
+
     // --- FUNÇÕES DE AÇÃO ---
 
     /**
      * Busca e atualiza a contagem atual de pessoas.
      */
     async function fetchQuantidade() {
+        const sala = salaFiltro.value;
+        const url = sala ? `/qtd?sala=${encodeURIComponent(sala)}` : '/qtd';
         quantidadeAtualEl.textContent = 'Carregando...';
-        await apiRequest('/qtd', { method: 'GET' }, (data) => {
+
+        await apiRequest(url, { method: 'GET' }, (data) => {
             quantidadeAtualEl.textContent = data.quantidade;
             updateStatus('Contagem atualizada com sucesso.', 'success');
         });
@@ -68,38 +138,64 @@ document.addEventListener('DOMContentLoaded', () => {
 
     btnAtualizarQtd.addEventListener('click', fetchQuantidade);
 
+    salaFiltro.addEventListener('change', () => {
+        fetchQuantidade();
+    });
+
     btnAddPresenca.addEventListener('click', () => {
         window.location.href = '/adm/adicionar-manual';
     });
 
     btnReduzir.addEventListener('click', async () => {
-        if (!confirm('Tem certeza que deseja remover o último check-in? Esta ação não pode ser desfeita.')) {
+        const sala = salaFiltro.value;
+        if (!sala) {
+            updateStatus('Selecione a sala para reduzir o último check-in.', 'error');
             return;
         }
-        await apiRequest('/reduce', { method: 'DELETE' }, (data) => {
+
+        if (!confirm('Tem certeza que deseja remover o último check-in desta sala? Esta ação não pode ser desfeita.')) {
+            return;
+        }
+
+        await apiRequest(`/reduce?sala=${encodeURIComponent(sala)}`, { method: 'DELETE' }, (data) => {
             quantidadeAtualEl.textContent = data.novaQuantidade;
             updateStatus(data.mensagem, 'success');
         });
     });
 
     btnLimpar.addEventListener('click', async () => {
-        if (!confirm('ATENÇÃO: Tem certeza que deseja zerar TODA a lista de presença? Esta ação não pode ser desfeita.')) {
+        const sala = salaFiltro.value;
+        if (!sala) {
+            updateStatus('Selecione a sala para limpar o histórico.', 'error');
             return;
         }
-        await apiRequest('/clean', { method: 'DELETE' }, (data) => {
+
+        if (!confirm('ATENÇÃO: Tem certeza que deseja zerar a lista de presença desta sala? Esta ação não pode ser desfeita.')) {
+            return;
+        }
+
+        await apiRequest(`/clean?sala=${encodeURIComponent(sala)}`, { method: 'DELETE' }, (data) => {
             quantidadeAtualEl.textContent = data.novaQuantidade;
             updateStatus(data.mensagem, 'success');
         });
     });
 
     btnGerarQRCode.addEventListener('click', async () => {
+        const sala = salaSelect.value;
+        if (!sala) {
+            updateStatus('Selecione uma sala para gerar o QR Code.', 'error');
+            return;
+        }
+
         updateStatus('Gerando QR Code, aguarde...', 'info');
-        await apiRequest('/adm/gerar-qrcode', { method: 'GET' }, (data) => {
+        await apiRequest(`/adm/gerar-qrcode?sala=${encodeURIComponent(sala)}`, { method: 'GET' }, (data) => {
             const qrCodeMessage = `${data.mensagem}<br>Arquivo: <strong>${data.arquivo}</strong><br>URL: ${data.url}`;
             updateStatus(qrCodeMessage, 'success');
         });
     });
 
-    // Carregar a contagem inicial ao carregar a página
-    fetchQuantidade();
+    btnAddSala.addEventListener('click', adicionarSala);
+
+    // Carregar a contagem inicial e as salas ao carregar a página
+    carregarSalas();
 });
