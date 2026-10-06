@@ -170,7 +170,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!confirm(`Tem certeza que deseja remover a sala "${sala}"?`)) return;
 
         await apiRequest(`/api/salas?sala=${encodeURIComponent(sala)}`, { method: 'DELETE' }, (data) => {
-            updateStatus('Sala removida com sucesso.', 'success');
+            updateStatus(`Sala removida. Registros de check-in excluídos: ${data.registrosRemovidos}.`, 'success');
             carregarSalas();
         });
     }

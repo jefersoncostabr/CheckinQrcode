@@ -274,9 +274,16 @@ router.delete('/api/salas', requireAuth, async (req, res) => {
         const doc = await getConfigDoc()
         const salaLimpa = sala.trim()
         const novasSalas = (doc.salas || []).filter(s => normalizarTexto(s) !== normalizarTexto(salaLimpa))
+        const historicoAnterior = doc.historico || []
+        const historicoAtualizado = historicoAnterior.filter(
+            registro => normalizarTexto(registro.sala || '') !== normalizarTexto(salaLimpa)
+        )
+        const registrosRemovidos = historicoAnterior.length - historicoAtualizado.length
+
         doc.salas = novasSalas
+        doc.historico = historicoAtualizado
         await doc.save()
-        res.json({ sucesso: true, salas: doc.salas })
+        res.json({ sucesso: true, salas: doc.salas, registrosRemovidos })
     } catch (error) {
         console.error('Erro ao remover sala:', error)
         res.status(500).json({ sucesso: false, mensagem: 'Erro ao remover a sala.' })

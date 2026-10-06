@@ -98,3 +98,22 @@ Se o sistema funciona no PC, mas o celular exibe "conexão recusada", o endereç
 6. Leia o QR Code pelo celular. Se a página não abrir, verifique se o Firewall do Windows permite conexões para Node.js ou para a porta `3000` e se a rede Wi-Fi não isola os dispositivos entre si.
 
 Substitua `192.168.1.25` pelo IPv4 exibido no seu PC. O endereço IPv4 pode mudar quando o PC se reconectar à rede.
+
+## 5. Checklist de Publicação e Produção
+
+### Configuração do ambiente
+
+- No Render, configure `ADMIN_USER`, `ADMIN_PASS`, `MONGO_URI`, `SESSION_SECRET` e `NODE_ENV=production` nas variáveis de ambiente. Use valores reais e fortes; não inclua os segredos neste documento.
+- Gere um `SESSION_SECRET` aleatório, exclusivo e longo. Ele assina o cookie da sessão; não substitui a senha administrativa (`ADMIN_PASS`). Trocar esse segredo invalida as sessões existentes.
+- Mantenha o arquivo `.env` apenas no ambiente local e fora do Git. Se uma senha ou URI de banco for exposta, troque a credencial no serviço correspondente e atualize as variáveis locais e do Render.
+
+### HTTPS e acesso administrativo
+
+- Em produção, o Express configura `trust proxy` antes do middleware de sessão. Isso permite reconhecer o HTTPS terminado pelo proxy do Render e emitir o cookie seguro da sessão.
+- Acesse o painel pelo domínio HTTPS publicado e gere um novo QR Code. Confira se a URL gerada começa com `https://` antes de distribuí-lo.
+- Após o deploy, teste o login administrativo, atualize a página para confirmar que a sessão continua autenticada e faça um check-in real pelo QR usando um celular.
+
+### Persistência e sessões
+
+- Confirme que os check-ins continuam registrados no MongoDB depois de um novo deploy ou reinício do serviço.
+- O app usa atualmente o armazenamento de sessão padrão em memória do `express-session`. As sessões são perdidas quando o processo reinicia, e esse armazenamento não é recomendado para produção nem para múltiplas instâncias. Para maior confiabilidade, planeje configurar um armazenamento persistente de sessões, como MongoDB (`connect-mongo`) ou Redis.
