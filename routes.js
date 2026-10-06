@@ -2,7 +2,7 @@ import express from 'express'
 import lotacaoSala from './lotacaoSalaModel.js'
 import path from 'path'
 import { fileURLToPath } from 'url'
-import { generateQRCodeBuffer } from './scripts/qrCodeService.js'
+import { requireAuth } from './middleware/auth.js'
 
 // Helper para obter o __dirname em módulos ES
 const __filename = fileURLToPath(import.meta.url)
@@ -29,6 +29,36 @@ async function getConfigDoc() {
 
 router.get('/', (req, res) => {
     res.send('O servidor funcionando.')
+})
+
+// Autenticação
+router.get('/login', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'login.html'))
+})
+
+router.post('/login', (req, res) => {
+    const user = (req.body.user || '').toString().trim()
+    const pass = (req.body.pass || '').toString().trim()
+
+    const expectedUser = process.env.ADMIN_USER
+    const expectedPass = process.env.ADMIN_PASS
+
+    if (!expectedUser || !expectedPass) {
+        return res.status(500).send('Admin credentials not configured (ADMIN_USER / ADMIN_PASS).')
+    }
+
+    if (user === expectedUser && pass === expectedPass) {
+        req.session.user = { username: user }
+        return res.redirect('/adm')
+    }
+
+    return res.redirect('/login?error=1')
+})
+
+router.get('/logout', (req, res) => {
+    req.session.destroy(() => {
+        res.redirect('/login?loggedout=1')
+    })
 })
 
 router.get('/qtd', async (req, res) => {
@@ -114,7 +144,7 @@ router.post('/add', async (req, res) => {
     }
 })
 
-router.delete('/reduce', async (req, res) => {
+router.delete('/reduce', requireAuth, async (req, res) => {
     const sala = req.query.sala
     if (!sala) {
         return res.status(400).json({ sucesso: false, mensagem: 'Parâmetro sala é obrigatório para reduzir registros.' })
@@ -147,7 +177,7 @@ router.delete('/reduce', async (req, res) => {
     }
 })
 
-router.delete('/clean', async (req, res) => {
+router.delete('/clean', requireAuth, async (req, res) => {
     const sala = req.query.sala
     const limparTudo = req.query.all === 'true' || req.query.tudo === 'true'
 
@@ -174,7 +204,8 @@ router.delete('/clean', async (req, res) => {
     }
 })
 
-router.get('/resetls', (req, res) => {
+// Rota para resetar o localStorage do navegador (interface)
+router.get('/resetls', requireAuth, (req, res) => {
     res.send(`
         <script>
             // Limpa todo o armazenamento local do navegador para este site
@@ -187,7 +218,7 @@ router.get('/resetls', (req, res) => {
 })
 
 // Nova rota de API para fornecer os dados do relatório em JSON
-router.get('/api/relatorio', async (req, res) => {
+router.get('/api/relatorio', requireAuth, async (req, res) => {
     try {
         const sala = req.query.sala
         const resultado = await getConfigDoc()
@@ -201,7 +232,7 @@ router.get('/api/relatorio', async (req, res) => {
 })
 
 // API de salas (configuração)
-router.get('/api/salas', async (req, res) => {
+router.get('/api/salas', requireAuth, async (req, res) => {
     try {
         const doc = await getConfigDoc()
         res.json({ sucesso: true, salas: doc.salas || [] })
@@ -211,7 +242,7 @@ router.get('/api/salas', async (req, res) => {
     }
 })
 
-router.post('/api/salas', async (req, res) => {
+router.post('/api/salas', requireAuth, async (req, res) => {
     const { sala } = req.body
     if (!sala || typeof sala !== 'string' || !sala.trim()) {
         return res.status(400).json({ sucesso: false, mensagem: 'Nome da sala é obrigatório.' })
@@ -233,7 +264,7 @@ router.post('/api/salas', async (req, res) => {
     }
 })
 
-router.delete('/api/salas', async (req, res) => {
+router.delete('/api/salas', requireAuth, async (req, res) => {
     const sala = req.query.sala || req.body?.sala
     if (!sala) {
         return res.status(400).json({ sucesso: false, mensagem: 'Nome da sala é obrigatório para exclusão.' })
@@ -253,36 +284,13 @@ router.delete('/api/salas', async (req, res) => {
 })
 
 // Rota de interface: Exibe a página de relatório estática
-router.get('/relatorio', (req, res) => {
+router.get('/relatorio', requireAuth, (req, res) => {
     // O arquivo HTML agora busca os dados dinamicamente da /api/relatorio
     res.sendFile(path.join(__dirname, 'public', 'relatorio.html'))
 })
 
-// Rota para gerar o QR Code e retornar como Data URI, chamada pelo painel ADM
-router.get('/adm/gerar-qrcode', async (req, res) => {
-    const baseUrl = `${req.protocol}://${req.get('host')}`
-    const sala = req.query.sala
-    if (!sala) {
-        return res.status(400).json({ sucesso: false, mensagem: 'Parâmetro sala é obrigatório para gerar QR Code.' })
-    }
-
-    const checkinUrl = `${baseUrl}/add?sala=${encodeURIComponent(sala)}`
-
-    try {
-        const qrCodeBuffer = await generateQRCodeBuffer(checkinUrl)
-        const qrCodeDataUri = `data:image/png;base64,${qrCodeBuffer.toString('base64')}`
-
-        res.json({
-            sucesso: true,
-            mensagem: 'QR Code gerado com sucesso!',
-            url: checkinUrl,
-            qrCodeDataUri: qrCodeDataUri,
-        })
-    } catch (error) {
-        console.error('Erro ao gerar QR Code via painel ADM:', error)
-        res.status(500).json({ sucesso: false, mensagem: 'Falha ao gerar o QR Code.' })
-    }
-})
+// Protege as rotas de administração
+router.use('/adm', requireAuth)
 
 // Rota para o ADM adicionar presença manualmente (interface visual)
 router.get('/adm/adicionar-manual', (req, res) => {

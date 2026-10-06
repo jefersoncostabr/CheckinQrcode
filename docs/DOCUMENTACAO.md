@@ -85,3 +85,16 @@ Você também pode gerar o QR Code acessando diretamente a rota da API no seu na
 - **URL:** `http://localhost:3000/adm/gerar-qrcode`
 
 Isso irá retornar um JSON com os dados do QR Code. A ação do painel administrativo é a forma recomendada de uso.
+
+## 4. Acessar pela Rede Local
+
+Se o sistema funciona no PC, mas o celular exibe "conexão recusada", o endereço `localhost` não deve ser usado no celular: ele aponta para o próprio dispositivo. Isso não costuma ser um erro de CORS; normalmente o celular não está alcançando o servidor pela rede.
+
+1. Conecte o PC e o celular à mesma rede Wi-Fi.
+2. No PC, abra o Prompt de Comando e execute `ipconfig`.
+3. No adaptador de rede em uso (por exemplo, Wi-Fi), localize o **Endereço IPv4**.
+4. No navegador do PC, abra o painel usando esse IP e a porta do servidor. Por exemplo: `http://192.168.1.25:3000/adm`.
+5. Gere o QR Code enquanto acessa o painel por esse endereço. O QR Code usa o host do painel; se ele for gerado acessando `localhost`, o celular tentará acessar o próprio celular.
+6. Leia o QR Code pelo celular. Se a página não abrir, verifique se o Firewall do Windows permite conexões para Node.js ou para a porta `3000` e se a rede Wi-Fi não isola os dispositivos entre si.
+
+Substitua `192.168.1.25` pelo IPv4 exibido no seu PC. O endereço IPv4 pode mudar quando o PC se reconectar à rede.

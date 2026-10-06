@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Login - Checkin QRCode</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            background: #f5f5f5;
+        }
+
+        .card {
+            width: 100%;
+            max-width: 400px;
+            padding: 24px;
+            border-radius: 12px;
+            background: #fff;
+            box-shadow: 0 6px 22px rgba(0, 0, 0, 0.08);
+        }
+
+        .card h1 {
+            margin: 0 0 16px;
+            font-size: 1.4rem;
+        }
+
+        .card label {
+            display: block;
+            margin: 12px 0 4px;
+            font-weight: 600;
+        }
+
+        .card input {
+            width: 100%;
+            padding: 10px 12px;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+            font-size: 1rem;
+        }
+
+        .card button {
+            width: 100%;
+            margin-top: 18px;
+            padding: 11px 12px;
+            background: #007bff;
+            border: none;
+            color: #fff;
+            font-weight: 700;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        .card .message {
+            margin: 14px 0 0;
+            padding: 10px 12px;
+            border-radius: 8px;
+        }
+
+        .card .message.error {
+            background: #ffe3e3;
+            color: #6f1d1d;
+            border: 1px solid #f5c6cb;
+        }
+
+        .card .message.info {
+            background: #e9efff;
+            color: #0f2e7e;
+            border: 1px solid #b6c8ff;
+        }
+
+        .card small {
+            display: block;
+            margin-top: 16px;
+            color: #666;
+            text-align: center;
+        }
+
+        .card a {
+            color: #007bff;
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>Login</h1>
+        <div id="message" class="message info" style="display:none;"></div>
+
+        <form method="POST" action="/login">
+            <label for="user">Usuário</label>
+            <input id="user" name="user" autocomplete="username" required />
+
+            <label for="pass">Senha</label>
+            <input id="pass" name="pass" type="password" autocomplete="current-password" required />
+
+            <button type="submit">Entrar</button>
+        </form>
+
+        <small>Entre com as credenciais de administrador para acessar o painel.</small>
+    </div>
+
+    <script>
+        const params = new URLSearchParams(window.location.search);
+        const messageEl = document.getElementById('message');
+
+        if (params.has('error')) {
+            messageEl.textContent = 'Usuário ou senha incorretos.';
+            messageEl.classList.remove('info');
+            messageEl.classList.add('error');
+            messageEl.style.display = 'block';
+        } else if (params.has('loggedout')) {
+            messageEl.textContent = 'Sessão encerrada com sucesso.';
+            messageEl.classList.remove('error');
+            messageEl.classList.add('info');
+            messageEl.style.display = 'block';
+        }
+    </script>
+</body>
+</html>

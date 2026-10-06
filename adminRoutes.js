@@ -1,14 +1,17 @@
-// comentário teste(remover)
 import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { generateQRCodeFile, generateQRCodeBuffer } from './scripts/qrCodeService.js';
+import { requireAuth } from './middleware/auth.js';
 
 // Helper para obter o __dirname em módulos ES
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const router = express.Router();
+
+// Protege todas as rotas desta rota de administração
+router.use(requireAuth);
 
 /**
  * Rota para gerar um QR Code para a URL de check-in.

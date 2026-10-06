@@ -14,6 +14,19 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnGerarQRCode = document.getElementById('btnGerarQRCode');
     const btnAddSala = document.getElementById('btnAddSala');
 
+    // Estilização dos botões de Adicionar (Verde - Igual ao Relatório)
+    [btnAddPresenca, btnAddSala].forEach(btn => {
+        if (btn) {
+            btn.style.backgroundColor = '#28a745'; // Verde sucesso
+            btn.style.color = '#ffffff';
+            btn.style.border = 'none';
+            btn.style.padding = '8px 16px';
+            btn.style.borderRadius = '4px';
+            btn.style.cursor = 'pointer';
+            btn.style.fontWeight = 'bold';
+        }
+    });
+
     // --- FUNÇÕES AUXILIARES ---
 
     /**
@@ -76,12 +89,44 @@ document.addEventListener('DOMContentLoaded', () => {
                 salaSelect.appendChild(opt2);
 
                 const li = document.createElement('li');
-                li.textContent = sala;
+                li.style.display = 'flex';
+                li.style.justifyContent = 'space-between';
+                li.style.alignItems = 'center';
+                li.style.padding = '8px 0';
+                li.style.borderBottom = '1px solid #eee';
+
+                const spanNome = document.createElement('span');
+                spanNome.textContent = sala;
+                spanNome.style.fontWeight = '500';
+                li.appendChild(spanNome);
+
+                const divBotoes = document.createElement('div');
+
+                const btnZerar = document.createElement('button');
+                btnZerar.textContent = 'Zerar';
+                btnZerar.style.backgroundColor = '#ffc107'; // Cor amarela para diferenciar
+                btnZerar.style.color = '#000'; // Texto preto para leitura
+                btnZerar.style.border = 'none';
+                btnZerar.style.padding = '6px 12px';
+                btnZerar.style.borderRadius = '4px';
+                btnZerar.style.cursor = 'pointer';
+                btnZerar.style.fontWeight = 'bold';
+                btnZerar.addEventListener('click', () => zerarHistoricoSala(sala));
+                divBotoes.appendChild(btnZerar);
+
                 const btnExcluir = document.createElement('button');
                 btnExcluir.textContent = 'Excluir';
-                btnExcluir.style.marginLeft = '10px';
+                btnExcluir.style.marginLeft = '10px'; // Espaço entre os botões
+                btnExcluir.style.backgroundColor = '#dc3545'; // Vermelho para ação destrutiva
+                btnExcluir.style.color = '#fff'; // Texto branco para contraste
+                btnExcluir.style.border = 'none';
+                btnExcluir.style.padding = '6px 12px';
+                btnExcluir.style.borderRadius = '4px';
+                btnExcluir.style.cursor = 'pointer';
                 btnExcluir.addEventListener('click', () => removerSala(sala));
-                li.appendChild(btnExcluir);
+                divBotoes.appendChild(btnExcluir);
+
+                li.appendChild(divBotoes);
                 listaSalasEl.appendChild(li);
             });
 
@@ -106,6 +151,18 @@ document.addEventListener('DOMContentLoaded', () => {
             input.value = '';
             updateStatus('Sala adicionada com sucesso.', 'success');
             carregarSalas();
+        });
+    }
+
+    async function zerarHistoricoSala(sala) {
+        if (!confirm(`Tem certeza que deseja zerar a contagem da sala "${sala}"?`)) return;
+
+        await apiRequest(`/clean?sala=${encodeURIComponent(sala)}`, { method: 'DELETE' }, (data) => {
+            updateStatus(`Contagem da sala "${sala}" zerada com sucesso.`, 'success');
+            // Atualiza a contagem atual caso a sala zerada esteja selecionada no filtro
+            if (salaFiltro.value === sala || salaFiltro.value === '') {
+                fetchQuantidade();
+            }
         });
     }
 

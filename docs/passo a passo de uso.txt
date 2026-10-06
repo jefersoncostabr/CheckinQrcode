@@ -1,0 +1,10 @@
+Ligue o servidor
+gerencie no painel: http://localhost:3000/adm
+
+Verifique se está zerado as salas ou crie novas
+
+Gerencie as salas
+
+Crie um novo QR Code
+
+exiba o QR Code na entrada da sala

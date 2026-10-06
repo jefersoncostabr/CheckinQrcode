@@ -1,4 +1,3 @@
-// comentário teste(remover)
 import 'dotenv/config' // Carrega variáveis do arquivo .env
 import app from './app.js'
 import mongoose from 'mongoose'
@@ -15,4 +14,5 @@ try {
 
 app.listen(PORT, () => {
     console.log(`Servidor rodando em http://localhost:${PORT}`)
+    console.log(`Gerenciendo as salas em http://localhost:${PORT}/adm`)
 })

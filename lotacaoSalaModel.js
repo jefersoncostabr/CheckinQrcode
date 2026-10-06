@@ -1,4 +1,3 @@
-// comentário teste(remover)
 import mongoose from 'mongoose'
 
 const lotacaoSalaSchema = new mongoose.Schema({
