@@ -6,8 +6,10 @@
 
 No banco configurado em `MONGO_URI` (atualmente `DancaHub`), o sistema guarda as salas e os check-ins na mesma coleção, chamada `lotacaoSala`. Essa coleção contém um documento de configuração com os campos:
 
-- `salas`: array com os nomes das salas cadastradas.
-- `historico`: array com os check-ins. Cada registro contém nome, IP, data e sala.
+- `salas`: array de salas com ID permanente, apelido e estado aberto/fechado. Salas antigas em texto são migradas automaticamente na primeira leitura.
+- `qrcodes`: IDs e estados dos QR Codes (`disponivel`, `em_uso` ou `inativo`). IDs excluídos ou inativados não são reutilizados.
+- `proximoQrId`: próximo identificador a atribuir.
+- `historico`: registros com nome, IP, data, apelido da sala e ID da sala. Registros antigos recebem o ID correspondente quando a sala ainda está cadastrada.
 
 No Data Explorer, selecione `DancaHub` e depois a coleção `lotacaoSala`. Ao abrir o documento, você verá `salas` e `historico` como campos dele; eles não são coleções separadas. Excluir uma sala pelo sistema também remove do array `historico` os check-ins associados a ela.
 
@@ -15,8 +17,10 @@ No Data Explorer, selecione `DancaHub` e depois a coleção `lotacaoSala`. Ao ab
 DancaHub
 └── lotacaoSala (coleção)
 	└── documento de configuração
-		├── salas: [...]
-		└── historico: [{ nome, ip, data, sala }, ...]
+		├── salas: [{ id, nome, aberta }, ...]
+		├── qrcodes: [{ id, salaId, estado }, ...]
+		├── proximoQrId: número
+		└── historico: [{ nome, ip, data, sala, salaId }, ...]
 ```
 
 ## 1. Rotas da API
@@ -48,13 +52,14 @@ DancaHub
 ### E. Exibir página de confirmação de Check-in
 - **Rota:** `/add`
 - **Método:** `GET`
-- **Descrição:** Rota acessada pelo QR Code. Exibe uma página HTML com um botão para que o usuário confirme o check-in. Isso evita registros automáticos por robôs ou previews de links.
+- **Descrição:** Rota acessada pelo QR Code. QR Codes novos usam `/add?id=ID`; links antigos `/add?sala=APELIDO` continuam compatíveis. A página verifica se a sala existe e está aberta antes de liberar o check-in.
 - **Retorno:** Uma página HTML.
 
 ### F. Realizar o Check-in (Adicionar uma pessoa)
 - **Rota:** `/add`
 - **Método:** `POST`
 - **Descrição:** Rota chamada pela página de confirmação para efetivamente registrar uma presença. Requer o envio do campo `nome` no corpo da requisição. O sistema valida se o nome já existe na lista (evitando duplicatas) e salva o IP.
+- **Corpo novo:** `{ "nome": "Nome", "salaId": 1 }`. URLs antigas continuam aceitando `{ "nome": "Nome", "sala": "Apelido antigo" }`.
 - **Retorno:** JSON com mensagem e a nova quantidade. Ex: `{ "sucesso": true, "mensagem": "Check-in realizado!", "novaQuantidade": 11 }`.
 
 ### G. Exibir Relatório de Presença
@@ -83,7 +88,16 @@ DancaHub
 - **Rota:** `/adm/gerar-qrcode`
 - **Método:** `GET`
 - **Descrição:** Gera um QR Code em memória e o retorna como um Data URI, pronto para ser exibido na tela ou baixado. A URL de check-in é construída dinamicamente. **Esta rota é chamada pelo painel de administração.**
-- **Retorno:** JSON com mensagem de sucesso, a URL de check-in e o Data URI da imagem do QR Code. Ex: `{ "sucesso": true, "mensagem": "QR Code gerado com sucesso!", "url": "http://host/add?sala=...", "qrCodeDataUri": "data:image/png;base64,..." }`.
+- **Retorno:** JSON com mensagem de sucesso, URL estável `/add?id=ID` e Data URI da imagem do QR Code.
+
+### C. Gestão de QR Codes e salas
+
+- O limite é de 10 QR Codes ativos entre disponíveis e associados a salas.
+- `/api/qrcodes` lista QR Codes e informa a quantidade ativa; `POST /api/qrcodes` cria um QR disponível; `DELETE /api/qrcodes/:id` exclui somente QR disponível.
+- `POST /api/salas` exige a seleção de `qrId` quando há QRs disponíveis; sem QR livre, cria e associa um automaticamente respeitando o limite.
+- `PATCH /api/salas/:id` recebe `{ "aberta": false }` para fechar e bloquear check-ins via QR, sem bloquear lançamentos manuais autenticados.
+- QRs sem sala válida exibem “Sala não cadastrada. Fale com a administração.”
+- O relatório possui filtro por sala e o botão “Ver salas cadastradas”, com IDs e apelidos.
 
 ## 3. Como Gerar o QR Code
 
@@ -92,8 +106,8 @@ A geração do QR Code pode ser feita de duas maneiras:
 ### A. Pelo Painel de Administração (Recomendado)
 
 1. Acesse o painel de administração em `http://localhost:3000/adm`.
-2. Clique no botão "Gerar Novo QR Code".
-3. O sistema exibirá o QR Code na tela, junto com um botão para fazer o download da imagem.
+2. Crie ou selecione um QR disponível ao cadastrar a sala.
+3. Selecione a sala e clique em "Ver QR Code" para exibir o QR associado ao ID estável.
 
 ### B. Manualmente (via Rota de API)
 
@@ -111,8 +125,10 @@ Se o sistema funciona no PC, mas o celular exibe "conexão recusada", o endereç
 2. No PC, abra o Prompt de Comando e execute `ipconfig`.
 3. No adaptador de rede em uso (por exemplo, Wi-Fi), localize o **Endereço IPv4**.
 4. No navegador do PC, abra o painel usando esse IP e a porta do servidor. Por exemplo: `http://192.168.1.25:3000/adm`.
-5. Gere o QR Code enquanto acessa o painel por esse endereço. O QR Code usa o host do painel; se ele for gerado acessando `localhost`, o celular tentará acessar o próprio celular.
+5. Ao gerar o QR usando o painel aberto em `localhost`, o servidor substitui automaticamente o loopback pelo IPv4 privado detectado. Se houver várias placas de rede ou quiser fixar o endereço, configure `PUBLIC_BASE_URL`, por exemplo `http://192.168.1.25:3000`.
 6. Leia o QR Code pelo celular. Se a página não abrir, verifique se o Firewall do Windows permite conexões para Node.js ou para a porta `3000` e se a rede Wi-Fi não isola os dispositivos entre si.
+
+QR Codes já impressos com `localhost` continuam apontando para o próprio celular e precisam ser gerados e impressos novamente com o endereço de rede acessível.
 
 Substitua `192.168.1.25` pelo IPv4 exibido no seu PC. O endereço IPv4 pode mudar quando o PC se reconectar à rede.
 
@@ -120,7 +136,7 @@ Substitua `192.168.1.25` pelo IPv4 exibido no seu PC. O endereço IPv4 pode muda
 
 ### Configuração do ambiente
 
-- No Render, configure `ADMIN_USER`, `ADMIN_PASS`, `MONGO_URI`, `SESSION_SECRET` e `NODE_ENV=production` nas variáveis de ambiente. Use valores reais e fortes; não inclua os segredos neste documento.
+- No Render, configure `ADMIN_USER`, `ADMIN_PASS`, `MONGO_URI`, `SESSION_SECRET` e `NODE_ENV=production` nas variáveis de ambiente. Opcionalmente, defina `PUBLIC_BASE_URL` para o domínio público canônico. Use valores reais e fortes; não inclua os segredos neste documento.
 - Gere um `SESSION_SECRET` aleatório, exclusivo e longo. Ele assina o cookie da sessão; não substitui a senha administrativa (`ADMIN_PASS`). Trocar esse segredo invalida as sessões existentes.
 - Mantenha o arquivo `.env` apenas no ambiente local e fora do Git. Se uma senha ou URI de banco for exposta, troque a credencial no serviço correspondente e atualize as variáveis locais e do Render.
 

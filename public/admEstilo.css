@@ -83,11 +83,13 @@ button:hover,
 }
 
 #btnAtualizarQtd,
-#btnGerarQRCode {
+#btnGerarQRCode,
+#btnCriarQr {
     background-color: #3498db;
 }
 #btnAtualizarQtd:hover,
-#btnGerarQRCode:hover {
+#btnGerarQRCode:hover,
+#btnCriarQr:hover {
     background-color: #2980b9;
 }
 
@@ -96,6 +98,46 @@ button:hover,
 }
 .btn-danger:hover {
     background-color: #c0392b;
+}
+
+.btn-success {
+    background-color: #218838;
+}
+
+.btn-success:hover {
+    background-color: #176b2b;
+}
+
+.btn-warning {
+    background-color: #ffc107;
+    color: #111;
+}
+
+.btn-warning:hover {
+    background-color: #e0a800;
+}
+
+.action-button {
+    min-height: 40px;
+    padding: 9px 14px;
+    border: 2px solid rgba(0, 0, 0, 0.12);
+    font-weight: 700;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.18);
+}
+
+.room-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.room-actions .action-button {
+    min-width: 118px;
+}
+
+.action-button:focus-visible {
+    outline: 3px solid #111;
+    outline-offset: 2px;
 }
 
 .btn-secondary {

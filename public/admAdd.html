@@ -59,8 +59,8 @@
                 salaSelect.innerHTML = '';
                 salas.forEach(sala => {
                     const opt = document.createElement('option');
-                    opt.value = sala;
-                    opt.textContent = sala;
+                    opt.value = sala.id;
+                    opt.textContent = `${sala.id} - ${sala.nome}${sala.aberta ? '' : ' (fechada)'}`;
                     salaSelect.appendChild(opt);
                 });
 
@@ -91,10 +91,10 @@
             }
 
             try {
-                const res = await fetch('/add', { 
+                const res = await fetch('/adm/adicionar-manual', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ nome: nome, sala })
+                    body: JSON.stringify({ nome, salaId: Number(sala) })
                 });
                 const data = await res.json();
 

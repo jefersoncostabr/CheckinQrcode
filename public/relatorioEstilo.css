@@ -65,3 +65,25 @@ li:nth-child(even) {
     color: #888;
     font-style: italic;
 }
+
+#salasDialog {
+    width: min(420px, calc(100% - 48px));
+    max-height: 70vh;
+    border: 1px solid #bdc3c7;
+    border-radius: 6px;
+    padding: 20px;
+}
+
+#salasDialog::backdrop {
+    background: rgba(0, 0, 0, 0.45);
+}
+
+#salasDialog button,
+#btnSalasCadastradas {
+    padding: 8px 12px;
+    border: 0;
+    border-radius: 4px;
+    background: #287a58;
+    color: white;
+    cursor: pointer;
+}

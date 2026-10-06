@@ -1,16 +1,24 @@
 import mongoose from 'mongoose'
 
 const lotacaoSalaSchema = new mongoose.Schema({
-    // Lista de salas configuradas para o evento
     salas: {
-        type: [String],
+        type: [mongoose.Schema.Types.Mixed],
         default: [],
+    },
+    qrcodes: {
+        type: [mongoose.Schema.Types.Mixed],
+        default: [],
+    },
+    proximoQrId: {
+        type: Number,
+        default: 1,
     },
     historico: [{
         nome: { type: String, required: true },
         ip: { type: String, required: true },
         data: { type: Date, default: Date.now },
-        sala: { type: String }
+        sala: { type: String },
+        salaId: { type: Number },
     }]
 })
 

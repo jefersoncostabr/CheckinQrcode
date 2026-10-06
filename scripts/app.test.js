@@ -33,6 +33,20 @@ describe('Testes das Rotas de Check-in', () => {
         expect(res.statusCode).toEqual(302); // Redirecionamento para /login
     });
 
+    it('Deve carregar a lista de QR Codes para a administração', async () => {
+        const agent = request.agent(app);
+        const login = await agent.post('/login').type('form').send({
+            user: process.env.ADMIN_USER,
+            pass: process.env.ADMIN_PASS,
+        });
+        expect(login.statusCode).toEqual(302);
+
+        const res = await agent.get('/api/qrcodes');
+        expect(res.statusCode).toEqual(200);
+        expect(res.body).toHaveProperty('limite', 10);
+        expect(res.body).toHaveProperty('qrcodes');
+    });
+
     it('Deve falhar ao tentar fazer check-in sem nome (POST /add)', async () => {
         const res = await request(app)
             .post('/add')

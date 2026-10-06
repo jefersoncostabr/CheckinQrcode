@@ -31,9 +31,21 @@
         </div>
 
         <div class="card">
+            <h2>QR codes disponíveis</h2>
+            <p id="qrLimite">0 de 10 QR codes</p>
+            <div class="actions">
+                <button id="btnCriarQr" class="btn-primary">Criar QR Code</button>
+            </div>
+            <ul id="listaQrs" style="margin-top: 10px; padding-left: 20px;"></ul>
+        </div>
+
+        <div class="card">
             <h2>Salas do Evento</h2>
             <div class="actions">
                 <input type="text" id="salaInput" placeholder="Nome da sala" style="flex: 1; min-width: 180px;" />
+                <select id="salaQrSelect" aria-label="QR Code para associar à sala" style="min-width: 220px;">
+                    <option value="auto">Criar/usar QR automaticamente</option>
+                </select>
                 <button id="btnAddSala" class="btn-primary">Adicionar Sala</button>
             </div>
             <ul id="listaSalas" style="margin-top: 10px; padding-left: 20px;"></ul>
@@ -43,14 +55,14 @@
             <h2>Gestão do Sistema</h2>
             <div class="info-display">
                 <p>
-                    <strong>Gerar QR Code para sala:</strong>
+                    <strong>QR Code da sala:</strong>
                     <select id="salaSelect" style="min-width: 220px;">
                         <option value="">Selecione uma sala</option>
                     </select>
                 </p>
             </div>
             <div class="actions">
-                <button id="btnGerarQRCode">Gerar Novo QR Code</button>
+                <button id="btnGerarQRCode">Ver QR Code</button>
                 <a href="/relatorio" class="btn-secondary" target="_blank">Ver Relatório de Presença</a>
                 <a href="/resetls" class="btn-secondary" target="_blank">Resetar Memória de Check-in (para um dispositivo)</a>
             </div>

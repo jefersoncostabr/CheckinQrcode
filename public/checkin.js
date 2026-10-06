@@ -9,24 +9,47 @@ const getTodayString = () => {
     return `${year}-${month}-${day}`;
 }
 
-// Extrai a sala da query string, ex: /add?sala=Sala%201
-const salaAtual = new URLSearchParams(window.location.search).get('sala') || '';
+// QRs novos usam id; o apelido fica aceito para QRs antigos.
+const parametros = new URLSearchParams(window.location.search);
+const salaIdAtual = parametros.get('id');
+const salaLegada = parametros.get('sala');
+const salaAtual = salaIdAtual || salaLegada || '';
 
-// Atualiza o título na tela para indicar a sala
 const tituloEl = document.querySelector('h1');
-if (tituloEl) {
-    tituloEl.textContent = salaAtual ? `Check-in - ${salaAtual}` : 'Check-in de Presença';
+const salaStatus = document.getElementById('salaStatus');
+const nomeInput = document.getElementById('nomeInput');
+const btn = document.getElementById('btn');
+
+async function validarSala() {
+    if (!salaAtual) {
+        salaStatus.textContent = 'Sala não cadastrada. Fale com a administração.';
+        return;
+    }
+    try {
+        const parametro = salaIdAtual ? 'id' : 'sala';
+        const response = await fetch(`/api/checkin/sala?${parametro}=${encodeURIComponent(salaAtual)}`);
+        const data = await response.json();
+        if (!response.ok) {
+            salaStatus.textContent = data.mensagem || 'Sala não cadastrada. Fale com a administração.';
+            return;
+        }
+        tituloEl.textContent = `Check-in - ${data.sala.nome}`;
+        salaStatus.textContent = 'Confirme sua presença.';
+        nomeInput.disabled = false;
+        btn.disabled = false;
+    } catch {
+        salaStatus.textContent = 'Não foi possível verificar a sala. Tente novamente.';
+    }
 }
 
 async function confirmar() {
-    const storageKey = `checkin_realizado_${getTodayString()}`;
+    const storageKey = `checkin_realizado_${salaAtual}_${getTodayString()}`;
     // Verifica se este dispositivo já salvou um check-in na data de hoje
     if (localStorage.getItem(storageKey)) {
         alert("Você já confirmou presença neste dispositivo hoje!");
         return;
     }
 
-    const nomeInput = document.getElementById('nomeInput');
     const nome = nomeInput.value.trim();
 
     if (!nome) {
@@ -35,18 +58,17 @@ async function confirmar() {
     }
 
     if (!salaAtual) {
-        alert('Sala não especificada. Use o QR Code ou abra a página com ?sala=NomeDaSala.');
+        alert('Sala não especificada. Fale com a administração.');
         return;
     }
 
-    const btn = document.getElementById('btn');
     btn.disabled = true; btn.innerText = 'Registrando...';
     
     try {
         const res = await fetch('/add', { 
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ nome: nome, sala: salaAtual })
+            body: JSON.stringify(salaIdAtual ? { nome, salaId: Number(salaIdAtual) } : { nome, sala: salaLegada })
         });
         const data = await res.json();
         if(data.sucesso) { 
@@ -62,3 +84,5 @@ async function confirmar() {
         btn.disabled = false; btn.innerText = 'Tentar Novamente'; 
     }
 }
+
+validarSala();

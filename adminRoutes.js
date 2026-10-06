@@ -1,8 +1,9 @@
 import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { generateQRCodeFile, generateQRCodeBuffer } from './scripts/qrCodeService.js';
+import { generateQRCodeBuffer, getQrBaseUrl } from './scripts/qrCodeService.js';
 import { requireAuth } from './middleware/auth.js';
+import { encontrarSala, getConfigDoc } from './salasService.js';
 
 // Helper para obter o __dirname em módulos ES
 const __filename = fileURLToPath(import.meta.url);
@@ -19,16 +20,25 @@ router.use(requireAuth);
  * Se passar ?download=true, retorna o PNG diretamente.
  */
 router.get('/gerar-qrcode', async (req, res) => {
-    const baseUrl = `${req.protocol}://${req.get('host')}`;
-    const sala = req.query.sala;
+    const salaId = req.query.sala;
 
-    if (!sala) {
+    if (!salaId) {
         return res.status(400).json({ sucesso: false, mensagem: 'Parâmetro sala é obrigatório.' });
     }
 
-    const checkinUrl = `${baseUrl}/add?sala=${encodeURIComponent(sala)}`;
-
     try {
+        const baseUrl = getQrBaseUrl(req);
+        if (!baseUrl) {
+            return res.status(503).json({
+                sucesso: false,
+                mensagem: 'Não foi possível identificar o endereço da rede. Acesse o painel pelo IPv4 do computador ou configure PUBLIC_BASE_URL.',
+            });
+        }
+        const doc = await getConfigDoc();
+        const sala = encontrarSala(doc, salaId);
+        if (!sala) return res.status(404).json({ sucesso: false, mensagem: 'Sala não cadastrada.' });
+        const checkinUrl = `${baseUrl}/add?id=${encodeURIComponent(sala.id)}`;
+
         const qrCodeBuffer = await generateQRCodeBuffer(checkinUrl);
 
         if (req.query.download === 'true') {
@@ -44,6 +54,8 @@ router.get('/gerar-qrcode', async (req, res) => {
             mensagem: 'QR Code gerado com sucesso!',
             url: checkinUrl,
             qrCodeDataUri: qrCodeDataUri,
+            sala: sala.nome,
+            salaId: sala.id,
         });
     } catch (error) {
         console.error('Erro ao gerar QR Code via API:', error);

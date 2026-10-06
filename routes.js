@@ -3,6 +3,17 @@ import lotacaoSala from './lotacaoSalaModel.js'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import { requireAuth } from './middleware/auth.js'
+import {
+    criarQrDisponivel,
+    encontrarQr,
+    encontrarSala,
+    encontrarSalaPorId,
+    encontrarSalaPorNome,
+    getConfigDoc,
+    LIMITE_QRCODES,
+    normalizarTexto,
+    serializarSala,
+} from './salasService.js'
 
 // Helper para obter o __dirname em módulos ES
 const __filename = fileURLToPath(import.meta.url)
@@ -10,21 +21,57 @@ const __dirname = path.dirname(__filename)
 
 const router = express.Router()
 
-// Normaliza texto para comparação (remove acentos e espaços extras)
-const normalizarTexto = (texto = '') =>
-    texto
-        .toString()
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .toLowerCase()
-        .trim()
+function pertenceSala(registro, sala) {
+    return Number(registro.salaId) === Number(sala.id) ||
+        (!registro.salaId && normalizarTexto(registro.sala) === normalizarTexto(sala.nome))
+}
 
-// Busca o documento de configuração principal (usa um documento único)
-async function getConfigDoc() {
-    const doc = await lotacaoSala.findOne();
-    if (doc) return doc;
-    // Cria documento vazio se não existir
-    return await lotacaoSala.create({ salas: [], historico: [] });
+async function registrarPresenca(req, res, manual = false) {
+    const nome = String(req.body.nome || '').trim()
+    const salaId = req.body.salaId
+    const nomeSalaLegada = req.body.sala
+    if (!nome) return res.status(400).json({ sucesso: false, mensagem: 'Nome é obrigatório.' })
+    if (salaId == null && !nomeSalaLegada) {
+        return res.status(400).json({ sucesso: false, mensagem: 'Sala é obrigatória.' })
+    }
+
+    try {
+        const doc = await getConfigDoc()
+        const sala = salaId != null
+            ? encontrarSalaPorId(doc, salaId)
+            : encontrarSalaPorNome(doc, nomeSalaLegada)
+        if (!sala) {
+            return res.status(404).json({ sucesso: false, mensagem: 'Sala não cadastrada. Fale com a administração.' })
+        }
+        if (!manual && sala.aberta === false) {
+            return res.status(403).json({ sucesso: false, mensagem: 'Esta sala está fechada para check-in pelo QR Code.' })
+        }
+
+        const nomeLimpo = normalizarTexto(nome)
+        const duplicado = (doc.historico || []).some(item =>
+            pertenceSala(item, sala) && item.nome && normalizarTexto(item.nome) === nomeLimpo
+        )
+        if (duplicado) {
+            return res.status(403).json({ sucesso: false, mensagem: 'Este nome já está na lista de presença para esta sala!' })
+        }
+
+        let ip = req.headers['x-forwarded-for']
+            ? req.headers['x-forwarded-for'].split(',')[0].trim()
+            : req.socket.remoteAddress
+        if (ip === '::1') ip = '127.0.0.1'
+        if (ip && ip.startsWith('::ffff:')) ip = ip.replace('::ffff:', '')
+
+        const resultado = await lotacaoSala.findOneAndUpdate(
+            {},
+            { $push: { historico: { nome, ip, data: new Date(), sala: sala.nome, salaId: sala.id } } },
+            { new: true, upsert: true }
+        )
+        const quantidadeSala = resultado.historico.filter(item => pertenceSala(item, sala)).length
+        return res.json({ sucesso: true, mensagem: 'Check-in realizado!', novaQuantidade: quantidadeSala })
+    } catch (error) {
+        console.error('Erro ao adicionar presença:', error)
+        return res.status(500).json({ sucesso: false, mensagem: 'Erro ao processar o check-in.' })
+    }
 }
 
 router.get('/', (req, res) => {
@@ -63,11 +110,11 @@ router.get('/logout', (req, res) => {
 
 router.get('/qtd', async (req, res) => {
     try {
-        const sala = req.query.sala
+        const referencia = req.query.sala
         const resultado = await getConfigDoc()
         const historico = resultado.historico || []
 
-        if (!sala) {
+        if (!referencia) {
             const total = historico.length
             const salas = {}
             historico.forEach(item => {
@@ -77,8 +124,10 @@ router.get('/qtd', async (req, res) => {
             return res.json({ sucesso: true, quantidade: total, total, salas })
         }
 
-        const quantidade = historico.filter(item => item.sala === sala).length
-        return res.json({ sucesso: true, quantidade, sala })
+        const sala = encontrarSala(resultado, referencia)
+        if (!sala) return res.json({ sucesso: true, quantidade: 0, sala: referencia })
+        const quantidade = historico.filter(item => pertenceSala(item, sala)).length
+        return res.json({ sucesso: true, quantidade, sala: sala.nome, salaId: sala.id })
     } catch (error) {
         console.error('Erro ao buscar quantidade:', error)
         res.status(500).json({ sucesso: false, mensagem: 'Erro ao buscar a contagem.' })
@@ -90,74 +139,38 @@ router.get('/add', async (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'checkin.html'))
 })
 
-// Nova rota POST que realmente salva os dados (chamada pelo botão)
-router.post('/add', async (req, res) => {
-    let ip = req.headers['x-forwarded-for']
-        ? req.headers['x-forwarded-for'].split(',')[0].trim()
-        : req.socket.remoteAddress
-
-    // Normaliza o IP para IPv4 se for localhost ou mapeado
-    if (ip === '::1') ip = '127.0.0.1'
-    if (ip && ip.startsWith('::ffff:')) ip = ip.replace('::ffff:', '')
-
-    const { nome, sala } = req.body
-
-    if (!nome) {
-        return res.status(400).json({ sucesso: false, mensagem: 'Nome é obrigatório.' })
-    }
-
-    if (!sala) {
-        return res.status(400).json({ sucesso: false, mensagem: 'Sala é obrigatória.' })
-    }
-
+router.get('/api/checkin/sala', async (req, res) => {
     try {
-        const docAtual = await getConfigDoc()
-
-        // Valida se a sala existe na configuração
-        const salaValida = docAtual.salas?.some(s => normalizarTexto(s) === normalizarTexto(sala))
-        if (!salaValida) {
-            return res.status(400).json({ sucesso: false, mensagem: 'Sala inválida ou não cadastrada.' })
-        }
-
-        const nomeLimpo = normalizarTexto(nome)
-
-        const nomeJaExiste = docAtual.historico?.some(item => {
-            return item && item.sala === sala && item.nome && normalizarTexto(item.nome) === nomeLimpo
-        })
-
-        if (nomeJaExiste) {
-            return res.status(403).json({ sucesso: false, mensagem: 'Este nome já está na lista de presença para esta sala!' })
-        }
-
-        const resultado = await lotacaoSala.findOneAndUpdate(
-            {},
-            { $push: { historico: { nome, ip, data: new Date(), sala } } },
-            { new: true, upsert: true }
-        )
-
-        const quantidadeSala = resultado.historico.filter(item => item.sala === sala).length
-
-        res.json({ sucesso: true, mensagem: 'Check-in realizado!', novaQuantidade: quantidadeSala })
+        const doc = await getConfigDoc()
+        const sala = req.query.id != null
+            ? encontrarSalaPorId(doc, req.query.id)
+            : encontrarSalaPorNome(doc, req.query.sala)
+        if (!sala) return res.status(404).json({ sucesso: false, mensagem: 'Sala não cadastrada. Fale com a administração.' })
+        if (sala.aberta === false) return res.status(403).json({ sucesso: false, mensagem: 'Esta sala está fechada para check-in pelo QR Code.' })
+        return res.json({ sucesso: true, sala: serializarSala(sala) })
     } catch (error) {
-        console.error('Erro ao adicionar presença:', error)
-        res.status(500).json({ sucesso: false, mensagem: 'Erro ao processar o check-in.' })
+        console.error('Erro ao validar sala do QR Code:', error)
+        return res.status(500).json({ sucesso: false, mensagem: 'Erro ao consultar a sala.' })
     }
 })
 
+router.post('/add', (req, res) => registrarPresenca(req, res))
+
 router.delete('/reduce', requireAuth, async (req, res) => {
-    const sala = req.query.sala
-    if (!sala) {
+    const referencia = req.query.sala
+    if (!referencia) {
         return res.status(400).json({ sucesso: false, mensagem: 'Parâmetro sala é obrigatório para reduzir registros.' })
     }
 
     try {
         const doc = await getConfigDoc()
+        const sala = encontrarSala(doc, referencia)
+        if (!sala) return res.status(404).json({ sucesso: false, mensagem: 'Sala não encontrada.' })
         const historico = doc.historico || []
 
-        // Encontra o último registro para aquela sala
         const lastIndex = [...historico]
             .reverse()
-            .findIndex(item => item?.sala === sala)
+            .findIndex(item => pertenceSala(item, sala))
 
         if (lastIndex === -1) {
             return res.status(404).json({ sucesso: false, mensagem: 'Nenhum registro encontrado para esta sala.' })
@@ -169,7 +182,7 @@ router.delete('/reduce', requireAuth, async (req, res) => {
 
         await doc.save()
 
-        const quantidadeSala = historico.filter(item => item.sala === sala).length
+        const quantidadeSala = historico.filter(item => pertenceSala(item, sala)).length
         res.json({ sucesso: true, mensagem: 'Check-out do último registro realizado com sucesso!', novaQuantidade: quantidadeSala })
     } catch (error) {
         console.error('Erro ao reduzir presença:', error)
@@ -178,10 +191,10 @@ router.delete('/reduce', requireAuth, async (req, res) => {
 })
 
 router.delete('/clean', requireAuth, async (req, res) => {
-    const sala = req.query.sala
+    const referencia = req.query.sala
     const limparTudo = req.query.all === 'true' || req.query.tudo === 'true'
 
-    if (!sala && !limparTudo) {
+    if (!referencia && !limparTudo) {
         return res.status(400).json({ sucesso: false, mensagem: 'Parâmetro sala é obrigatório para limpar registros (use all=true para limpar tudo).' })
     }
 
@@ -191,13 +204,14 @@ router.delete('/clean', requireAuth, async (req, res) => {
             return res.json({ sucesso: true, mensagem: 'Histórico limpo!', novaQuantidade: 0 })
         }
 
-        const resultado = await lotacaoSala.findOneAndUpdate(
-            {},
-            { $pull: { historico: { sala } } },
-            { new: true, upsert: true }
-        )
-        const novaQuantidade = resultado?.historico?.filter(item => item.sala === sala).length || 0
-        res.json({ sucesso: true, mensagem: `Histórico da sala "${sala}" limpo!`, novaQuantidade })
+        const doc = await getConfigDoc()
+        const sala = encontrarSala(doc, referencia)
+        if (!sala) return res.status(404).json({ sucesso: false, mensagem: 'Sala não encontrada.' })
+        const historicoAntes = doc.historico || []
+        doc.historico = historicoAntes.filter(item => !pertenceSala(item, sala))
+        const registrosRemovidos = historicoAntes.length - doc.historico.length
+        await doc.save()
+        res.json({ sucesso: true, mensagem: `Histórico da sala "${sala.nome}" limpo!`, novaQuantidade: 0, registrosRemovidos })
     } catch (error) {
         console.error('Erro ao limpar histórico:', error)
         res.status(500).json({ sucesso: false, mensagem: 'Erro ao limpar o histórico.' })
@@ -220,11 +234,20 @@ router.get('/resetls', requireAuth, (req, res) => {
 // Nova rota de API para fornecer os dados do relatório em JSON
 router.get('/api/relatorio', requireAuth, async (req, res) => {
     try {
-        const sala = req.query.sala
+        const referencia = req.query.sala
         const resultado = await getConfigDoc()
         const historico = resultado.historico || []
-        const filtrado = sala ? historico.filter(item => item.sala === sala) : historico
-        res.json(filtrado)
+        const sala = referencia ? encontrarSala(resultado, referencia) : null
+        const filtrado = referencia
+            ? (sala ? historico.filter(item => pertenceSala(item, sala)) : [])
+            : historico
+        res.json(filtrado.map(item => {
+            const registro = item.toObject ? item.toObject() : item
+            const salaRegistro = registro.salaId
+                ? encontrarSalaPorId(resultado, registro.salaId)
+                : encontrarSalaPorNome(resultado, registro.sala)
+            return { ...registro, salaId: registro.salaId || salaRegistro?.id || null }
+        }))
     } catch (error) {
         console.error('Erro ao buscar dados para o relatório:', error)
         res.status(500).json({ sucesso: false, mensagem: 'Erro ao buscar os dados do relatório.' })
@@ -235,7 +258,7 @@ router.get('/api/relatorio', requireAuth, async (req, res) => {
 router.get('/api/salas', requireAuth, async (req, res) => {
     try {
         const doc = await getConfigDoc()
-        res.json({ sucesso: true, salas: doc.salas || [] })
+        res.json({ sucesso: true, salas: (doc.salas || []).map(serializarSala) })
     } catch (error) {
         console.error('Erro ao buscar salas:', error)
         res.status(500).json({ sucesso: false, mensagem: 'Erro ao buscar as salas.' })
@@ -243,7 +266,7 @@ router.get('/api/salas', requireAuth, async (req, res) => {
 })
 
 router.post('/api/salas', requireAuth, async (req, res) => {
-    const { sala } = req.body
+    const { sala, qrId } = req.body
     if (!sala || typeof sala !== 'string' || !sala.trim()) {
         return res.status(400).json({ sucesso: false, mensagem: 'Nome da sala é obrigatório.' })
     }
@@ -251,13 +274,30 @@ router.post('/api/salas', requireAuth, async (req, res) => {
     try {
         const doc = await getConfigDoc()
         const salaLimpa = sala.trim()
-        const jaExiste = doc.salas?.some(s => normalizarTexto(s) === normalizarTexto(salaLimpa))
+        const jaExiste = doc.salas?.some(s => normalizarTexto(s.nome) === normalizarTexto(salaLimpa))
         if (jaExiste) {
             return res.status(409).json({ sucesso: false, mensagem: 'Sala já existe.' })
         }
-        doc.salas.push(salaLimpa)
+        let qr = qrId ? encontrarQr(doc, qrId) : null
+        if (qrId && (!qr || qr.estado !== 'disponivel')) {
+            return res.status(409).json({ sucesso: false, mensagem: 'O QR Code selecionado não está disponível.' })
+        }
+        if (!qr && (doc.qrcodes || []).some(item => item.estado === 'disponivel')) {
+            return res.status(400).json({ sucesso: false, mensagem: 'Selecione um QR Code disponível.' })
+        }
+        if (!qr) {
+            const ativos = (doc.qrcodes || []).filter(item => item.estado !== 'inativo').length
+            if (ativos >= LIMITE_QRCODES) {
+                return res.status(409).json({ sucesso: false, mensagem: 'Limite de 10 QR Codes atingido. Exclua um QR disponível antes de cadastrar outra sala.' })
+            }
+            qr = criarQrDisponivel(doc)
+        }
+        qr.estado = 'em_uso'
+        qr.salaId = qr.id
+        doc.salas.push({ id: qr.id, nome: salaLimpa, aberta: true })
+        doc.markModified('qrcodes')
         await doc.save()
-        res.json({ sucesso: true, salas: doc.salas })
+        res.json({ sucesso: true, salas: doc.salas.map(serializarSala), sala: serializarSala(doc.salas[doc.salas.length - 1]) })
     } catch (error) {
         console.error('Erro ao criar sala:', error)
         res.status(500).json({ sucesso: false, mensagem: 'Erro ao criar a sala.' })
@@ -265,28 +305,105 @@ router.post('/api/salas', requireAuth, async (req, res) => {
 })
 
 router.delete('/api/salas', requireAuth, async (req, res) => {
-    const sala = req.query.sala || req.body?.sala
-    if (!sala) {
+    const referencia = req.query.sala || req.body?.salaId || req.body?.sala
+    if (!referencia) {
         return res.status(400).json({ sucesso: false, mensagem: 'Nome da sala é obrigatório para exclusão.' })
     }
 
     try {
         const doc = await getConfigDoc()
-        const salaLimpa = sala.trim()
-        const novasSalas = (doc.salas || []).filter(s => normalizarTexto(s) !== normalizarTexto(salaLimpa))
+        const sala = encontrarSala(doc, referencia)
+        if (!sala) return res.status(404).json({ sucesso: false, mensagem: 'Sala não encontrada.' })
         const historicoAnterior = doc.historico || []
-        const historicoAtualizado = historicoAnterior.filter(
-            registro => normalizarTexto(registro.sala || '') !== normalizarTexto(salaLimpa)
-        )
+        const historicoAtualizado = historicoAnterior.filter(registro => !pertenceSala(registro, sala))
         const registrosRemovidos = historicoAnterior.length - historicoAtualizado.length
 
-        doc.salas = novasSalas
+        const qr = encontrarQr(doc, sala.id)
+        if (qr) {
+            qr.estado = 'inativo'
+            qr.salaId = null
+            doc.markModified('qrcodes')
+        }
+        doc.salas = doc.salas.filter(item => Number(item.id) !== Number(sala.id))
         doc.historico = historicoAtualizado
         await doc.save()
-        res.json({ sucesso: true, salas: doc.salas, registrosRemovidos })
+        res.json({ sucesso: true, salas: doc.salas.map(serializarSala), registrosRemovidos })
     } catch (error) {
         console.error('Erro ao remover sala:', error)
         res.status(500).json({ sucesso: false, mensagem: 'Erro ao remover a sala.' })
+    }
+})
+
+router.patch('/api/salas/:id', requireAuth, async (req, res) => {
+    if (typeof req.body.aberta !== 'boolean') {
+        return res.status(400).json({ sucesso: false, mensagem: 'Informe se a sala deve ficar aberta.' })
+    }
+    try {
+        const doc = await getConfigDoc()
+        const sala = encontrarSala(doc, req.params.id)
+        if (!sala) return res.status(404).json({ sucesso: false, mensagem: 'Sala não encontrada.' })
+        sala.aberta = req.body.aberta
+        doc.markModified('salas')
+        await doc.save()
+        res.json({ sucesso: true, sala: serializarSala(sala) })
+    } catch (error) {
+        console.error('Erro ao alterar estado da sala:', error)
+        res.status(500).json({ sucesso: false, mensagem: 'Erro ao alterar o estado da sala.' })
+    }
+})
+
+router.get('/api/qrcodes', requireAuth, async (req, res) => {
+    try {
+        const doc = await getConfigDoc()
+        const salasPorId = new Map((doc.salas || []).map(sala => [Number(sala.id), sala]))
+        const qrcodes = (doc.qrcodes || []).map(qr => ({
+            id: qr.id,
+            estado: qr.estado,
+            sala: salasPorId.get(Number(qr.salaId))?.nome || null,
+        }))
+        res.json({
+            sucesso: true,
+            qrcodes,
+            limite: LIMITE_QRCODES,
+            quantidadeAtiva: qrcodes.filter(qr => qr.estado !== 'inativo').length,
+        })
+    } catch (error) {
+        console.error('Erro ao buscar QR Codes:', error)
+        res.status(500).json({ sucesso: false, mensagem: 'Erro ao buscar os QR Codes.' })
+    }
+})
+
+router.post('/api/qrcodes', requireAuth, async (req, res) => {
+    try {
+        const doc = await getConfigDoc()
+        const qr = criarQrDisponivel(doc)
+        if (!qr) return res.status(409).json({ sucesso: false, mensagem: 'Limite de 10 QR Codes atingido.' })
+        await doc.save()
+        res.status(201).json({ sucesso: true, qrcode: { id: qr.id, estado: qr.estado } })
+    } catch (error) {
+        console.error('Erro ao criar QR Code:', error)
+        res.status(500).json({ sucesso: false, mensagem: 'Erro ao criar QR Code.' })
+    }
+})
+
+router.delete('/api/qrcodes/:id', requireAuth, async (req, res) => {
+    try {
+        const doc = await getConfigDoc()
+        const qr = encontrarQr(doc, req.params.id)
+        if (!qr) return res.status(404).json({ sucesso: false, mensagem: 'QR Code não encontrado.' })
+        if (qr.estado === 'em_uso') {
+            return res.status(409).json({ sucesso: false, mensagem: 'QR Code associado a uma sala. Feche ou exclua a sala antes de removê-lo.' })
+        }
+        if (qr.estado !== 'disponivel') {
+            return res.status(409).json({ sucesso: false, mensagem: 'Somente QR Codes disponíveis podem ser excluídos.' })
+        }
+        doc.qrcodes = doc.qrcodes.filter(item => item.id !== qr.id)
+        doc.markModified('qrcodes')
+        await doc.save()
+        res.json({ sucesso: true })
+    } catch (error) {
+        console.error('Erro ao excluir QR Code:', error)
+        res.status(500).json({ sucesso: false, mensagem: 'Erro ao excluir QR Code.' })
     }
 })
 
@@ -300,6 +417,8 @@ router.get('/relatorio', requireAuth, (req, res) => {
 router.use('/adm', requireAuth)
 
 // Rota para o ADM adicionar presença manualmente (interface visual)
+router.post('/adm/adicionar-manual', requireAuth, (req, res) => registrarPresenca(req, res, true))
+
 router.get('/adm/adicionar-manual', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'admAdd.html'))
 })

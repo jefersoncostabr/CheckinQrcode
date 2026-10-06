@@ -4,7 +4,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const statusEl = document.getElementById('status');
     const salaFiltro = document.getElementById('salaFiltro');
     const salaSelect = document.getElementById('salaSelect');
+    const salaQrSelect = document.getElementById('salaQrSelect');
     const listaSalasEl = document.getElementById('listaSalas');
+    const listaQrsEl = document.getElementById('listaQrs');
+    const qrLimiteEl = document.getElementById('qrLimite');
 
     // Botões
     const btnAtualizarQtd = document.getElementById('btnAtualizarQtd');
@@ -13,6 +16,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnLimpar = document.getElementById('btnLimpar');
     const btnGerarQRCode = document.getElementById('btnGerarQRCode');
     const btnAddSala = document.getElementById('btnAddSala');
+    const btnCriarQr = document.getElementById('btnCriarQr');
 
     // Estilização dos botões de Adicionar (Verde - Igual ao Relatório)
     [btnAddPresenca, btnAddSala].forEach(btn => {
@@ -81,8 +85,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
             salas.forEach(sala => {
                 const opt = document.createElement('option');
-                opt.value = sala;
-                opt.textContent = sala;
+                opt.value = sala.id;
+                opt.textContent = `${sala.id} - ${sala.nome}${sala.aberta ? '' : ' (fechada)'}`;
                 salaFiltro.appendChild(opt);
 
                 const opt2 = opt.cloneNode(true);
@@ -96,34 +100,29 @@ document.addEventListener('DOMContentLoaded', () => {
                 li.style.borderBottom = '1px solid #eee';
 
                 const spanNome = document.createElement('span');
-                spanNome.textContent = sala;
+                spanNome.textContent = `${sala.id} - ${sala.nome} (${sala.aberta ? 'aberta' : 'fechada'})`;
                 spanNome.style.fontWeight = '500';
                 li.appendChild(spanNome);
 
                 const divBotoes = document.createElement('div');
+                divBotoes.className = 'room-actions';
 
                 const btnZerar = document.createElement('button');
                 btnZerar.textContent = 'Zerar';
-                btnZerar.style.backgroundColor = '#ffc107'; // Cor amarela para diferenciar
-                btnZerar.style.color = '#000'; // Texto preto para leitura
-                btnZerar.style.border = 'none';
-                btnZerar.style.padding = '6px 12px';
-                btnZerar.style.borderRadius = '4px';
-                btnZerar.style.cursor = 'pointer';
-                btnZerar.style.fontWeight = 'bold';
-                btnZerar.addEventListener('click', () => zerarHistoricoSala(sala));
+                btnZerar.className = 'action-button btn-warning';
+                btnZerar.addEventListener('click', () => zerarHistoricoSala(sala.id, sala.nome));
                 divBotoes.appendChild(btnZerar);
+
+                const btnFechar = document.createElement('button');
+                btnFechar.textContent = sala.aberta ? 'Fechar sala' : 'Reabrir sala';
+                btnFechar.className = `action-button ${sala.aberta ? 'btn-danger' : 'btn-success'}`;
+                btnFechar.addEventListener('click', () => alterarEstadoSala(sala));
+                divBotoes.appendChild(btnFechar);
 
                 const btnExcluir = document.createElement('button');
                 btnExcluir.textContent = 'Excluir';
-                btnExcluir.style.marginLeft = '10px'; // Espaço entre os botões
-                btnExcluir.style.backgroundColor = '#dc3545'; // Vermelho para ação destrutiva
-                btnExcluir.style.color = '#fff'; // Texto branco para contraste
-                btnExcluir.style.border = 'none';
-                btnExcluir.style.padding = '6px 12px';
-                btnExcluir.style.borderRadius = '4px';
-                btnExcluir.style.cursor = 'pointer';
-                btnExcluir.addEventListener('click', () => removerSala(sala));
+                btnExcluir.className = 'action-button btn-danger';
+                btnExcluir.addEventListener('click', () => removerSala(sala.id, sala.nome));
                 divBotoes.appendChild(btnExcluir);
 
                 li.appendChild(divBotoes);
@@ -133,6 +132,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Atualiza a contagem com a sala selecionada
             fetchQuantidade();
         });
+        carregarQrs();
     }
 
     async function adicionarSala() {
@@ -142,11 +142,18 @@ document.addEventListener('DOMContentLoaded', () => {
             updateStatus('Digite o nome da sala antes de adicionar.', 'error');
             return;
         }
+        if (!salaQrSelect.value) {
+            updateStatus('Selecione um QR Code disponível para a sala.', 'error');
+            return;
+        }
 
         await apiRequest('/api/salas', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ sala })
+            body: JSON.stringify({
+                sala,
+                ...(salaQrSelect.value !== 'auto' ? { qrId: Number(salaQrSelect.value) } : {}),
+            })
         }, (data) => {
             input.value = '';
             updateStatus('Sala adicionada com sucesso.', 'success');
@@ -154,22 +161,83 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    async function zerarHistoricoSala(sala) {
-        if (!confirm(`Tem certeza que deseja zerar a contagem da sala "${sala}"?`)) return;
+    async function carregarQrs() {
+        await apiRequest('/api/qrcodes', { method: 'GET' }, (data) => {
+            const qrcodes = Array.isArray(data.qrcodes) ? data.qrcodes : [];
+            const disponiveis = qrcodes.filter(qr => qr.estado === 'disponivel');
+            qrLimiteEl.textContent = `${data.quantidadeAtiva} de ${data.limite} QR codes ativos`;
+            listaQrsEl.innerHTML = '';
+            salaQrSelect.innerHTML = disponiveis.length
+                ? '<option value="">Selecione um QR Code disponível</option>'
+                : '<option value="auto">Criar QR automaticamente</option>';
 
-        await apiRequest(`/clean?sala=${encodeURIComponent(sala)}`, { method: 'DELETE' }, (data) => {
-            updateStatus(`Contagem da sala "${sala}" zerada com sucesso.`, 'success');
+            disponiveis.forEach(qr => {
+                const li = document.createElement('li');
+                li.append(`${qr.id} - disponível`);
+                const option = document.createElement('option');
+                option.value = qr.id;
+                option.textContent = `QR ${qr.id}`;
+                salaQrSelect.appendChild(option);
+
+                const button = document.createElement('button');
+                button.textContent = 'Excluir QR';
+                button.className = 'action-button btn-danger';
+                button.style.marginLeft = '12px';
+                button.addEventListener('click', () => excluirQr(qr));
+                li.appendChild(button);
+                listaQrsEl.appendChild(li);
+            });
+            if (!disponiveis.length && data.quantidadeAtiva >= data.limite) {
+                salaQrSelect.value = 'auto';
+            }
+        });
+    }
+
+    async function criarQr() {
+        await apiRequest('/api/qrcodes', { method: 'POST' }, () => {
+            updateStatus('QR Code disponível criado.', 'success');
+            carregarQrs();
+        });
+    }
+
+    async function excluirQr(qr) {
+        if (qr.estado !== 'disponivel' || !confirm(`Excluir o QR Code disponível ${qr.id}?`)) return;
+        await apiRequest(`/api/qrcodes/${qr.id}`, { method: 'DELETE' }, () => {
+            updateStatus(`QR Code ${qr.id} excluído.`, 'success');
+            carregarQrs();
+        });
+    }
+
+    async function alterarEstadoSala(sala) {
+        const aberta = !sala.aberta;
+        const acao = aberta ? 'reabrir' : 'fechar';
+        if (!confirm(`Deseja ${acao} a sala "${sala.nome}"? ${aberta ? '' : 'O QR Code deixará de aceitar check-ins.'}`)) return;
+        await apiRequest(`/api/salas/${sala.id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ aberta }),
+        }, () => {
+            updateStatus(`Sala ${aberta ? 'reaberta' : 'fechada'}.`, 'success');
+            carregarSalas();
+        });
+    }
+
+    async function zerarHistoricoSala(salaId, salaNome) {
+        if (!confirm(`Tem certeza que deseja zerar a contagem da sala "${salaNome}"?`)) return;
+
+        await apiRequest(`/clean?sala=${encodeURIComponent(salaId)}`, { method: 'DELETE' }, (data) => {
+            updateStatus(`Contagem da sala "${salaNome}" zerada com sucesso.`, 'success');
             // Atualiza a contagem atual caso a sala zerada esteja selecionada no filtro
-            if (salaFiltro.value === sala || salaFiltro.value === '') {
+            if (salaFiltro.value === String(salaId) || salaFiltro.value === '') {
                 fetchQuantidade();
             }
         });
     }
 
-    async function removerSala(sala) {
-        if (!confirm(`Tem certeza que deseja remover a sala "${sala}"?`)) return;
+    async function removerSala(salaId, salaNome) {
+        if (!confirm(`Tem certeza que deseja remover a sala "${salaNome}" e seus registros? O QR ${salaId} ficará inativo e não poderá ser reutilizado.`)) return;
 
-        await apiRequest(`/api/salas?sala=${encodeURIComponent(sala)}`, { method: 'DELETE' }, (data) => {
+        await apiRequest(`/api/salas?sala=${encodeURIComponent(salaId)}`, { method: 'DELETE' }, (data) => {
             updateStatus(`Sala removida. Registros de check-in excluídos: ${data.registrosRemovidos}.`, 'success');
             carregarSalas();
         });
@@ -194,6 +262,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- EVENT LISTENERS ---
 
     btnAtualizarQtd.addEventListener('click', fetchQuantidade);
+    btnCriarQr.addEventListener('click', criarQr);
 
     salaFiltro.addEventListener('change', () => {
         fetchQuantidade();
@@ -253,7 +322,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Cria e exibe a imagem do QR Code
             const img = document.createElement('img');
             img.src = data.qrCodeDataUri;
-            img.alt = `QR Code para a sala ${sala}`;
+            img.alt = `QR Code para ${salaSelect.selectedOptions[0].textContent}`;
             img.style.maxWidth = '300px';
             img.style.display = 'block';
             img.style.margin = '10px auto';
@@ -261,7 +330,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Cria e exibe o botão/link de download
             const downloadLink = document.createElement('a');
             downloadLink.href = data.qrCodeDataUri;
-            downloadLink.download = `qrcode_${sala.replace(/\s+/g, '_')}.png`;
+            downloadLink.download = `qrcode_sala_${sala}.png`;
             downloadLink.innerText = 'Baixar QR Code';
             downloadLink.style.display = 'inline-block';
             downloadLink.style.marginTop = '15px';
