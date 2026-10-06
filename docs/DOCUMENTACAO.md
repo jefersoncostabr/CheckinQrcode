@@ -2,6 +2,23 @@
 
 **URL Base:** `http://localhost:3000`
 
+## Estrutura no MongoDB
+
+No banco configurado em `MONGO_URI` (atualmente `DancaHub`), o sistema guarda as salas e os check-ins na mesma coleção, chamada `lotacaoSala`. Essa coleção contém um documento de configuração com os campos:
+
+- `salas`: array com os nomes das salas cadastradas.
+- `historico`: array com os check-ins. Cada registro contém nome, IP, data e sala.
+
+No Data Explorer, selecione `DancaHub` e depois a coleção `lotacaoSala`. Ao abrir o documento, você verá `salas` e `historico` como campos dele; eles não são coleções separadas. Excluir uma sala pelo sistema também remove do array `historico` os check-ins associados a ela.
+
+```text
+DancaHub
+└── lotacaoSala (coleção)
+	└── documento de configuração
+		├── salas: [...]
+		└── historico: [{ nome, ip, data, sala }, ...]
+```
+
 ## 1. Rotas da API
 
 ### A. Verificar se o servidor está online
