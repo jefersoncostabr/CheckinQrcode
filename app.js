@@ -5,6 +5,10 @@ import adminRoutes from './adminRoutes.js'
 
 const app = express()
 
+if (process.env.NODE_ENV === 'production') {
+    app.set('trust proxy', 1)
+}
+
 // Consumir corpo de formulários (login) e JSON
 app.use(express.urlencoded({ extended: true }))
 app.use(express.json())
