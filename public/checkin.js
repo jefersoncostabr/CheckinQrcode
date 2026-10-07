@@ -73,6 +73,7 @@ async function confirmar() {
         const data = await res.json();
         if(data.sucesso) { 
             localStorage.setItem(storageKey, 'true'); // Marca neste celular que já foi feito hoje
+            nomeInput.disabled = true;
             btn.innerText = 'Presença Confirmada! ✅';
             btn.style.backgroundColor = '#28a745';
         } else { 

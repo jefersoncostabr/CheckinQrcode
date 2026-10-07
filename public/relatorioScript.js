@@ -106,7 +106,8 @@
 
             btnCopiar.addEventListener('click', () => {
                 const nomes = Array.from(document.querySelectorAll('#listaNomes li strong')).map(el => el.innerText);
-                const textoParaCopiar = nomes.join('\n');
+                const salaSelecionada = salaFiltro.selectedOptions[0].textContent;
+                const textoParaCopiar = [`Lista de presença - ${salaSelecionada}`, ...nomes].join('\n');
 
                 navigator.clipboard.writeText(textoParaCopiar).then(() => {
                     const originalText = btnCopiar.innerText;
