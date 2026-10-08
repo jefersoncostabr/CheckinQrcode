@@ -12,19 +12,29 @@
         <p>Painel de Administração</p>
 
         <div class="card">
-            <h2>Controle de Presença</h2>
+            <h2>Check-ins</h2>
+            <div class="checkins-header">
+                <p>Atualização automática a cada minuto.</p>
+                <div class="checkins-refresh">
+                    <span>Última atualização: <time id="atualizacaoContagem">--:--:--</time></span>
+                    <button id="btnAtualizarQtd" class="btn-primary">Atualizar</button>
+                </div>
+            </div>
+            <ul id="listaCheckins" class="checkins-list" aria-live="polite"></ul>
+            <p id="checkinsVazio" class="checkins-empty" role="status">Carregando...</p>
+        </div>
+
+        <div class="card">
+            <h2>Ações de presença</h2>
             <div class="info-display">
-                <p><strong id="quantidadeRotulo">Check-ins em todas as salas:</strong> <span id="quantidadeAtual">...</span></p>
-                <p>Atualizado às <time id="atualizacaoContagem">--:--:--</time></p>
                 <p>
-                    <strong>Sala:</strong>
+                    <strong>Sala para as ações:</strong>
                     <select id="salaFiltro" style="min-width: 220px;">
                         <option value="">Todas as Salas</option>
                     </select>
                 </p>
             </div>
             <div class="actions">
-                <button id="btnAtualizarQtd" class="btn-primary">Atualizar Contagem</button>
                 <button id="btnAddPresenca" class="btn-primary">Adicionar Presença</button>
                 <button id="btnReduzir" class="btn-danger">Remover Último Check-in</button>
                 <button id="btnLimpar" class="btn-danger">Zerar Contagem</button>

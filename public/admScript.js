@@ -1,8 +1,8 @@
 document.addEventListener('DOMContentLoaded', () => {
     // Elementos da UI
-    const quantidadeAtualEl = document.getElementById('quantidadeAtual');
-    const quantidadeRotuloEl = document.getElementById('quantidadeRotulo');
     const atualizacaoContagemEl = document.getElementById('atualizacaoContagem');
+    const listaCheckinsEl = document.getElementById('listaCheckins');
+    const checkinsVazioEl = document.getElementById('checkinsVazio');
     const statusEl = document.getElementById('status');
     const salaFiltro = document.getElementById('salaFiltro');
     const salaSelect = document.getElementById('salaSelect');
@@ -19,6 +19,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnGerarQRCode = document.getElementById('btnGerarQRCode');
     const btnAddSala = document.getElementById('btnAddSala');
     const btnCriarQr = document.getElementById('btnCriarQr');
+    let atualizandoCheckins = false;
 
     // Estilização dos botões de Adicionar (Verde - Igual ao Relatório)
     [btnAddPresenca, btnAddSala].forEach(btn => {
@@ -132,8 +133,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 listaSalasEl.appendChild(li);
             });
 
-            // Atualiza a contagem com a sala selecionada
-            fetchQuantidade();
+            atualizarCheckins();
         });
         carregarQrs();
     }
@@ -230,10 +230,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         await apiRequest(`/clean?sala=${encodeURIComponent(salaId)}`, { method: 'DELETE' }, (data) => {
             updateStatus(`Contagem da sala "${salaNome}" zerada com sucesso.`, 'success');
-            // Atualiza a contagem atual caso a sala zerada esteja selecionada no filtro
-            if (salaFiltro.value === String(salaId) || salaFiltro.value === '') {
-                fetchQuantidade();
-            }
+            atualizarCheckins();
         });
     }
 
@@ -248,39 +245,68 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- FUNÇÕES DE AÇÃO ---
 
-    /**
-     * Busca e atualiza a contagem atual de pessoas.
-     */
-    async function fetchQuantidade() {
-        const sala = salaFiltro.value;
-        const url = sala ? `/qtd?sala=${encodeURIComponent(sala)}` : '/qtd';
-        quantidadeAtualEl.textContent = 'Carregando...';
-        const salaSelecionada = salaFiltro.selectedOptions[0];
-        quantidadeRotuloEl.textContent = sala
-            ? `Check-ins na sala ${salaSelecionada.dataset.nome || salaSelecionada.textContent}:`
-            : 'Check-ins em todas as salas:';
+    async function atualizarCheckins() {
+        if (atualizandoCheckins) return;
+        atualizandoCheckins = true;
+        btnAtualizarQtd.disabled = true;
+        checkinsVazioEl.hidden = false;
+        checkinsVazioEl.textContent = 'Atualizando check-ins...';
+        listaCheckinsEl.replaceChildren();
 
-        await apiRequest(url, { method: 'GET' }, (data) => {
-            atualizarContagem(data.quantidade);
-            updateStatus('Contagem atualizada com sucesso.', 'success');
-        });
-    }
+        try {
+            const [salasResponse, contagemResponse] = await Promise.all([
+                fetch('/api/salas'),
+                fetch('/qtd'),
+            ]);
+            const [salasData, contagemData] = await Promise.all([
+                salasResponse.json(),
+                contagemResponse.json(),
+            ]);
 
-    function atualizarContagem(quantidade) {
-        quantidadeAtualEl.textContent = quantidade;
-        const agora = new Date();
-        atualizacaoContagemEl.textContent = agora.toLocaleTimeString('pt-BR');
-        atualizacaoContagemEl.dateTime = agora.toISOString();
+            if (!salasResponse.ok) throw new Error(salasData.mensagem || 'Falha ao carregar as salas.');
+            if (!contagemResponse.ok) throw new Error(contagemData.mensagem || 'Falha ao carregar os check-ins.');
+
+            const salasAtivas = (Array.isArray(salasData.salas) ? salasData.salas : [])
+                .filter(sala => sala.aberta && sala.nome?.trim() && sala.id != null);
+
+            if (salasAtivas.length === 0) {
+                checkinsVazioEl.textContent = 'salas inexistentes';
+            } else {
+                checkinsVazioEl.hidden = true;
+                salasAtivas.forEach(sala => {
+                    const item = document.createElement('li');
+                    item.className = 'checkin-room';
+
+                    const nome = document.createElement('strong');
+                    nome.textContent = sala.nome;
+
+                    const quantidade = Number(contagemData.salas?.[sala.nome]) || 0;
+                    const total = document.createElement('span');
+                    total.className = 'checkin-count';
+                    total.textContent = `${quantidade} ${quantidade === 1 ? 'check-in' : 'check-ins'}`;
+
+                    item.append(nome, total);
+                    listaCheckinsEl.appendChild(item);
+                });
+            }
+
+            const agora = new Date();
+            atualizacaoContagemEl.textContent = agora.toLocaleTimeString('pt-BR');
+            atualizacaoContagemEl.dateTime = agora.toISOString();
+        } catch (error) {
+            console.error('Erro ao atualizar check-ins:', error);
+            checkinsVazioEl.textContent = 'Não foi possível carregar os check-ins.';
+            updateStatus(`Erro ao atualizar check-ins: ${error.message}`, 'error');
+        } finally {
+            atualizandoCheckins = false;
+            btnAtualizarQtd.disabled = false;
+        }
     }
 
     // --- EVENT LISTENERS ---
 
-    btnAtualizarQtd.addEventListener('click', fetchQuantidade);
+    btnAtualizarQtd.addEventListener('click', atualizarCheckins);
     btnCriarQr.addEventListener('click', criarQr);
-
-    salaFiltro.addEventListener('change', () => {
-        fetchQuantidade();
-    });
 
     btnAddPresenca.addEventListener('click', () => {
         window.location.href = '/adm/adicionar-manual';
@@ -298,7 +324,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         await apiRequest(`/reduce?sala=${encodeURIComponent(sala)}`, { method: 'DELETE' }, (data) => {
-            atualizarContagem(data.novaQuantidade);
+            atualizarCheckins();
             updateStatus(data.mensagem, 'success');
         });
     });
@@ -315,7 +341,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         await apiRequest(`/clean?sala=${encodeURIComponent(sala)}`, { method: 'DELETE' }, (data) => {
-            atualizarContagem(data.novaQuantidade);
+            atualizarCheckins();
             updateStatus(data.mensagem, 'success');
         });
     });
@@ -364,4 +390,5 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Carregar a contagem inicial e as salas ao carregar a página
     carregarSalas();
+    window.setInterval(atualizarCheckins, 60 * 1000);
 });

@@ -49,9 +49,65 @@ h2 {
     border-radius: 5px;
 }
 
-#quantidadeAtual {
+.checkins-header,
+.checkins-refresh {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.checkins-header p {
+    margin: 0;
+}
+
+.checkins-refresh {
+    justify-content: flex-end;
+}
+
+.checkins-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 12px;
+    list-style: none;
+    margin: 18px 0 0;
+    padding: 0;
+}
+
+.checkin-room {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-width: 0;
+    padding: 14px;
+    border-left: 4px solid #3498db;
+    border-radius: 4px;
+    background-color: #f4f7f6;
+}
+
+.checkin-room strong {
+    overflow-wrap: anywhere;
+}
+
+.checkin-count {
+    flex-shrink: 0;
     font-weight: bold;
-    color: #2980b9;
+    color: #2c3e50;
+}
+
+.checkins-empty {
+    margin: 18px 0 0;
+    padding: 18px;
+    border: 1px dashed #bdc3c7;
+    border-radius: 4px;
+    text-align: center;
+}
+
+#btnAtualizarQtd:disabled {
+    cursor: wait;
+    opacity: 0.65;
 }
 
 .actions {
@@ -169,4 +225,11 @@ button:hover,
     background-color: #f2dede;
     border-color: #ebccd1;
     color: #a94442;
+}
+
+@media (max-width: 520px) {
+    .checkins-refresh {
+        width: 100%;
+        justify-content: space-between;
+    }
 }
