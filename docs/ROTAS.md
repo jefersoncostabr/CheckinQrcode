@@ -17,14 +17,15 @@ As rotas marcadas como administrativas exigem uma sessão iniciada por `POST /lo
 | :--- | :--- | :--- | :--- |
 | `GET` | `/` | Público | Verifica se o servidor está online; responde `O servidor funcionando.` |
 | `GET` | `/login` | Público | Exibe a página de login. |
-| `POST` | `/login` | Público | Valida `user` e `pass` enviados como formulário. Credenciais corretas criam a sessão e redirecionam para `/adm`; incorretas redirecionam para `/login?error=1`. |
-| `GET` | `/logout` | Público | Encerra a sessão atual e redireciona para `/login?loggedout=1`. |
-| `GET` | `/add?id=...` | Público | Exibe a confirmação do check-in para o ID estável do QR. |
+| `POST` | `/login` | Público | Recebe `user` e `pass` como formulário. Se as credenciais estiverem corretas, cria a sessão e redireciona para `/adm`; se estiverem incorretas, redireciona para `/login?error=1`. |
+| `GET` | `/logout` | Público | Desloga o usuário, encerra a sessão atual e redireciona para `/login?loggedout=1`. |
+| `GET` | `/add?id=...` | Público | Exibe a página de confirmação do check-in para a sala identificada pelo ID correspondente. |
 | `GET` | `/add?sala=...` | Público | Compatibilidade temporária com QR Codes antigos que guardam o apelido da sala. |
-| `GET` | `/adm` | Administrativa | Exibe o painel de administração. |
+| `GET` | `/adm` | Requer autenticação (`requireAuth`) | Exibe o painel administrativo. Requer uma sessão autenticada; sem ela, redireciona para `/login`. |
+| Vários | `/adm/*` | Requer autenticação (`requireAuth`) | Protege as sub-rotas administrativas, como `/adm/gerar-qrcode` e `/adm/adicionar-manual`. Sem sessão autenticada, redireciona para `/login`. |
 | `GET` | `/adm/adicionar-manual` | Administrativa | Exibe a página para registrar presença manualmente. |
-| `GET` | `/relatorio` | Administrativa | Exibe a página do relatório de presença. |
-| `GET` | `/resetls` | Administrativa | Limpa o `localStorage` no navegador e redireciona para `/add`. É uma página/script para navegador, não uma limpeza do banco de dados. |
+| `GET` | `/relatorio` | Administrativa | Exibe uma página HTML com o total de pessoas e a lista de nomes e datas/horários dos check-ins, com filtro por sala. O botão copia um cabeçalho que identifica todas as salas ou a sala selecionada (ID e nome), seguido apenas pelos nomes. |
+| `GET` | `/resetls` | Administrativa | Limpa o `localStorage` do navegador e redireciona para `/add`. Pode desbloquear dispositivos que impedem incorretamente um novo check-in (por exemplo, exibindo “Você já confirmou presença”). Não limpa o banco de dados. |
 
 ## API Pública
 

@@ -14,7 +14,8 @@
         <div class="card">
             <h2>Controle de Presença</h2>
             <div class="info-display">
-                <p><strong>Pessoas na sala:</strong> <span id="quantidadeAtual">...</span></p>
+                <p><strong id="quantidadeRotulo">Check-ins em todas as salas:</strong> <span id="quantidadeAtual">...</span></p>
+                <p>Atualizado às <time id="atualizacaoContagem">--:--:--</time></p>
                 <p>
                     <strong>Sala:</strong>
                     <select id="salaFiltro" style="min-width: 220px;">
@@ -31,10 +32,10 @@
         </div>
 
         <div class="card">
-            <h2>QR codes disponíveis</h2>
+            <h2>QR codes disponíveis para associar</h2>
             <p id="qrLimite">0 de 10 QR codes</p>
             <div class="actions">
-                <button id="btnCriarQr" class="btn-primary">Criar QR Code</button>
+                <button id="btnCriarQr" class="btn-primary">Criar QR disponível</button>
             </div>
             <ul id="listaQrs" style="margin-top: 10px; padding-left: 20px;"></ul>
         </div>
@@ -55,14 +56,14 @@
             <h2>Gestão do Sistema</h2>
             <div class="info-display">
                 <p>
-                    <strong>QR Code da sala:</strong>
+                    <strong>Exibir QR Code da sala:</strong>
                     <select id="salaSelect" style="min-width: 220px;">
                         <option value="">Selecione uma sala</option>
                     </select>
                 </p>
             </div>
             <div class="actions">
-                <button id="btnGerarQRCode">Ver QR Code</button>
+                <button id="btnGerarQRCode">Exibir QR da sala</button>
                 <a href="/relatorio" class="btn-secondary" target="_blank">Ver Relatório de Presença</a>
                 <a href="/resetls" class="btn-secondary" target="_blank">Resetar Memória de Check-in (para um dispositivo)</a>
             </div>

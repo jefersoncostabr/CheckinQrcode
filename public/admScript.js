@@ -1,6 +1,8 @@
 document.addEventListener('DOMContentLoaded', () => {
     // Elementos da UI
     const quantidadeAtualEl = document.getElementById('quantidadeAtual');
+    const quantidadeRotuloEl = document.getElementById('quantidadeRotulo');
+    const atualizacaoContagemEl = document.getElementById('atualizacaoContagem');
     const statusEl = document.getElementById('status');
     const salaFiltro = document.getElementById('salaFiltro');
     const salaSelect = document.getElementById('salaSelect');
@@ -87,6 +89,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const opt = document.createElement('option');
                 opt.value = sala.id;
                 opt.textContent = `${sala.id} - ${sala.nome}${sala.aberta ? '' : ' (fechada)'}`;
+                opt.dataset.nome = sala.nome;
                 salaFiltro.appendChild(opt);
 
                 const opt2 = opt.cloneNode(true);
@@ -252,11 +255,22 @@ document.addEventListener('DOMContentLoaded', () => {
         const sala = salaFiltro.value;
         const url = sala ? `/qtd?sala=${encodeURIComponent(sala)}` : '/qtd';
         quantidadeAtualEl.textContent = 'Carregando...';
+        const salaSelecionada = salaFiltro.selectedOptions[0];
+        quantidadeRotuloEl.textContent = sala
+            ? `Check-ins na sala ${salaSelecionada.dataset.nome || salaSelecionada.textContent}:`
+            : 'Check-ins em todas as salas:';
 
         await apiRequest(url, { method: 'GET' }, (data) => {
-            quantidadeAtualEl.textContent = data.quantidade;
+            atualizarContagem(data.quantidade);
             updateStatus('Contagem atualizada com sucesso.', 'success');
         });
+    }
+
+    function atualizarContagem(quantidade) {
+        quantidadeAtualEl.textContent = quantidade;
+        const agora = new Date();
+        atualizacaoContagemEl.textContent = agora.toLocaleTimeString('pt-BR');
+        atualizacaoContagemEl.dateTime = agora.toISOString();
     }
 
     // --- EVENT LISTENERS ---
@@ -284,7 +298,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         await apiRequest(`/reduce?sala=${encodeURIComponent(sala)}`, { method: 'DELETE' }, (data) => {
-            quantidadeAtualEl.textContent = data.novaQuantidade;
+            atualizarContagem(data.novaQuantidade);
             updateStatus(data.mensagem, 'success');
         });
     });
@@ -301,7 +315,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         await apiRequest(`/clean?sala=${encodeURIComponent(sala)}`, { method: 'DELETE' }, (data) => {
-            quantidadeAtualEl.textContent = data.novaQuantidade;
+            atualizarContagem(data.novaQuantidade);
             updateStatus(data.mensagem, 'success');
         });
     });
