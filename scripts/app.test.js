@@ -53,4 +53,24 @@ describe('Testes das Rotas de Check-in', () => {
             .send({});
         expect(res.statusCode).not.toBe(200);
     });
+
+    it('Deve exigir consentimento para cadastrar um rosto', async () => {
+        const res = await request(app)
+            .post('/api/face/enroll')
+            .send({ nome: 'Pessoa Teste', descritor: Array(128).fill(0) });
+        expect(res.statusCode).toBe(400);
+        expect(res.body.sucesso).toBe(false);
+    });
+
+    it('Deve rejeitar descritores faciais inválidos', async () => {
+        const res = await request(app)
+            .post('/api/face/checkin')
+            .send({ descritor: [0] });
+        expect(res.statusCode).toBe(400);
+    });
+
+    it('Deve exigir credencial para excluir um cadastro facial', async () => {
+        const res = await request(app).delete('/api/face/profile/invalid-id');
+        expect(res.statusCode).toBe(403);
+    });
 });

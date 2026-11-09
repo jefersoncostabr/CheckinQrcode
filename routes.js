@@ -1,7 +1,9 @@
 import express from 'express'
 import lotacaoSala from './lotacaoSalaModel.js'
+import faceProfile from './faceProfileModel.js'
 import path from 'path'
 import { fileURLToPath } from 'url'
+import { createHash, randomBytes, timingSafeEqual } from 'crypto'
 import { requireAuth } from './middleware/auth.js'
 import {
     criarQrDisponivel,
@@ -20,14 +22,31 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
 const router = express.Router()
+const FACE_DESCRIPTOR_LENGTH = 128
+const FACE_MATCH_THRESHOLD = 0.48
+
+function validarDescritor(descritor) {
+    return Array.isArray(descritor) &&
+        descritor.length === FACE_DESCRIPTOR_LENGTH &&
+        descritor.every(valor => Number.isFinite(valor) && Math.abs(valor) <= 2)
+}
+
+function distanciaFacial(primeiro, segundo) {
+    return Math.sqrt(primeiro.reduce((soma, valor, indice) =>
+        soma + (valor - segundo[indice]) ** 2, 0))
+}
+
+function hashToken(token) {
+    return createHash('sha256').update(token).digest('hex')
+}
 
 function pertenceSala(registro, sala) {
     return Number(registro.salaId) === Number(sala.id) ||
         (!registro.salaId && normalizarTexto(registro.sala) === normalizarTexto(sala.nome))
 }
 
-async function registrarPresenca(req, res, manual = false) {
-    const nome = String(req.body.nome || '').trim()
+async function registrarPresenca(req, res, manual = false, nomeReconhecido = null) {
+    const nome = String(nomeReconhecido || req.body.nome || '').trim()
     const salaId = req.body.salaId
     const nomeSalaLegada = req.body.sala
     if (!nome) return res.status(400).json({ sucesso: false, mensagem: 'Nome é obrigatório.' })
@@ -67,7 +86,9 @@ async function registrarPresenca(req, res, manual = false) {
             { new: true, upsert: true }
         )
         const quantidadeSala = resultado.historico.filter(item => pertenceSala(item, sala)).length
-        return res.json({ sucesso: true, mensagem: 'Check-in realizado!', novaQuantidade: quantidadeSala })
+        const resposta = { sucesso: true, mensagem: 'Check-in realizado!', novaQuantidade: quantidadeSala }
+        if (nomeReconhecido) resposta.nome = nome
+        return res.json(resposta)
     } catch (error) {
         console.error('Erro ao adicionar presença:', error)
         return res.status(500).json({ sucesso: false, mensagem: 'Erro ao processar o check-in.' })
@@ -155,6 +176,107 @@ router.get('/api/checkin/sala', async (req, res) => {
 })
 
 router.post('/add', (req, res) => registrarPresenca(req, res))
+
+router.post('/api/face/enroll', async (req, res) => {
+    const body = req.body || {}
+    const nome = String(body.nome || '').trim()
+    const { descritor, consentimento } = body
+    if (!nome || nome.length > 120) {
+        return res.status(400).json({ sucesso: false, mensagem: 'Informe um nome com até 120 caracteres.' })
+    }
+    if (consentimento !== true) {
+        return res.status(400).json({ sucesso: false, mensagem: 'É necessário consentir com o cadastro facial.' })
+    }
+    if (!validarDescritor(descritor)) {
+        return res.status(400).json({ sucesso: false, mensagem: 'Não foi possível ler o rosto. Tente novamente.' })
+    }
+
+    try {
+        const perfis = await faceProfile.find().select('+descritor')
+        const jaCadastrado = perfis.some(perfil =>
+            perfil.descritor?.length === FACE_DESCRIPTOR_LENGTH &&
+            distanciaFacial(descritor, perfil.descritor) <= FACE_MATCH_THRESHOLD
+        )
+        if (jaCadastrado) {
+            return res.status(409).json({
+                sucesso: false,
+                mensagem: 'Este rosto já possui cadastro. Use “Fazer check-in com meu rosto”.',
+            })
+        }
+
+        const tokenExclusao = randomBytes(32).toString('hex')
+        const perfilCriado = await faceProfile.create({
+            nome,
+            descritor,
+            tokenExclusaoHash: hashToken(tokenExclusao),
+        })
+        return res.status(201).json({
+            sucesso: true,
+            mensagem: 'Rosto cadastrado. Faça o check-in com seu rosto ou digite seu nome.',
+            perfilId: perfilCriado.id,
+            tokenExclusao,
+        })
+    } catch (error) {
+        console.error('Erro ao cadastrar perfil facial:', error)
+        return res.status(500).json({ sucesso: false, mensagem: 'Erro ao cadastrar o rosto.' })
+    }
+})
+
+router.post('/api/face/checkin', async (req, res) => {
+    const { descritor } = req.body || {}
+    if (!validarDescritor(descritor)) {
+        return res.status(400).json({ sucesso: false, mensagem: 'Não foi possível ler o rosto. Tente novamente.' })
+    }
+
+    try {
+        const perfis = await faceProfile.find().select('+descritor')
+        let perfilMaisProximo = null
+        let menorDistancia = Number.POSITIVE_INFINITY
+        for (const perfil of perfis) {
+            if (perfil.descritor?.length !== FACE_DESCRIPTOR_LENGTH) continue
+            const distancia = distanciaFacial(descritor, perfil.descritor)
+            if (distancia < menorDistancia) {
+                menorDistancia = distancia
+                perfilMaisProximo = perfil
+            }
+        }
+        if (!perfilMaisProximo || menorDistancia > FACE_MATCH_THRESHOLD) {
+            return res.status(404).json({
+                sucesso: false,
+                mensagem: 'Rosto não cadastrado. Cadastre-o com consentimento ou faça check-in pelo nome.',
+            })
+        }
+        return registrarPresenca(req, res, false, perfilMaisProximo.nome)
+    } catch (error) {
+        console.error('Erro ao reconhecer rosto:', error)
+        return res.status(500).json({ sucesso: false, mensagem: 'Erro ao processar o reconhecimento facial.' })
+    }
+})
+
+router.delete('/api/face/profile/:id', async (req, res) => {
+    const tokenExclusao = req.get('x-face-delete-token')
+    if (typeof tokenExclusao !== 'string' || tokenExclusao.length !== 64) {
+        return res.status(403).json({ sucesso: false, mensagem: 'Credencial de exclusão inválida.' })
+    }
+
+    try {
+        const perfil = await faceProfile.findById(req.params.id).select('+tokenExclusaoHash')
+        if (!perfil) return res.status(404).json({ sucesso: false, mensagem: 'Cadastro facial não encontrado.' })
+
+        const hashRecebido = Buffer.from(hashToken(tokenExclusao), 'hex')
+        const hashArmazenado = Buffer.from(perfil.tokenExclusaoHash, 'hex')
+        if (hashRecebido.length !== hashArmazenado.length ||
+            !timingSafeEqual(hashRecebido, hashArmazenado)) {
+            return res.status(403).json({ sucesso: false, mensagem: 'Credencial de exclusão inválida.' })
+        }
+
+        await perfil.deleteOne()
+        return res.json({ sucesso: true, mensagem: 'Cadastro facial excluído.' })
+    } catch (error) {
+        console.error('Erro ao excluir perfil facial:', error)
+        return res.status(500).json({ sucesso: false, mensagem: 'Erro ao excluir o cadastro facial.' })
+    }
+})
 
 router.delete('/reduce', requireAuth, async (req, res) => {
     const referencia = req.query.sala

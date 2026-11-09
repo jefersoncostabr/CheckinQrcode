@@ -1,9 +1,11 @@
 body { 
     margin: 0; 
-    height: 100vh; 
+    min-height: 100vh;
+    box-sizing: border-box;
+    padding: 24px 12px;
     display: flex; 
     flex-direction: column;
-    justify-content: center; 
+    justify-content: flex-start;
     align-items: center; 
     font-family: sans-serif; 
     background-color: #f9f9f9; 
@@ -28,4 +30,68 @@ button:active {
 button:disabled { 
     opacity: 0.6; 
     cursor: not-allowed; 
+}
+
+[hidden] {
+    display: none !important;
+}
+
+.checkin-manual,
+.face-register {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: min(100%, 340px);
+    margin-bottom: 12px;
+}
+
+.checkin-manual input,
+.face-register input {
+    box-sizing: border-box;
+    width: 100%;
+    padding: 12px;
+    font-size: 1rem;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+}
+
+.face-panel {
+    width: min(100%, 460px);
+    margin-top: 28px;
+    padding-top: 18px;
+    border-top: 1px solid #ddd;
+    text-align: center;
+}
+
+.face-panel h2 {
+    font-size: 1.3rem;
+}
+
+.consentimento {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    margin: 16px 0;
+    text-align: left;
+}
+
+.consentimento input {
+    margin-top: 4px;
+}
+
+.face-panel button {
+    margin: 6px;
+    padding: 14px 18px;
+    font-size: 1rem;
+}
+
+.face-panel .secondary {
+    background: #555;
+}
+
+#faceVideo {
+    width: min(100%, 360px);
+    margin: 12px auto;
+    border-radius: 8px;
+    background: #222;
 }

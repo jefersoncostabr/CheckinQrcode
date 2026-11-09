@@ -13,6 +13,8 @@ No banco configurado em `MONGO_URI` (atualmente `DancaHub`), o sistema guarda as
 
 No Data Explorer, selecione `DancaHub` e depois a coleção `lotacaoSala`. Ao abrir o documento, você verá `salas` e `historico` como campos dele; eles não são coleções separadas. Excluir uma sala pelo sistema também remove do array `historico` os check-ins associados a ela.
 
+Cadastros faciais opcionais ficam separados na coleção `faceProfiles`. O sistema armazena o descritor matemático do rosto e o nome, não a foto. A credencial de exclusão é armazenada como hash. A pessoa pode excluir o cadastro no mesmo navegador usado para cadastrá-lo; perder os dados locais remove essa opção de autoexclusão.
+
 ```text
 DancaHub
 └── lotacaoSala (coleção)
@@ -62,7 +64,16 @@ DancaHub
 - **Corpo novo:** `{ "nome": "Nome", "salaId": 1 }`. URLs antigas continuam aceitando `{ "nome": "Nome", "sala": "Apelido antigo" }`.
 - **Retorno:** JSON com mensagem e a nova quantidade. Ex: `{ "sucesso": true, "mensagem": "Check-in realizado!", "novaQuantidade": 11 }`.
 
-### G. Exibir Relatório de Presença
+### G. Check-in facial opcional
+
+- Na página `/add`, a pessoa pode cadastrar o rosto voluntariamente ou reconhecer um rosto já cadastrado. O nome continua disponível como alternativa.
+- A câmera e os modelos faciais são usados pelo navegador com `getUserMedia` e `face-api.js`. É exigido HTTPS (ou `localhost` no próprio dispositivo) para acesso à câmera. Em celular acessando o servidor pelo IP local, HTTP não é considerado seguro; use um endereço HTTPS. Os modelos e a biblioteca são carregados pelo jsDelivr, portanto o dispositivo também precisa de internet.
+- A imagem não é enviada ao servidor; o descritor facial de 128 valores é enviado para comparação e salvo na coleção `faceProfiles`. Esse descritor continua sendo dado biométrico sensível.
+- `/api/face/enroll` cadastra um descritor após consentimento explícito; `/api/face/checkin` compara o descritor e registra a presença usando o nome associado; `DELETE /api/face/profile/:id` apaga o perfil com a credencial de exclusão guardada localmente no navegador que fez o cadastro.
+- O limite de similaridade é configurado no servidor. Reconhecimento facial não comprova presença física e não tem detecção de vivacidade; uma foto ou vídeo pode ser suficiente para enganar o fluxo. Não use como mecanismo de segurança ou controle de acesso.
+- Antes de usar em produção, avalie requisitos de privacidade, consentimento, segurança, retenção e exclusão aplicáveis, incluindo a LGPD. O check-in por nome deve continuar como alternativa.
+
+### H. Exibir Relatório de Presença
 - **Rota:** `/relatorio`
 - **Método:** `GET`
 - **Descrição:** Exibe uma página HTML com o relatório de presença. A página mostra a quantidade total de pessoas e uma lista com o nome e a data/hora do check-in de cada uma. Inclui um botão para copiar apenas os nomes para a área de transferência.
