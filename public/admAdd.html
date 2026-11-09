@@ -7,39 +7,150 @@
     <!-- Reutiliza o CSS do check-in para manter o padrão visual -->
     <link rel="stylesheet" href="/checkin.css">
     <style>
-        /* Ajustes específicos para a tela de ADM */
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            min-height: 100vh;
+            height: auto;
+            padding: 24px 16px;
+            background: #f1f5f4;
+            color: #263238;
+        }
+
+        .admin-presence {
+            width: min(100%, 560px);
+            padding: 32px;
+            border: 1px solid #dce5e2;
+            border-top: 5px solid #218838;
+            background: #fff;
+            box-shadow: 0 8px 24px rgba(30, 55, 45, 0.08);
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 1.65rem;
+            text-align: left;
+        }
+
+        .intro {
+            margin: 8px 0 28px;
+            color: #53635d;
+            text-align: left;
+        }
+
+        .field {
+            display: grid;
+            gap: 8px;
+            margin-bottom: 20px;
+            font-weight: 700;
+        }
+
+        .field select,
+        .field input {
+            width: 100%;
+            min-height: 54px;
+            padding: 12px 14px;
+            border: 1px solid #aebdb7;
+            border-radius: 5px;
+            background: #fff;
+            color: #263238;
+            font: inherit;
+            font-weight: 400;
+        }
+
+        .field select {
+            font-size: 1.05rem;
+        }
+
+        .field select:focus-visible,
+        .field input:focus-visible,
+        .form-actions button:focus-visible {
+            outline: 3px solid #72b887;
+            outline-offset: 2px;
+        }
+
+        .form-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 26px;
+        }
+
+        .form-actions button {
+            min-height: 46px;
+            padding: 11px 18px;
+            border-radius: 5px;
+            font-size: 1rem;
+            font-weight: 700;
+            box-shadow: none;
+        }
+
+        #btn {
+            background: #218838;
+        }
+
+        #btn:hover {
+            background: #176b2b;
+        }
+
         .btn-voltar {
-            background-color: #6c757d;
-            margin-top: 10px;
+            background: #596963;
         }
+
         .btn-voltar:hover {
-            background-color: #5a6268;
+            background: #3f4e48;
         }
+
         .status-msg {
-            margin-top: 10px;
-            font-weight: bold;
-            height: 20px; /* Reserva espaço */
+            min-height: 24px;
+            margin: 18px 0 0;
+            font-weight: 700;
+            text-align: left;
+        }
+
+        .status-msg.success {
+            color: #176b2b;
+        }
+
+        .status-msg.error {
+            color: #b42318;
+        }
+
+        @media (max-width: 480px) {
+            .admin-presence {
+                padding: 24px 18px;
+            }
+
+            .form-actions {
+                display: grid;
+            }
         }
     </style>
 </head>
 <body>
-    <h1>Adicionar Presença (ADM)</h1>
-    <p>Digite o nome para adicionar à lista.</p>
-    
-    <div style="margin-bottom: 15px;">
-        <label for="salaSelect" style="display:block; margin-bottom: 6px; font-weight: bold;">Sala:</label>
-        <select id="salaSelect" style="padding: 10px; font-size: 1rem; width: 80%; max-width: 320px; border-radius: 5px; border: 1px solid #ccc;"></select>
-    </div>
+    <main class="admin-presence">
+        <h1>Adicionar presença</h1>
+        <p class="intro">Selecione a sala e informe o nome da pessoa.</p>
 
-    <div style="margin-bottom: 15px;">
-        <input type="text" id="nomeInput" placeholder="Nome da pessoa" required 
-               style="padding: 10px; font-size: 1rem; width: 80%; max-width: 300px; border-radius: 5px; border: 1px solid #ccc;">
-    </div>
+        <label class="field" for="salaSelect">
+            <span>Sala</span>
+            <select id="salaSelect"></select>
+        </label>
 
-    <button id="btn" onclick="adicionarManual()">Confirmar Presença</button>
-    <button class="btn-voltar" onclick="window.location.href='/adm'">Voltar ao Painel</button>
+        <label class="field" for="nomeInput">
+            <span>Nome da pessoa</span>
+            <input type="text" id="nomeInput" placeholder="Digite o nome completo" autocomplete="name" required>
+        </label>
 
-    <div id="statusMsg" class="status-msg"></div>
+        <div class="form-actions">
+            <button id="btn" type="button" onclick="adicionarManual()">Confirmar presença</button>
+            <button class="btn-voltar" type="button" onclick="window.location.href='/adm'">Voltar</button>
+        </div>
+
+        <p id="statusMsg" class="status-msg" role="status" aria-live="polite"></p>
+    </main>
 
     <script>
         const nomeInput = document.getElementById('nomeInput');
@@ -99,17 +210,17 @@
                 const data = await res.json();
 
                 if(data.sucesso) { 
-                    statusMsg.style.color = 'green';
+                    statusMsg.className = 'status-msg success';
                     statusMsg.innerText = `"${nome}" adicionado com sucesso! (Total na sala: ${data.novaQuantidade})`;
                     nomeInput.value = ''; // Limpa o campo para o próximo
                     nomeInput.focus();    // Mantém o foco no input
                 } else { 
-                    statusMsg.style.color = 'red';
+                    statusMsg.className = 'status-msg error';
                     statusMsg.innerText = data.mensagem;
                     // Não limpa o input em caso de erro (ex: nome duplicado) para permitir correção
                 }
             } catch (e) { 
-                statusMsg.style.color = 'red';
+                statusMsg.className = 'status-msg error';
                 statusMsg.innerText = 'Erro de conexão.';
             }
         }
