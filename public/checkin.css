@@ -95,3 +95,40 @@ button:disabled {
     border-radius: 8px;
     background: #222;
 }
+
+.face-test {
+    width: min(100%, 520px);
+}
+
+.face-test > p {
+    line-height: 1.5;
+}
+
+.face-test-result {
+    padding: 14px;
+    border-radius: 8px;
+    font-weight: 700;
+}
+
+.face-test-success {
+    color: #155724;
+    background: #d4edda;
+}
+
+.face-test-failure {
+    color: #721c24;
+    background: #f8d7da;
+}
+
+.face-test-back {
+    display: inline-block;
+    margin-top: 20px;
+    color: #222;
+}
+
+#faceTestVideo {
+    width: min(100%, 360px);
+    margin: 12px auto;
+    border-radius: 8px;
+    background: #222;
+}

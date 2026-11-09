@@ -160,6 +160,10 @@ router.get('/add', async (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'checkin.html'))
 })
 
+router.get('/teste-rosto', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'face-test.html'))
+})
+
 router.get('/api/checkin/sala', async (req, res) => {
     try {
         const doc = await getConfigDoc()
@@ -250,6 +254,42 @@ router.post('/api/face/checkin', async (req, res) => {
     } catch (error) {
         console.error('Erro ao reconhecer rosto:', error)
         return res.status(500).json({ sucesso: false, mensagem: 'Erro ao processar o reconhecimento facial.' })
+    }
+})
+
+router.post('/api/face/verify', async (req, res) => {
+    const body = req.body || {}
+    const { descritor } = body
+    const nomeInformado = Object.hasOwn(body, 'nome')
+    const nome = typeof body.nome === 'string' ? body.nome.trim() : ''
+    if (!validarDescritor(descritor)) {
+        return res.status(400).json({ sucesso: false, mensagem: 'Não foi possível ler o rosto. Tente novamente.' })
+    }
+    if (nomeInformado && (!nome || nome.length > 120)) {
+        return res.status(400).json({ sucesso: false, mensagem: 'O nome deve ter entre 1 e 120 caracteres.' })
+    }
+
+    try {
+        const perfis = await faceProfile.find().select('+descritor')
+        let perfilMaisProximo = null
+        let menorDistancia = Number.POSITIVE_INFINITY
+        for (const perfil of perfis) {
+            if (perfil.descritor?.length !== FACE_DESCRIPTOR_LENGTH) continue
+            const distancia = distanciaFacial(descritor, perfil.descritor)
+            if (distancia < menorDistancia) {
+                menorDistancia = distancia
+                perfilMaisProximo = perfil
+            }
+        }
+
+        const cadastrado = Boolean(perfilMaisProximo && menorDistancia <= FACE_MATCH_THRESHOLD)
+        const corresponde = nomeInformado && cadastrado
+            ? normalizarTexto(perfilMaisProximo.nome) === normalizarTexto(nome)
+            : nomeInformado ? false : null
+        return res.json({ sucesso: true, cadastrado, corresponde })
+    } catch (error) {
+        console.error('Erro ao verificar cadastro facial:', error)
+        return res.status(500).json({ sucesso: false, mensagem: 'Erro ao verificar o cadastro facial.' })
     }
 })
 

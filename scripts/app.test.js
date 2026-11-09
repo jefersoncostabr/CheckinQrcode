@@ -69,6 +69,26 @@ describe('Testes das Rotas de Check-in', () => {
         expect(res.statusCode).toBe(400);
     });
 
+    it('Deve servir a página de teste facial', async () => {
+        const res = await request(app).get('/teste-rosto');
+        expect(res.statusCode).toBe(200);
+        expect(res.text).toContain('Testar cadastro facial');
+    });
+
+    it('Deve rejeitar descritores inválidos na verificação facial', async () => {
+        const res = await request(app)
+            .post('/api/face/verify')
+            .send({ descritor: [0] });
+        expect(res.statusCode).toBe(400);
+    });
+
+    it('Deve validar o nome opcional da verificação facial', async () => {
+        const res = await request(app)
+            .post('/api/face/verify')
+            .send({ descritor: Array(128).fill(0), nome: ' ' });
+        expect(res.statusCode).toBe(400);
+    });
+
     it('Deve exigir credencial para excluir um cadastro facial', async () => {
         const res = await request(app).delete('/api/face/profile/invalid-id');
         expect(res.statusCode).toBe(403);

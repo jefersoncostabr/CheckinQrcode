@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Testar cadastro facial</title>
+    <link rel="stylesheet" href="/checkin.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+    <script defer src="/faceRecognition.js"></script>
+    <script defer src="/face-test.js"></script>
+</head>
+<body>
+    <main class="face-test">
+        <h1>Testar cadastro facial</h1>
+        <p>Verifique se o rosto está cadastrado. O sistema não mostrará o nome de nenhum perfil encontrado.</p>
+
+        <label class="consentimento">
+            <input id="faceTestConsent" type="checkbox">
+            Autorizo o uso da câmera para comparar este rosto com os cadastros faciais.
+        </label>
+
+        <div class="face-register">
+            <label for="faceTestName">Nome (opcional, para conferir se este rosto corresponde)</label>
+            <input id="faceTestName" type="text" maxlength="120" autocomplete="name" placeholder="Digite o nome a verificar">
+        </div>
+
+        <button id="faceTestButton" type="button">Verificar rosto</button>
+        <video id="faceTestVideo" autoplay muted playsinline hidden></video>
+        <p id="faceTestStatus" role="status" aria-live="polite"></p>
+        <p id="faceTestResult" class="face-test-result" role="status" aria-live="polite" hidden></p>
+
+        <a href="/add" class="face-test-back">Voltar ao check-in</a>
+    </main>
+</body>
+</html>
