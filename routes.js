@@ -293,6 +293,34 @@ router.post('/api/face/verify', async (req, res) => {
     }
 })
 
+router.get('/api/face/pessoas', requireAuth, async (req, res) => {
+    try {
+        const [doc, perfis] = await Promise.all([
+            getConfigDoc(),
+            faceProfile.find({}, { nome: 1 }).lean(),
+        ])
+        const nomesComRosto = new Set(perfis.map(perfil => normalizarTexto(perfil.nome)))
+        const pessoasPorNome = new Map()
+
+        for (const registro of doc.historico || []) {
+            const nome = String(registro.nome || '').trim()
+            const chave = normalizarTexto(nome)
+            if (!chave || pessoasPorNome.has(chave)) continue
+            pessoasPorNome.set(chave, {
+                nome,
+                temRosto: nomesComRosto.has(chave),
+            })
+        }
+
+        const pessoas = [...pessoasPorNome.values()]
+            .sort((primeira, segunda) => primeira.nome.localeCompare(segunda.nome, 'pt-BR'))
+        return res.json({ sucesso: true, pessoas })
+    } catch (error) {
+        console.error('Erro ao listar pessoas e cadastros faciais:', error)
+        return res.status(500).json({ sucesso: false, mensagem: 'Erro ao consultar pessoas e cadastros faciais.' })
+    }
+})
+
 router.delete('/api/face/profile/:id', async (req, res) => {
     const tokenExclusao = req.get('x-face-delete-token')
     if (typeof tokenExclusao !== 'string' || tokenExclusao.length !== 64) {

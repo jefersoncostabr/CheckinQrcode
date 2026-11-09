@@ -45,6 +45,7 @@ Todas as rotas desta seção exigem sessão administrativa.
 | `DELETE` | `/clean?sala=...` | Query obrigatória: `sala` | Remove do histórico os check-ins daquela sala, sem excluir o cadastro da sala. |
 | `DELETE` | `/clean?all=true` | `all=true` (ou `tudo=true`) | Remove todos os check-ins do histórico, mantendo os cadastros das salas. |
 | `GET` | `/api/relatorio` | Query opcional: `sala` | Retorna os registros do relatório em JSON; pode filtrar por sala. |
+| `GET` | `/api/face/pessoas` | Nenhum | Lista nomes únicos do histórico de presenças e informa `temRosto: true/false` conforme haja perfil facial correspondente. Retorna somente nomes e o indicador, nunca descritores biométricos. |
 | `GET` | `/api/salas` | Nenhum | Retorna os nomes das salas cadastradas. |
 | `POST` | `/api/salas` | JSON: `sala`, `qrId` quando há QR disponível | Cadastra uma sala; exige selecionar QR livre ou cria automaticamente se não houver nenhum disponível e o limite permitir. |
 | `PATCH` | `/api/salas/:id` | JSON: `{"aberta":false}` | Fecha ou reabre a sala. Sala fechada não aceita check-in por QR, mas permite lançamento manual administrativo. |
@@ -63,3 +64,15 @@ Todas as rotas desta seção exigem sessão administrativa.
 3. Para consultar a contagem, use `GET <URL_BASE>/qtd`.
 
 Substitua `<URL_BASE>` por `http://localhost:3000` no desenvolvimento ou por `https://checkinqrcode.onrender.com` no Render.
+
+Exemplo de resposta de `GET /api/face/pessoas`:
+
+```json
+{
+  "sucesso": true,
+  "pessoas": [
+    { "nome": "Ana Silva", "temRosto": true },
+    { "nome": "Bruno Souza", "temRosto": false }
+  ]
+}
+```

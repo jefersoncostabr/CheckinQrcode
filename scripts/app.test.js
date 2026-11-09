@@ -33,6 +33,11 @@ describe('Testes das Rotas de Check-in', () => {
         expect(res.statusCode).toEqual(302); // Redirecionamento para /login
     });
 
+    it('Deve proteger a lista de pessoas e perfis faciais', async () => {
+        const res = await request(app).get('/api/face/pessoas');
+        expect(res.statusCode).toBe(302);
+    });
+
     it('Deve carregar a lista de QR Codes para a administração', async () => {
         const agent = request.agent(app);
         const login = await agent.post('/login').type('form').send({
@@ -45,6 +50,26 @@ describe('Testes das Rotas de Check-in', () => {
         expect(res.statusCode).toEqual(200);
         expect(res.body).toHaveProperty('limite', 10);
         expect(res.body).toHaveProperty('qrcodes');
+    });
+
+    it('Deve listar nomes do histórico com indicador de cadastro facial', async () => {
+        const agent = request.agent(app);
+        const login = await agent.post('/login').type('form').send({
+            user: process.env.ADMIN_USER,
+            pass: process.env.ADMIN_PASS,
+        });
+        expect(login.statusCode).toBe(302);
+
+        const res = await agent.get('/api/face/pessoas');
+        expect(res.statusCode).toBe(200);
+        expect(res.body.sucesso).toBe(true);
+        expect(Array.isArray(res.body.pessoas)).toBe(true);
+        for (const pessoa of res.body.pessoas) {
+            expect(pessoa).toEqual({
+                nome: expect.any(String),
+                temRosto: expect.any(Boolean),
+            });
+        }
     });
 
     it('Deve falhar ao tentar fazer check-in sem nome (POST /add)', async () => {

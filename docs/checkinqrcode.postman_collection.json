@@ -1,0 +1,359 @@
+{
+  "info": {
+    "_postman_id": "9c0da5ad-38b7-4e31-bd5e-a182117c190f",
+    "name": "CheckinQrcode",
+    "description": "Rotas do sistema CheckinQrcode. Faça login para usar as rotas administrativas. As rotas faciais exigem um descritor válido gerado pelo navegador.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000" },
+    { "key": "adminUser", "value": "" },
+    { "key": "adminPass", "value": "" },
+    { "key": "salaId", "value": "1" },
+    { "key": "sala", "value": "Sala exemplo" },
+    { "key": "qrId", "value": "1" },
+    { "key": "nome", "value": "Nome da pessoa" },
+    { "key": "descritor", "value": "[]" },
+    { "key": "perfilId", "value": "" },
+    { "key": "tokenExclusao", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "adm",
+      "item": [
+        {
+          "name": "Login administrativo",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "user", "value": "{{adminUser}}", "type": "text" },
+                { "key": "pass", "value": "{{adminPass}}", "type": "text" }
+              ]
+            },
+            "url": "{{baseUrl}}/login",
+            "description": "Faça login antes de chamar as demais rotas administrativas. O Postman deve manter o cookie da sessão."
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/logout"
+          }
+        },
+        {
+          "name": "Painel administrativo",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/adm"
+          }
+        },
+        {
+          "name": "Relatório de presença (página)",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/relatorio"
+          }
+        },
+        {
+          "name": "Resetar memória local do navegador",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/resetls",
+            "description": "Rota administrativa. Limpa o localStorage do navegador que fizer a requisição."
+          }
+        },
+        {
+          "name": "Gerar QR Code",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/adm/gerar-qrcode?sala={{salaId}}"
+          }
+        },
+        {
+          "name": "Baixar QR Code",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/adm/gerar-qrcode?sala={{salaId}}&download=true"
+          }
+        },
+        {
+          "name": "Adicionar presença manual",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"{{nome}}\",\n  \"salaId\": {{salaId}}\n}",
+              "options": {
+                "raw": { "language": "json" }
+              }
+            },
+            "url": "{{baseUrl}}/adm/adicionar-manual"
+          }
+        },
+        {
+          "name": "Listar presenças (JSON)",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/relatorio?sala={{salaId}}",
+            "description": "O parâmetro sala é opcional; remova-o para consultar todas as presenças."
+          }
+        },
+        {
+          "name": "Listar pessoas e indicador de rosto",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/face/pessoas",
+            "description": "Retorna nomes únicos do histórico e temRosto: true/false. Requer sessão administrativa."
+          }
+        },
+        {
+          "name": "Listar salas",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/salas"
+          }
+        },
+        {
+          "name": "Criar sala",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sala\": \"{{sala}}\",\n  \"qrId\": {{qrId}}\n}",
+              "options": {
+                "raw": { "language": "json" }
+              }
+            },
+            "url": "{{baseUrl}}/api/salas",
+            "description": "Use qrId quando houver um QR disponível para selecionar."
+          }
+        },
+        {
+          "name": "Fechar ou reabrir sala",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"aberta\": false\n}",
+              "options": {
+                "raw": { "language": "json" }
+              }
+            },
+            "url": "{{baseUrl}}/api/salas/{{salaId}}"
+          }
+        },
+        {
+          "name": "Excluir sala e presenças associadas",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/api/salas?sala={{salaId}}"
+          }
+        },
+        {
+          "name": "Diminuir presença",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/reduce?sala={{salaId}}"
+          }
+        },
+        {
+          "name": "Limpar presenças de uma sala",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/clean?sala={{salaId}}"
+          }
+        },
+        {
+          "name": "Limpar todas as presenças",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/clean?all=true"
+          }
+        },
+        {
+          "name": "Listar QR Codes",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/qrcodes"
+          }
+        },
+        {
+          "name": "Criar QR Code disponível",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/qrcodes"
+          }
+        },
+        {
+          "name": "Excluir QR Code disponível",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/api/qrcodes/{{qrId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "sistema",
+      "item": [
+        {
+          "name": "Verificar servidor",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/"
+          }
+        },
+        {
+          "name": "Consultar quantidade de presenças",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/qtd?sala={{salaId}}",
+            "description": "O parâmetro sala é opcional. Sem ele, retorna a contagem geral e as contagens por sala."
+          }
+        },
+        {
+          "name": "Validar sala do QR Code",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/checkin/sala?id={{salaId}}",
+            "description": "Para QR Codes antigos, use ?sala={{sala}} em vez de id."
+          }
+        }
+      ]
+    },
+    {
+      "name": "usuário",
+      "item": [
+        {
+          "name": "Abrir página de check-in",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/add?id={{salaId}}"
+          }
+        },
+        {
+          "name": "Fazer check-in pelo nome",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"{{nome}}\",\n  \"salaId\": {{salaId}}\n}",
+              "options": {
+                "raw": { "language": "json" }
+              }
+            },
+            "url": "{{baseUrl}}/add",
+            "description": "Para salas antigas, use sala no lugar de salaId."
+          }
+        },
+        {
+          "name": "Abrir página de teste facial",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/teste-rosto"
+          }
+        },
+        {
+          "name": "Cadastrar rosto",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nome\": \"{{nome}}\",\n  \"descritor\": {{descritor}},\n  \"consentimento\": true\n}",
+              "options": {
+                "raw": { "language": "json" }
+              }
+            },
+            "url": "{{baseUrl}}/api/face/enroll",
+            "description": "A pessoa deve ter consentido com o cadastro. descritor precisa ser um array de 128 valores gerado por face-api.js."
+          }
+        },
+        {
+          "name": "Fazer check-in facial",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"descritor\": {{descritor}},\n  \"salaId\": {{salaId}}\n}",
+              "options": {
+                "raw": { "language": "json" }
+              }
+            },
+            "url": "{{baseUrl}}/api/face/checkin",
+            "description": "descritor precisa ser um array de 128 valores gerado por face-api.js. Para salas antigas, use sala no lugar de salaId."
+          }
+        },
+        {
+          "name": "Verificar se rosto está cadastrado",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"descritor\": {{descritor}}\n}",
+              "options": {
+                "raw": { "language": "json" }
+              }
+            },
+            "url": "{{baseUrl}}/api/face/verify"
+          }
+        },
+        {
+          "name": "Verificar rosto e nome",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"descritor\": {{descritor}},\n  \"nome\": \"{{nome}}\"\n}",
+              "options": {
+                "raw": { "language": "json" }
+              }
+            },
+            "url": "{{baseUrl}}/api/face/verify",
+            "description": "A resposta informa apenas se há cadastro e se o rosto corresponde ao nome, sem revelar o nome do perfil encontrado."
+          }
+        },
+        {
+          "name": "Excluir meu cadastro facial",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "x-face-delete-token", "value": "{{tokenExclusao}}" }
+            ],
+            "url": "{{baseUrl}}/api/face/profile/{{perfilId}}",
+            "description": "Use o ID e o token de exclusão entregues ao cadastrar o rosto; o token fica guardado no navegador usado no cadastro."
+          }
+        }
+      ]
+    }
+  ]
+}

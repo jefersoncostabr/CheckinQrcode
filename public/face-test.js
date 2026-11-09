@@ -1,4 +1,3 @@
-const faceTestConsent = document.getElementById('faceTestConsent');
 const faceTestName = document.getElementById('faceTestName');
 const faceTestButton = document.getElementById('faceTestButton');
 const faceTestVideo = document.getElementById('faceTestVideo');
@@ -7,11 +6,6 @@ const faceTestResult = document.getElementById('faceTestResult');
 
 faceTestButton.addEventListener('click', async () => {
     faceTestResult.hidden = true;
-    if (!faceTestConsent.checked) {
-        faceTestStatus.textContent = 'Marque o consentimento antes de usar a câmera.';
-        return;
-    }
-
     faceTestButton.disabled = true;
     try {
         const descritor = await FaceRecognition.capturarDescritorFacial(faceTestVideo, status => {
