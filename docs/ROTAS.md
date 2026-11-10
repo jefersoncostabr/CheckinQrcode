@@ -23,7 +23,7 @@ As rotas marcadas como administrativas exigem uma sessão iniciada por `POST /lo
 | `GET` | `/add?sala=...` | Público | Compatibilidade temporária com QR Codes antigos que guardam o apelido da sala. |
 | `GET` | `/teste-rosto` | Público | Exibe a página para verificar se um rosto está cadastrado e, opcionalmente, se corresponde ao nome informado. Também pode ser aberta pelo botão “Testar biometria facial” na seção Gestão do Sistema de `/adm`. |
 | `GET` | `/adm` | Requer autenticação (`requireAuth`) | Exibe o painel administrativo. Requer uma sessão autenticada; sem ela, redireciona para `/login`. |
-| `GET` | `/adm/monitor-facial` | Requer autenticação (`requireAuth`) | Abre o monitor contínuo de presença por reconhecimento facial. A pessoa administradora escolhe uma sala aberta, confirma que as pessoas foram informadas e consente, e inicia a câmera manualmente. A busca verifica aproximadamente uma vez por segundo e registra uma pessoa cadastrada uma vez por apresentação do rosto. |
+| `GET` | `/adm/monitor-facial` | Requer autenticação (`requireAuth`) | Abre o monitor contínuo de presença por reconhecimento facial. A pessoa administradora escolhe uma sala aberta (manualmente ou lendo um QR de check-in `/add?id=ID` ou `/add?sala=NOME`), confirma que as pessoas foram informadas e consente, e inicia o monitoramento manualmente. A busca verifica aproximadamente uma vez por segundo e registra uma pessoa cadastrada uma vez por apresentação do rosto. |
 | Vários | `/adm/*` | Requer autenticação (`requireAuth`) | Protege as sub-rotas administrativas, como `/adm/gerar-qrcode` e `/adm/cadastrar-usuario`. Sem sessão autenticada, redireciona para `/login`. |
 | `GET` | `/adm/adicionar-manual` | Administrativa | Exibe a página para registrar presença manualmente. |
 | `GET` | `/relatorio` | Administrativa | Exibe uma página HTML com o total de pessoas e a lista de nomes e datas/horários dos check-ins, com filtro por sala. O botão copia um cabeçalho que identifica todas as salas ou a sala selecionada (ID e nome), seguido apenas pelos nomes. |
@@ -81,6 +81,8 @@ A câmera requer consentimento e um contexto seguro (HTTPS ou `localhost`). A im
 Os modelos faciais começam a ser carregados depois que a página termina de abrir e são reutilizados durante a captura. Se o pré-carregamento falhar, a captura tenta carregá-los novamente.
 
 O monitoramento contínuo (`/adm/monitor-facial`) só opera enquanto a página do monitor está aberta, usa a sala aberta escolhida pela administração e exige que o rosto saia do enquadramento por duas verificações consecutivas antes de processar outra pessoa, evitando registros repetidos enquanto a pessoa permanece diante da câmera. Depois de iniciar, a tela ocupa a viewport sem rolagem e deixa visíveis apenas a câmera, o guia oval com feedback de enquadramento, iluminação e quantidade de rostos, a mensagem de status e o botão para parar. O vídeo não é enviado nem armazenado; somente o descritor facial é consultado.
+
+A página de monitoramento pode ler QR Codes de sala no formato `/add?id=ID` ou no formato legado `/add?sala=NOME`. O conteúdo é validado por `GET /api/checkin/sala`; somente o ID ou nome da sala é utilizado. O leitor não executa comandos nem consulta URLs arbitrárias. A câmera do leitor QR é desligada antes de iniciar o monitor facial.
 
 Exemplo de resposta de `GET /api/face/pessoas`:
 

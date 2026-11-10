@@ -74,6 +74,20 @@
             margin: 0;
         }
 
+        #videoQrSala {
+            width: min(100%, 480px);
+            max-height: 45vh;
+            margin-top: 12px;
+            border-radius: 12px;
+            background: #101820;
+            object-fit: cover;
+        }
+
+        #statusQrSala {
+            min-height: 1.5em;
+            font-weight: 600;
+        }
+
         #monitorStatus {
             min-height: 3em;
             max-width: 760px;
@@ -126,6 +140,7 @@
     </style>
     <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
     <script defer src="/faceRecognition.js"></script>
+    <script defer src="https://unpkg.com/@zxing/browser@0.1.5/umd/zxing-browser.min.js"></script>
     <script defer src="/admFaceMonitor.js"></script>
 </head>
 <body>
@@ -136,6 +151,17 @@
             Selecione uma sala aberta. O monitoramento só começa ao clicar em
             "Iniciar" e para quando você clicar em "Parar" ou fechar esta página.
         </p>
+
+        <section aria-labelledby="qrSalaTitulo">
+            <h2 id="qrSalaTitulo">Selecionar sala pelo QR Code</h2>
+            <p>Aponte a câmera para o QR Code da sala. A leitura apenas seleciona uma sala aberta; ela não inicia o monitoramento.</p>
+            <div class="monitor-actions">
+                <button id="lerQrSala" type="button">Ler QR da sala</button>
+                <button id="pararLeituraQr" type="button" hidden>Cancelar leitura</button>
+            </div>
+            <video id="videoQrSala" playsinline muted hidden></video>
+            <p id="statusQrSala" role="status" aria-live="polite"></p>
+        </section>
 
         <label for="monitorSala">Sala para registrar a presença</label>
         <select id="monitorSala" required>

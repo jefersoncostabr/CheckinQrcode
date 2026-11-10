@@ -7,7 +7,15 @@ const statusMonitor = document.getElementById('monitorStatus');
 const cameraStage = document.getElementById('monitorCameraStage');
 const videoMonitor = document.getElementById('monitorVideo');
 
+const botaoLerQr = document.getElementById('lerQrSala');
+const botaoPararLeituraQr = document.getElementById('pararLeituraQr');
+const videoQrSala = document.getElementById('videoQrSala');
+const statusQrSala = document.getElementById('statusQrSala');
+
 let controladorMonitor;
+let controlesLeitorQr;
+let leitorQrAtivo = false;
+let qrEmProcessamento = false;
 
 function atualizarFeedback(state, message) {
     painelMonitor.dataset.captureState = state;
@@ -46,6 +54,140 @@ async function carregarSalasAbertas() {
         botaoIniciar.disabled = true;
     }
 }
+
+function pararLeituraQr() {
+    leitorQrAtivo = false;
+    controlesLeitorQr?.stop();
+    controlesLeitorQr = undefined;
+
+    const stream = videoQrSala.srcObject;
+    if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+    }
+
+    videoQrSala.srcObject = null;
+    videoQrSala.hidden = true;
+    botaoLerQr.disabled = false;
+    botaoPararLeituraQr.hidden = true;
+}
+
+async function validarQrESelecionarSala(textoQr) {
+    let urlQr;
+
+    try {
+        urlQr = new URL(textoQr, window.location.origin);
+    } catch {
+        throw new Error('O conteúdo lido não é um endereço de QR Code válido.');
+    }
+
+    if (!['http:', 'https:'].includes(urlQr.protocol) || urlQr.pathname !== '/add') {
+        throw new Error('Este QR Code não é um QR de sala do sistema.');
+    }
+
+    const chaves = [...urlQr.searchParams.keys()];
+    if (chaves.length !== 1 || !['id', 'sala'].includes(chaves[0])) {
+        throw new Error('O QR Code deve conter somente o parâmetro id ou sala.');
+    }
+
+    const tipo = chaves[0];
+    const valores = urlQr.searchParams.getAll(tipo);
+
+    if (valores.length !== 1 || !valores[0].trim()) {
+        throw new Error('O QR Code contém um parâmetro de sala inválido.');
+    }
+
+    const valor = valores[0].trim();
+
+    if (tipo === 'id' && !/^[1-9]\d*$/.test(valor)) {
+        throw new Error('O ID da sala no QR Code é inválido.');
+    }
+
+    if (tipo === 'sala' && valor.length > 120) {
+        throw new Error('O nome da sala no QR Code é muito longo.');
+    }
+
+    const response = await fetch(
+        `/api/checkin/sala?${tipo}=${encodeURIComponent(valor)}`,
+    );
+    const data = await response.json();
+
+    if (!response.ok || !data.sucesso || !data.sala) {
+        throw new Error(data.mensagem || 'A sala do QR Code não foi encontrada.');
+    }
+
+    if (data.sala.aberta === false) {
+        throw new Error('A sala do QR Code está fechada.');
+    }
+
+    const opcaoSala = [...salaSelect.options].find(
+        opcao => opcao.value === String(data.sala.id),
+    );
+
+    if (!opcaoSala) {
+        throw new Error('A sala lida não está entre as salas abertas disponíveis.');
+    }
+
+    salaSelect.value = String(data.sala.id);
+    statusQrSala.textContent = `Sala selecionada: ${data.sala.nome}. Confirme o consentimento e inicie o monitoramento.`;
+}
+
+botaoLerQr.addEventListener('click', async () => {
+    if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
+        statusQrSala.textContent = 'A câmera exige HTTPS ou localhost neste dispositivo.';
+        return;
+    }
+
+    if (!window.ZXingBrowser?.BrowserQRCodeReader) {
+        statusQrSala.textContent = 'O leitor ZXing não carregou. Verifique a conexão e recarregue a página.';
+        return;
+    }
+
+    leitorQrAtivo = true;
+    qrEmProcessamento = false;
+    botaoLerQr.disabled = true;
+    botaoPararLeituraQr.hidden = false;
+    videoQrSala.hidden = false;
+    statusQrSala.textContent = 'Aponte a câmera para o QR Code da sala.';
+
+    try {
+        const leitor = new ZXingBrowser.BrowserQRCodeReader();
+        const controles = await leitor.decodeFromVideoDevice(
+            undefined,
+            videoQrSala,
+            (resultado, erro, controlesCallback) => {
+                if (!resultado || qrEmProcessamento || !leitorQrAtivo) return;
+
+                qrEmProcessamento = true;
+                controlesLeitorQr = controlesCallback;
+                pararLeituraQr();
+
+                void validarQrESelecionarSala(resultado.getText())
+                    .then(() => {
+                        statusQrSala.textContent += ' O leitor QR foi desligado.';
+                    })
+                    .catch(error => {
+                        statusQrSala.textContent =
+                            error.message || 'Não foi possível validar o QR Code.';
+                    });
+            },
+        );
+
+        controlesLeitorQr = controles;
+
+        if (!leitorQrAtivo || qrEmProcessamento) {
+            controles.stop();
+        }
+    } catch (error) {
+        pararLeituraQr();
+        statusQrSala.textContent =
+            error.message || 'Não foi possível abrir a câmera para ler o QR Code.';
+    }
+});
+
+botaoPararLeituraQr.addEventListener('click', () => {
+    pararLeituraQr();
+    statusQrSala.textContent = 'Leitura do QR Code cancelada.';
+});
 
 botaoIniciar.addEventListener('click', async () => {
     if (!consentimento.checked) {

@@ -93,6 +93,7 @@ DancaHub
 - Depois de iniciar, a tela ocupa toda a viewport sem rolagem e mantém visíveis apenas o vídeo, o guia oval, as instruções de enquadramento e o botão para parar.
 - A busca roda aproximadamente uma vez por segundo, exige três detecções alinhadas antes de consultar o servidor, e só aceita outra pessoa depois que o rosto anterior sair do enquadramento por duas verificações consecutivas.
 - O vídeo da câmera não é enviado nem armazenado; somente o descritor facial é enviado para comparação no check-in.
+- A sala pode ser selecionada manualmente ou lendo um QR Code de check-in (`/add?id=ID` ou `/add?sala=NOME`). A leitura apenas seleciona e valida a sala aberta pela API `/api/checkin/sala`; não inicia o monitoramento automaticamente nem executa URLs arbitrárias.
 - O check-in por nome continua disponível como alternativa manual.
 
 ### H. Exibir Relatório de Presença
