@@ -140,12 +140,14 @@ button:hover,
 
 #btnAtualizarQtd,
 #btnGerarQRCode,
-#btnCriarQr {
+#btnCriarQr,
+#btnTestarBiometria {
     background-color: #3498db;
 }
 #btnAtualizarQtd:hover,
 #btnGerarQRCode:hover,
-#btnCriarQr:hover {
+#btnCriarQr:hover,
+#btnTestarBiometria:hover {
     background-color: #2980b9;
 }
 

@@ -191,7 +191,7 @@ async function capturarDescritorFacial(video, atualizarStatus, atualizarFeedback
                 atualizarStatus(feedback[1]);
                 ultimoFeedback = chaveFeedback;
             }
-            await new Promise(resolve => setTimeout(resolve, 350));
+            await new Promise(resolve => setTimeout(resolve, 200));
         }
     } finally {
         stream.getTracks().forEach(track => track.stop());

@@ -21,7 +21,7 @@ As rotas marcadas como administrativas exigem uma sessão iniciada por `POST /lo
 | `GET` | `/logout` | Público | Desloga o usuário, encerra a sessão atual e redireciona para `/login?loggedout=1`. |
 | `GET` | `/add?id=...` | Público | Exibe a página de confirmação do check-in para a sala identificada pelo ID correspondente. |
 | `GET` | `/add?sala=...` | Público | Compatibilidade temporária com QR Codes antigos que guardam o apelido da sala. |
-| `GET` | `/teste-rosto` | Público | Exibe a página para verificar se um rosto está cadastrado e, opcionalmente, se corresponde ao nome informado. |
+| `GET` | `/teste-rosto` | Público | Exibe a página para verificar se um rosto está cadastrado e, opcionalmente, se corresponde ao nome informado. Também pode ser aberta pelo botão “Testar biometria facial” na seção Gestão do Sistema de `/adm`. |
 | `GET` | `/adm` | Requer autenticação (`requireAuth`) | Exibe o painel administrativo. Requer uma sessão autenticada; sem ela, redireciona para `/login`. |
 | Vários | `/adm/*` | Requer autenticação (`requireAuth`) | Protege as sub-rotas administrativas, como `/adm/gerar-qrcode` e `/adm/cadastrar-usuario`. Sem sessão autenticada, redireciona para `/login`. |
 | `GET` | `/adm/adicionar-manual` | Administrativa | Exibe a página para registrar presença manualmente. |
@@ -73,7 +73,7 @@ Substitua `<URL_BASE>` por `http://localhost:3000` no desenvolvimento ou por `ht
 
 ## Captura biométrica
 
-O cadastro de usuário no painel administrativo abre um popup; ao iniciar a captura, a câmera ocupa a tela inteira. O mesmo fluxo de tela cheia é usado no check-in facial e na página `/teste-rosto`. A moldura e as mensagens orientam o posicionamento, e o navegador tenta detectar o rosto automaticamente, sem exigir um clique para cada tentativa. A captura é concluída quando um único rosto está centralizado e permanece alinhado por alguns instantes; é possível cancelar a busca.
+O cadastro de usuário no painel administrativo abre um popup; ao iniciar a captura, a câmera ocupa a tela inteira. O mesmo fluxo de tela cheia é usado no check-in facial e na página `/teste-rosto`. A moldura e as mensagens orientam o posicionamento, e o navegador tenta detectar o rosto automaticamente, sem exigir um clique para cada tentativa. A pausa entre verificações é de 200 ms. A captura é concluída quando um único rosto está centralizado e permanece alinhado por alguns instantes; é possível cancelar a busca.
 
 A câmera requer consentimento e um contexto seguro (HTTPS ou `localhost`). A imagem permanece no dispositivo: somente o descritor facial é enviado ao servidor.
 
