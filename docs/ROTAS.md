@@ -73,7 +73,7 @@ Substitua `<URL_BASE>` por `http://localhost:3000` no desenvolvimento ou por `ht
 
 ## Captura biométrica
 
-O cadastro de usuário no painel administrativo abre um popup; ao iniciar a captura, a câmera ocupa a tela inteira. O mesmo fluxo de tela cheia é usado no check-in facial e na página `/teste-rosto`. A moldura e as mensagens orientam o posicionamento, e o navegador tenta detectar o rosto automaticamente, sem exigir um clique para cada tentativa. A pausa entre verificações é de 200 ms. A captura é concluída quando um único rosto está centralizado e permanece alinhado por alguns instantes; é possível cancelar a busca.
+O cadastro de usuário no painel administrativo abre um popup; ao iniciar a captura, a câmera ocupa a tela inteira. O mesmo fluxo de tela cheia é usado no check-in facial e na página `/teste-rosto`. A moldura e as mensagens orientam o posicionamento, e o navegador tenta detectar o rosto automaticamente, sem exigir um clique para cada tentativa. A pausa entre verificações é de 200 ms. Após três verificações alinhadas, o descritor é calculado usando a última detecção validada, sem repetir a detecção facial. A captura é concluída quando um único rosto está centralizado e permanece alinhado por alguns instantes; é possível cancelar a busca.
 
 A câmera requer consentimento e um contexto seguro (HTTPS ou `localhost`). A imagem permanece no dispositivo: somente o descritor facial é enviado ao servidor.
 

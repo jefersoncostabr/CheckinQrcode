@@ -171,16 +171,13 @@ async function capturarDescritorFacial(video, atualizarStatus, atualizarFeedback
                     deteccoesAlinhadas += 1;
                     feedback = ['alinhado', 'Ótimo! Mantenha o rosto parado; estamos finalizando a captura...'];
                     if (deteccoesAlinhadas >= 3) {
-                        const deteccaoFinal = await faceapi
-                            .detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 }))
-                            .withFaceLandmarks(true)
-                            .withFaceDescriptor();
-                        if (deteccaoFinal) {
-                            atualizarFeedback('sucesso', 'Rosto capturado com sucesso.');
-                            atualizarStatus('Rosto capturado. Finalizando...');
-                            return Array.from(deteccaoFinal.descriptor);
-                        }
-                        deteccoesAlinhadas = 0;
+                        const caixaAlinhada = detections[0].landmarks.align(null, { useDlibAlignment: true });
+                        const [rostoAlinhado] = await faceapi.extractFaces(video, [caixaAlinhada]);
+                        const descriptor = await faceapi.nets.faceRecognitionNet.computeFaceDescriptor(rostoAlinhado);
+                        verificarCancelamento(signal);
+                        atualizarFeedback('sucesso', 'Rosto capturado com sucesso.');
+                        atualizarStatus('Rosto capturado. Finalizando...');
+                        return Array.from(descriptor);
                     }
                 }
             }
