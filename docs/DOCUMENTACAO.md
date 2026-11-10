@@ -85,6 +85,15 @@ DancaHub
 - O limite de similaridade é configurado no servidor. Reconhecimento facial não comprova presença física e não tem detecção de vivacidade; uma foto ou vídeo pode ser suficiente para enganar o fluxo. Não use como mecanismo de segurança ou controle de acesso.
 - Antes de usar em produção, avalie requisitos de privacidade, consentimento, segurança, retenção e exclusão aplicáveis, incluindo a LGPD. O check-in por nome deve continuar como alternativa.
 
+### Monitoramento contínuo de presença por reconhecimento facial (`/adm/monitor-facial`)
+
+- A rota é protegida por sessão administrativa (`requireAuth`) e é aberta a partir do painel `/adm`.
+- O monitoramento começa somente após ação explícita da administração: selecionar uma sala aberta, marcar o consentimento de que as pessoas foram informadas e clicar em "Iniciar monitoramento".
+- Existe um botão "Parar monitoramento" que encerra o fluxo e desliga a câmera; fechar a página também encerra o monitoramento.
+- A busca roda aproximadamente uma vez por segundo, exige três detecções alinhadas antes de consultar o servidor, e só aceita outra pessoa depois que o rosto anterior sair do enquadramento por duas verificações consecutivas.
+- O vídeo da câmera não é enviado nem armazenado; somente o descritor facial é enviado para comparação no check-in.
+- O check-in por nome continua disponível como alternativa manual.
+
 ### H. Exibir Relatório de Presença
 - **Rota:** `/relatorio`
 - **Método:** `GET`

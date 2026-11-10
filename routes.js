@@ -613,4 +613,8 @@ router.get('/adm', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'adm.html'))
 })
 
+router.get('/adm/monitor-facial', requireAuth, (req, res) => {
+    res.sendFile(path.join(__dirname, 'admFaceMonitor.html'))
+})
+
 export default router

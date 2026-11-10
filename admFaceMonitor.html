@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monitoramento facial de presença</title>
+    <link rel="stylesheet" href="/checkin.css">
+    <style>
+        body {
+            padding: 20px;
+        }
+
+        .monitor {
+            width: min(100%, 760px);
+            margin: 0 auto;
+            padding: 24px;
+            border-radius: 12px;
+            background: #fff;
+            box-shadow: 0 4px 18px rgba(0, 0, 0, 0.12);
+        }
+
+        .monitor select {
+            width: 100%;
+            min-height: 44px;
+            margin: 8px 0 16px;
+        }
+
+        .monitor-consent {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            line-height: 1.5;
+            margin: 18px 0;
+        }
+
+        .monitor-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        #monitorStatus {
+            min-height: 3em;
+            margin-top: 18px;
+            font-weight: 600;
+        }
+
+        #monitorVideo {
+            display: block;
+            width: 100%;
+            max-height: 55vh;
+            margin-top: 18px;
+            background: #111;
+            object-fit: cover;
+            transform: scaleX(-1);
+        }
+    </style>
+    <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+    <script defer src="/faceRecognition.js"></script>
+    <script defer src="/admFaceMonitor.js"></script>
+</head>
+<body>
+    <main class="monitor">
+        <h1>Monitoramento facial de presença</h1>
+
+        <p>
+            Selecione uma sala aberta. O monitoramento só começa ao clicar em
+            "Iniciar" e para quando você clicar em "Parar" ou fechar esta página.
+        </p>
+
+        <label for="monitorSala">Sala para registrar a presença</label>
+        <select id="monitorSala" required>
+            <option value="">Carregando salas...</option>
+        </select>
+
+        <label class="monitor-consent">
+            <input id="monitorConsent" type="checkbox">
+            <span>
+                Confirmo que as pessoas foram informadas e consentiram com a
+                verificação facial para registrar presença nesta sala.
+            </span>
+        </label>
+
+        <div class="monitor-actions">
+            <button id="monitorStart" type="button" disabled>Iniciar monitoramento</button>
+            <button id="monitorStop" type="button" disabled>Parar monitoramento</button>
+            <a href="/adm">Voltar ao painel</a>
+        </div>
+
+        <p id="monitorStatus" role="status" aria-live="polite">
+            Carregando as salas disponíveis...
+        </p>
+
+        <video id="monitorVideo" autoplay muted playsinline hidden></video>
+    </main>
+</body>
+</html>
