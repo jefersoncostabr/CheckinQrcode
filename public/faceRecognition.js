@@ -1,4 +1,26 @@
 const faceModelsUrl = 'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@0.22.2/weights';
+let faceModelsPromise;
+
+function carregarModelosFaciais() {
+    if (!faceModelsPromise) {
+        faceModelsPromise = Promise.all([
+            faceapi.nets.tinyFaceDetector.loadFromUri(faceModelsUrl),
+            faceapi.nets.faceLandmark68TinyNet.loadFromUri(faceModelsUrl),
+            faceapi.nets.faceRecognitionNet.loadFromUri(faceModelsUrl),
+        ]).catch(error => {
+            faceModelsPromise = null;
+            throw error;
+        });
+    }
+
+    return faceModelsPromise;
+}
+
+window.addEventListener('load', () => {
+    carregarModelosFaciais().catch(error => {
+        console.warn('Não foi possível pré-carregar os modelos faciais. A captura tentará carregá-los novamente.', error);
+    });
+}, { once: true });
 
 function mensagemErroFacial(error) {
     if (error instanceof Error && error.name === 'Error' && error.message) {
@@ -68,11 +90,7 @@ async function capturarDescritorFacial(video, atualizarStatus, atualizarFeedback
     atualizarStatus('Preparando a captura facial...');
     atualizarFeedback('aguardando', 'Preparando a câmera e os modelos faciais...');
     try {
-        await Promise.all([
-            faceapi.nets.tinyFaceDetector.loadFromUri(faceModelsUrl),
-            faceapi.nets.faceLandmark68TinyNet.loadFromUri(faceModelsUrl),
-            faceapi.nets.faceRecognitionNet.loadFromUri(faceModelsUrl),
-        ]);
+        await carregarModelosFaciais();
     } catch {
         throw new Error('Não foi possível baixar os modelos faciais. Confira a internet no celular e tente novamente.');
     }

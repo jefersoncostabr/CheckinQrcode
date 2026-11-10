@@ -21,8 +21,9 @@ As rotas marcadas como administrativas exigem uma sessão iniciada por `POST /lo
 | `GET` | `/logout` | Público | Desloga o usuário, encerra a sessão atual e redireciona para `/login?loggedout=1`. |
 | `GET` | `/add?id=...` | Público | Exibe a página de confirmação do check-in para a sala identificada pelo ID correspondente. |
 | `GET` | `/add?sala=...` | Público | Compatibilidade temporária com QR Codes antigos que guardam o apelido da sala. |
+| `GET` | `/teste-rosto` | Público | Exibe a página para verificar se um rosto está cadastrado e, opcionalmente, se corresponde ao nome informado. |
 | `GET` | `/adm` | Requer autenticação (`requireAuth`) | Exibe o painel administrativo. Requer uma sessão autenticada; sem ela, redireciona para `/login`. |
-| Vários | `/adm/*` | Requer autenticação (`requireAuth`) | Protege as sub-rotas administrativas, como `/adm/gerar-qrcode` e `/adm/adicionar-manual`. Sem sessão autenticada, redireciona para `/login`. |
+| Vários | `/adm/*` | Requer autenticação (`requireAuth`) | Protege as sub-rotas administrativas, como `/adm/gerar-qrcode` e `/adm/cadastrar-usuario`. Sem sessão autenticada, redireciona para `/login`. |
 | `GET` | `/adm/adicionar-manual` | Administrativa | Exibe a página para registrar presença manualmente. |
 | `GET` | `/relatorio` | Administrativa | Exibe uma página HTML com o total de pessoas e a lista de nomes e datas/horários dos check-ins, com filtro por sala. O botão copia um cabeçalho que identifica todas as salas ou a sala selecionada (ID e nome), seguido apenas pelos nomes. |
 | `GET` | `/resetls` | Administrativa | Limpa o `localStorage` do navegador e redireciona para `/add`. Pode desbloquear dispositivos que impedem incorretamente um novo check-in (por exemplo, exibindo “Você já confirmou presença”). Não limpa o banco de dados. |
@@ -34,6 +35,10 @@ As rotas marcadas como administrativas exigem uma sessão iniciada por `POST /lo
 | `GET` | `/qtd` | Query opcional: `sala` | Retorna a contagem total e as contagens por sala. Com `sala`, retorna a contagem daquela sala. |
 | `GET` | `/api/checkin/sala?id=...` | Query `id` ou `sala` legado | Valida se o QR corresponde a uma sala cadastrada e aberta. |
 | `POST` | `/add` | JSON: `nome`, `salaId`; legado: `nome`, `sala` | Registra um check-in. A sala deve existir e estar aberta para check-in via QR; o nome não pode já estar registrado nela. |
+| `POST` | `/api/face/enroll` | JSON: `nome`, `descritor` (128 números), `consentimento: true` | Cadastra um perfil facial com consentimento explícito. Retorna `409` se o nome já tiver perfil ou se o rosto já estiver cadastrado; em caso de sucesso, retorna o ID do perfil e o token de exclusão. |
+| `POST` | `/api/face/checkin` | JSON: `descritor` (128 números), `salaId`; legado: `sala` | Localiza o perfil facial correspondente e registra presença na sala. |
+| `POST` | `/api/face/verify` | JSON: `descritor` (128 números), `nome` opcional | Informa se o rosto está cadastrado e, quando enviado, se corresponde ao nome. Não retorna o nome associado ao rosto. |
+| `DELETE` | `/api/face/profile/:id` | Header `x-face-delete-token` | Exclui o perfil facial quando o token de exclusão correspondente é informado. |
 
 ## API Administrativa
 
@@ -54,7 +59,7 @@ Todas as rotas desta seção exigem sessão administrativa.
 | `POST` | `/api/qrcodes` | Nenhum | Cria QR disponível; retorna `409` ao atingir o limite. |
 | `DELETE` | `/api/qrcodes/:id` | ID do QR | Exclui somente QRs disponíveis; QRs associados são protegidos. |
 | `POST` | `/adm/adicionar-manual` | JSON: `nome`, `salaId` | Registra presença manual autenticada, inclusive em sala fechada. |
-| `POST` | `/adm/cadastrar-usuario` | JSON: `nome`, `descritor`, `consentimento: true` | Cadastra um perfil facial pela administração; valida se o nome ou o rosto já está cadastrado. |
+| `POST` | `/adm/cadastrar-usuario` | JSON: `nome`, `descritor` (128 números), `consentimento: true` | Cadastra um perfil facial pela administração; valida se o nome ou o rosto já está cadastrado. Retorna `409` em caso de duplicidade. |
 | `GET` | `/adm/gerar-qrcode?sala=ID` | Query obrigatória: `sala` | Gera QR Code com URL estável `/add?id=ID` e imagem em Data URI. |
 | `GET` | `/adm/gerar-qrcode?sala=ID&download=true` | Query obrigatória: `sala`; `download=true` | Retorna a imagem PNG do QR Code para download. |
 
@@ -65,6 +70,14 @@ Todas as rotas desta seção exigem sessão administrativa.
 3. Para consultar a contagem, use `GET <URL_BASE>/qtd`.
 
 Substitua `<URL_BASE>` por `http://localhost:3000` no desenvolvimento ou por `https://checkinqrcode.onrender.com` no Render.
+
+## Captura biométrica
+
+O cadastro de usuário no painel administrativo abre um popup; ao iniciar a captura, a câmera ocupa a tela inteira. O mesmo fluxo de tela cheia é usado no check-in facial e na página `/teste-rosto`. A moldura e as mensagens orientam o posicionamento, e o navegador tenta detectar o rosto automaticamente, sem exigir um clique para cada tentativa. A captura é concluída quando um único rosto está centralizado e permanece alinhado por alguns instantes; é possível cancelar a busca.
+
+A câmera requer consentimento e um contexto seguro (HTTPS ou `localhost`). A imagem permanece no dispositivo: somente o descritor facial é enviado ao servidor.
+
+Os modelos faciais começam a ser carregados depois que a página termina de abrir e são reutilizados durante a captura. Se o pré-carregamento falhar, a captura tenta carregá-los novamente.
 
 Exemplo de resposta de `GET /api/face/pessoas`:
 

@@ -27,6 +27,14 @@ DancaHub
 
 ## 1. Rotas da API
 
+### Listar as rotas disponíveis
+- Rota: /api/rotas
+- Método: GET
+- Acesso: requer sessão administrativa; faça login antes de acessar.
+- Descrição: retorna em JSON o método, o caminho e o tipo de acesso das rotas registradas no catálogo da aplicação.
+- Retorno: JSON com sucesso e a lista de rotas.
+- Observação: ao adicionar ou remover uma rota, atualize também o catálogo em routes.js.
+
 ### A. Verificar se o servidor está online
 - **Rota:** `/`
 - **Método:** `GET`
@@ -67,7 +75,7 @@ DancaHub
 ### G. Check-in facial opcional
 
 - Na página `/add`, a pessoa pode cadastrar o rosto voluntariamente ou reconhecer um rosto já cadastrado. O nome continua disponível como alternativa.
-- A câmera e os modelos faciais são usados pelo navegador com `getUserMedia` e `face-api.js`. É exigido HTTPS (ou `localhost` no próprio dispositivo) para acesso à câmera. Em celular acessando o servidor pelo IP local, HTTP não é considerado seguro; use um endereço HTTPS. Os modelos e a biblioteca são carregados pelo jsDelivr, portanto o dispositivo também precisa de internet.
+- A câmera e os modelos faciais são usados pelo navegador com `getUserMedia` e `face-api.js`. Os modelos começam a ser carregados depois que a página termina de abrir e são reutilizados durante a captura. É exigido HTTPS (ou `localhost` no próprio dispositivo) para acesso à câmera. Em celular acessando o servidor pelo IP local, HTTP não é considerado seguro; use um endereço HTTPS. Os modelos e a biblioteca são carregados pelo jsDelivr, portanto o dispositivo também precisa de internet.
 - Depois de iniciar o fluxo facial, a captura ocupa a tela e procura automaticamente até detectar um rosto bem enquadrado; a moldura e as mensagens orientam o posicionamento. É possível cancelar a busca.
 - A imagem não é enviada ao servidor; o descritor facial de 128 valores é enviado para comparação e salvo na coleção `faceProfiles`. Esse descritor continua sendo dado biométrico sensível.
 - `/api/face/enroll` cadastra um descritor após consentimento explícito; `/api/face/checkin` compara o descritor e registra a presença usando o nome associado; `DELETE /api/face/profile/:id` apaga o perfil com a credencial de exclusão guardada localmente no navegador que fez o cadastro.

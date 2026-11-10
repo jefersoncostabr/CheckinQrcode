@@ -98,6 +98,45 @@ router.get('/', (req, res) => {
     res.send('O servidor funcionando.')
 })
 
+router.get('/api/rotas', requireAuth, (req, res) => {
+    const rotasDisponiveis = [
+        { metodo: 'GET', caminho: '/', acesso: 'público' },
+        { metodo: 'GET', caminho: '/api/rotas', acesso: 'sessão administrativa' },
+        { metodo: 'GET', caminho: '/login', acesso: 'público' },
+        { metodo: 'POST', caminho: '/login', acesso: 'público' },
+        { metodo: 'GET', caminho: '/logout', acesso: 'público' },
+        { metodo: 'GET', caminho: '/qtd', acesso: 'público' },
+        { metodo: 'GET', caminho: '/add', acesso: 'público' },
+        { metodo: 'POST', caminho: '/add', acesso: 'público' },
+        { metodo: 'GET', caminho: '/teste-rosto', acesso: 'público' },
+        { metodo: 'GET', caminho: '/api/checkin/sala', acesso: 'público' },
+        { metodo: 'POST', caminho: '/api/face/enroll', acesso: 'verificação e consentimento' },
+        { metodo: 'POST', caminho: '/api/face/checkin', acesso: 'público' },
+        { metodo: 'POST', caminho: '/api/face/verify', acesso: 'público' },
+        { metodo: 'GET', caminho: '/api/face/pessoas', acesso: 'sessão administrativa' },
+        { metodo: 'DELETE', caminho: '/api/face/profile/:id', acesso: 'token de exclusão' },
+        { metodo: 'DELETE', caminho: '/reduce', acesso: 'sessão administrativa' },
+        { metodo: 'DELETE', caminho: '/clean', acesso: 'sessão administrativa' },
+        { metodo: 'GET', caminho: '/resetls', acesso: 'sessão administrativa' },
+        { metodo: 'GET', caminho: '/api/relatorio', acesso: 'sessão administrativa' },
+        { metodo: 'GET', caminho: '/api/salas', acesso: 'sessão administrativa' },
+        { metodo: 'POST', caminho: '/api/salas', acesso: 'sessão administrativa' },
+        { metodo: 'DELETE', caminho: '/api/salas', acesso: 'sessão administrativa' },
+        { metodo: 'PATCH', caminho: '/api/salas/:id', acesso: 'sessão administrativa' },
+        { metodo: 'GET', caminho: '/api/qrcodes', acesso: 'sessão administrativa' },
+        { metodo: 'POST', caminho: '/api/qrcodes', acesso: 'sessão administrativa' },
+        { metodo: 'DELETE', caminho: '/api/qrcodes/:id', acesso: 'sessão administrativa' },
+        { metodo: 'GET', caminho: '/relatorio', acesso: 'sessão administrativa' },
+        { metodo: 'GET', caminho: '/adm', acesso: 'sessão administrativa' },
+        { metodo: 'GET', caminho: '/adm/adicionar-manual', acesso: 'sessão administrativa' },
+        { metodo: 'POST', caminho: '/adm/adicionar-manual', acesso: 'sessão administrativa' },
+        { metodo: 'GET', caminho: '/adm/gerar-qrcode', acesso: 'sessão administrativa' },
+        { metodo: 'POST', caminho: '/adm/cadastrar-usuario', acesso: 'sessão administrativa' }
+    ]
+
+    return res.json({ sucesso: true, rotas: rotasDisponiveis })
+})
+
 // Autenticação
 router.get('/login', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'login.html'))
