@@ -1,5 +1,7 @@
 # Documentação do Sistema de Check-in
 
+(teste)
+
 **URL Base:** `http://localhost:3000`
 
 ## Estrutura no MongoDB
