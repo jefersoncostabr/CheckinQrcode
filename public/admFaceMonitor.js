@@ -10,6 +10,7 @@ const videoMonitor = document.getElementById('monitorVideo');
 const botaoLerQr = document.getElementById('lerQrSala');
 const botaoPararLeituraQr = document.getElementById('pararLeituraQr');
 const videoQrSala = document.getElementById('videoQrSala');
+const cameraStageQr = document.getElementById('qrCameraStage');
 const statusQrSala = document.getElementById('statusQrSala');
 
 let controladorMonitor;
@@ -66,7 +67,9 @@ function pararLeituraQr() {
     }
 
     videoQrSala.srcObject = null;
-    videoQrSala.hidden = true;
+    cameraStageQr.hidden = true;
+    painelMonitor.classList.remove('qr-capture-active');
+    document.body.classList.remove('monitoring-active');
     botaoLerQr.disabled = false;
     botaoPararLeituraQr.hidden = true;
 }
@@ -146,13 +149,31 @@ botaoLerQr.addEventListener('click', async () => {
     qrEmProcessamento = false;
     botaoLerQr.disabled = true;
     botaoPararLeituraQr.hidden = false;
-    videoQrSala.hidden = false;
+    cameraStageQr.hidden = false;
+    painelMonitor.classList.add('qr-capture-active');
+    document.body.classList.add('monitoring-active');
     statusQrSala.textContent = 'Aponte a câmera para o QR Code da sala.';
 
     try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+            video: {
+                facingMode: { exact: 'user' },
+                width: { ideal: 1280 },
+                height: { ideal: 720 },
+            },
+            audio: false,
+        });
+
+        if (!leitorQrAtivo) {
+            stream.getTracks().forEach(track => track.stop());
+            return;
+        }
+
+        videoQrSala.srcObject = stream;
+        await videoQrSala.play();
+
         const leitor = new ZXingBrowser.BrowserQRCodeReader();
-        const controles = await leitor.decodeFromVideoDevice(
-            undefined,
+        const controles = await leitor.decodeFromVideoElement(
             videoQrSala,
             (resultado, erro, controlesCallback) => {
                 if (!resultado || qrEmProcessamento || !leitorQrAtivo) return;

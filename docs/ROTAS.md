@@ -82,7 +82,7 @@ Os modelos faciais começam a ser carregados depois que a página termina de abr
 
 O monitoramento contínuo (`/adm/monitor-facial`) só opera enquanto a página do monitor está aberta, usa a sala aberta escolhida pela administração e exige que o rosto saia do enquadramento por duas verificações consecutivas antes de processar outra pessoa, evitando registros repetidos enquanto a pessoa permanece diante da câmera. Depois de iniciar, a tela ocupa a viewport sem rolagem e deixa visíveis apenas a câmera, o guia oval com feedback de enquadramento, iluminação e quantidade de rostos, a mensagem de status e o botão para parar. O vídeo não é enviado nem armazenado; somente o descritor facial é consultado.
 
-A página de monitoramento pode ler QR Codes de sala no formato `/add?id=ID` ou no formato legado `/add?sala=NOME`. O conteúdo é validado por `GET /api/checkin/sala`; somente o ID ou nome da sala é utilizado. O leitor não executa comandos nem consulta URLs arbitrárias. A câmera do leitor QR é desligada antes de iniciar o monitor facial.
+A página de monitoramento pode ler QR Codes de sala no formato `/add?id=ID` ou no formato legado `/add?sala=NOME`. A leitura solicita a câmera frontal e exibe a prévia em tela cheia, com uma moldura para posicionar o QR e opção para cancelar. O conteúdo é validado por `GET /api/checkin/sala`; somente o ID ou nome da sala é utilizado. O leitor não executa comandos nem consulta URLs arbitrárias. A câmera do leitor QR é desligada antes de iniciar o monitor facial.
 
 Exemplo de resposta de `GET /api/face/pessoas`:
 
