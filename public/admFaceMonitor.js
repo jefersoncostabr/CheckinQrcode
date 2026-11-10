@@ -1,11 +1,18 @@
 const salaSelect = document.getElementById('monitorSala');
 const consentimento = document.getElementById('monitorConsent');
+const painelMonitor = document.getElementById('monitorPanel');
 const botaoIniciar = document.getElementById('monitorStart');
 const botaoParar = document.getElementById('monitorStop');
 const statusMonitor = document.getElementById('monitorStatus');
+const cameraStage = document.getElementById('monitorCameraStage');
 const videoMonitor = document.getElementById('monitorVideo');
 
 let controladorMonitor;
+
+function atualizarFeedback(state, message) {
+    painelMonitor.dataset.captureState = state;
+    statusMonitor.textContent = message;
+}
 
 async function carregarSalasAbertas() {
     try {
@@ -53,8 +60,13 @@ botaoIniciar.addEventListener('click', async () => {
     }
 
     controladorMonitor = new AbortController();
+    painelMonitor.classList.add('capture-active');
+    document.body.classList.add('monitoring-active');
+    cameraStage.hidden = false;
+    botaoParar.hidden = false;
     botaoIniciar.disabled = true;
     botaoParar.disabled = false;
+    botaoParar.focus();
     salaSelect.disabled = true;
     consentimento.disabled = true;
 
@@ -69,6 +81,7 @@ botaoIniciar.addEventListener('click', async () => {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ descritor, salaId }),
+                        signal: controladorMonitor.signal,
                     });
                     const data = await response.json();
 
@@ -76,33 +89,35 @@ botaoIniciar.addEventListener('click', async () => {
                         throw new Error(data.mensagem || 'Não foi possível registrar a presença.');
                     }
 
-                    statusMonitor.textContent =
-                        `Presença registrada para ${data.nome} na sala selecionada.`;
+                    atualizarFeedback('sucesso', `Presença registrada para ${data.nome} na sala selecionada.`);
                 } catch (error) {
-                    statusMonitor.textContent =
-                        error.message || 'Falha ao verificar o rosto ou registrar presença.';
+                    if (error.name === 'AbortError') throw error;
+                    atualizarFeedback('ajuste', error.message || 'Falha ao verificar o rosto ou registrar presença.');
                 }
             },
-            mensagem => {
-                statusMonitor.textContent = mensagem;
-            },
+            message => statusMonitor.textContent = message,
+            atualizarFeedback,
             controladorMonitor.signal,
         );
     } catch (error) {
-        if (error.name !== 'AbortError') {
+        if (error.name === 'AbortError') {
+            statusMonitor.textContent = 'Monitoramento parado.';
+        } else {
             statusMonitor.textContent = FaceRecognition.mensagemErroFacial(error);
         }
     } finally {
         controladorMonitor = undefined;
+        painelMonitor.classList.remove('capture-active');
+        painelMonitor.removeAttribute('data-capture-state');
+        document.body.classList.remove('monitoring-active');
+        cameraStage.hidden = true;
         botaoIniciar.disabled = false;
         botaoParar.disabled = true;
+        botaoParar.hidden = true;
         salaSelect.disabled = false;
         consentimento.disabled = false;
         videoMonitor.hidden = true;
-
-        if (statusMonitor.textContent !== 'Monitoramento parado.') {
-            statusMonitor.textContent = 'Monitoramento encerrado.';
-        }
+        botaoIniciar.focus();
     }
 });
 

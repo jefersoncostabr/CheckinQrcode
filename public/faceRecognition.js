@@ -197,7 +197,7 @@ async function capturarDescritorFacial(video, atualizarStatus, atualizarFeedback
     }
 }
 
-async function monitorarDescritoresFaciais(video, aoEncontrar, atualizarStatus, signal) {
+async function monitorarDescritoresFaciais(video, aoEncontrar, atualizarStatus, atualizarFeedback, signal) {
     if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
         throw new Error(`O navegador bloqueia a câmera neste endereço (${window.location.origin}). Use HTTPS ou localhost.`);
     }
@@ -252,7 +252,7 @@ async function monitorarDescritoresFaciais(video, aoEncontrar, atualizarStatus, 
         let aguardandoSaidaDoRosto = false;
         let quadrosSemRosto = 0;
 
-        atualizarStatus('Câmera ativa. Aguardando um rosto centralizado...');
+        atualizarFeedback('procurando', 'Câmera ativa. Aguardando um rosto centralizado...');
 
         while (true) {
             verificarCancelamento(signal);
@@ -273,7 +273,7 @@ async function monitorarDescritoresFaciais(video, aoEncontrar, atualizarStatus, 
                     if (quadrosSemRosto >= 2) {
                         aguardandoSaidaDoRosto = false;
                         quadrosSemRosto = 0;
-                        atualizarStatus('Rosto saiu do enquadramento. Aguardando a próxima pessoa...');
+                        atualizarFeedback('procurando', 'Rosto saiu do enquadramento. Aguardando a próxima pessoa...');
                     }
                 } else {
                     quadrosSemRosto = 0;
@@ -285,10 +285,10 @@ async function monitorarDescritoresFaciais(video, aoEncontrar, atualizarStatus, 
 
             if (deteccoes.length === 0) {
                 deteccoesAlinhadas = 0;
-                atualizarStatus('Nenhum rosto detectado. Aguardando...');
+                atualizarFeedback('procurando', 'Não detectamos um rosto. Aproxime-se e procure um local bem iluminado.');
             } else if (deteccoes.length > 1) {
                 deteccoesAlinhadas = 0;
-                atualizarStatus('Mais de um rosto detectado. Deixe apenas uma pessoa diante da câmera.');
+                atualizarFeedback('ajuste', 'Detectamos mais de um rosto. Deixe apenas uma pessoa diante da câmera.');
             } else {
                 const { x, y, width, height } = deteccoes[0].detection.box;
                 const centroX = (x + width / 2) / video.videoWidth;
@@ -304,12 +304,14 @@ async function monitorarDescritoresFaciais(video, aoEncontrar, atualizarStatus, 
 
                 if (!enquadrado) {
                     deteccoesAlinhadas = 0;
-                    atualizarStatus('Rosto detectado. Centralize-o e ajuste a distância da câmera.');
+                    atualizarFeedback('ajuste', larguraRosto < 0.18
+                        ? 'Rosto detectado. Aproxime-se um pouco da câmera.'
+                        : larguraRosto > 0.62
+                            ? 'Rosto muito próximo. Afaste-se um pouco da câmera.'
+                            : 'Rosto detectado. Centralize-o dentro da moldura.');
                 } else {
                     deteccoesAlinhadas += 1;
-                    atualizarStatus(
-                        `Rosto alinhado (${deteccoesAlinhadas}/3). Mantenha-se parado.`,
-                    );
+                    atualizarFeedback('alinhado', `Rosto alinhado (${deteccoesAlinhadas}/3). Mantenha o rosto parado.`);
 
                     if (deteccoesAlinhadas >= 3) {
                         const caixaAlinhada = deteccoes[0].landmarks.align(
