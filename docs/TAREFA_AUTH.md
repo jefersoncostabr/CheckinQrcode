@@ -4,9 +4,9 @@ Este documento descreve as etapas para proteger a rota `/adm` utilizando `expres
 
 
 
-## 3. Configuração do Express Session (app.js)
+## 3. Configuração do Express Session (`src/app.js`)
 
-No arquivo principal de configuração do Express (geralmente `app.js`), importar e configurar o middleware de sessão antes das rotas:
+No arquivo principal de configuração do Express (`src/app.js`), importar e configurar o middleware de sessão antes das rotas:
 
 ```javascript
 import session from 'express-session';
@@ -21,7 +21,7 @@ app.use(session({
 
 ## 4. Criação do Middleware de Autenticação
 
-Criar uma função middleware (pode ser em `routes.js` ou um arquivo separado `middleware/auth.js`) para verificar se a sessão existe:
+Criar uma função middleware (pode ser em `src/routes/routes.js` ou em `src/middleware/auth.js`) para verificar se a sessão existe:
 
 ```javascript
 const requireAuth = (req, res, next) => {
@@ -32,7 +32,7 @@ const requireAuth = (req, res, next) => {
 };
 ```
 
-## 5. Implementação das Rotas de Login e Logout (routes.js)
+## 5. Implementação das Rotas de Login e Logout (`src/routes/routes.js`)
 
 1.  **GET /login**: Servir um arquivo HTML simples com formulário (usuário e senha).
 2.  **POST /login**: Verificar se `req.body.user` e `req.body.pass` batem com as variáveis do `.env`.
@@ -45,7 +45,7 @@ const requireAuth = (req, res, next) => {
 Aplicar o middleware `requireAuth` na rota `/adm` e nas rotas de API administrativas:
 
 ```javascript
-// Em routes.js
+// Em src/routes/routes.js
 router.get('/adm', requireAuth, (req, res) => { ... });
 router.use('/adm/*', requireAuth); // Protege sub-rotas se houver
 ```

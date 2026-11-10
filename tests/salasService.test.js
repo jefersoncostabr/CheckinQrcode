@@ -2,7 +2,7 @@ import {
     criarQrDisponivel,
     encontrarSalaPorId,
     encontrarSalaPorNome,
-} from '../salasService.js'
+} from '../src/services/salasService.js'
 
 describe('serviço de salas e QR Codes', () => {
     it('atribui IDs sequenciais sem reutilizar o maior ID removido', () => {

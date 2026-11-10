@@ -1,16 +1,16 @@
 import express from 'express'
-import lotacaoSala from './lotacaoSalaModel.js'
-import faceProfile from './faceProfileModel.js'
+import lotacaoSala from '../models/lotacaoSalaModel.js'
+import faceProfile from '../models/faceProfileModel.js'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import { createHash, timingSafeEqual } from 'crypto'
-import { requireAuth } from './middleware/auth.js'
+import { requireAuth } from '../middleware/auth.js'
 import {
     cadastrarPerfilFacial,
     FACE_DESCRIPTOR_LENGTH,
     validarDescritor,
     verificarCadastroFacial,
-} from './middleware/faceEnrollment.js'
+} from '../middleware/faceEnrollment.js'
 import {
     criarQrDisponivel,
     encontrarQr,
@@ -21,11 +21,12 @@ import {
     LIMITE_QRCODES,
     normalizarTexto,
     serializarSala,
-} from './salasService.js'
+} from '../services/salasService.js'
 
 // Helper para obter o __dirname em módulos ES
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
+const publicDir = path.resolve(__dirname, '..', '..', 'public')
 
 const router = express.Router()
 const FACE_MATCH_THRESHOLD = 0.48
@@ -139,7 +140,7 @@ router.get('/api/rotas', requireAuth, (req, res) => {
 
 // Autenticação
 router.get('/login', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'login.html'))
+    res.sendFile(path.join(publicDir, 'login.html'))
 })
 
 router.post('/login', (req, res) => {
@@ -195,11 +196,11 @@ router.get('/qtd', async (req, res) => {
 
 // Rota de interface: Exibe o botão para confirmar (Evita robôs/previews)
 router.get('/add', async (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'checkin.html'))
+    res.sendFile(path.join(publicDir, 'checkin.html'))
 })
 
 router.get('/teste-rosto', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'face-test.html'))
+    res.sendFile(path.join(publicDir, 'face-test.html'))
 })
 
 router.get('/api/checkin/sala', async (req, res) => {
@@ -595,7 +596,7 @@ router.delete('/api/qrcodes/:id', requireAuth, async (req, res) => {
 // Rota de interface: Exibe a página de relatório estática
 router.get('/relatorio', requireAuth, (req, res) => {
     // O arquivo HTML agora busca os dados dinamicamente da /api/relatorio
-    res.sendFile(path.join(__dirname, 'public', 'relatorio.html'))
+    res.sendFile(path.join(publicDir, 'relatorio.html'))
 })
 
 // Protege as rotas de administração
@@ -605,16 +606,16 @@ router.use('/adm', requireAuth)
 router.post('/adm/adicionar-manual', requireAuth, (req, res) => registrarPresenca(req, res, true))
 
 router.get('/adm/adicionar-manual', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'admAdd.html'))
+    res.sendFile(path.join(publicDir, 'admAdd.html'))
 })
 
 // Rota de interface: Exibe a página de administração
 router.get('/adm', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'adm.html'))
+    res.sendFile(path.join(publicDir, 'adm.html'))
 })
 
 router.get('/adm/monitor-facial', requireAuth, (req, res) => {
-    res.sendFile(path.join(__dirname, 'admFaceMonitor.html'))
+    res.sendFile(path.join(__dirname, '..', 'views', 'admFaceMonitor.html'))
 })
 
 export default router

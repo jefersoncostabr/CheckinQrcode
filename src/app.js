@@ -1,9 +1,12 @@
 import express from 'express'
 import session from 'express-session'
-import routes from './routes.js'
-import adminRoutes from './adminRoutes.js'
+import path from 'path'
+import { fileURLToPath } from 'url'
+import routes from './routes/routes.js'
+import adminRoutes from './routes/adminRoutes.js'
 
 const app = express()
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 if (process.env.NODE_ENV === 'production') {
     app.set('trust proxy', 1)
@@ -45,7 +48,7 @@ app.use((req, res, next) => {
 })
 
 // Serve arquivos estáticos da pasta 'public'
-app.use(express.static('public'))
+app.use(express.static(path.resolve(__dirname, '..', 'public')))
 
 app.use('/adm', adminRoutes)
 app.use(routes)

@@ -35,7 +35,7 @@ DancaHub
 - Acesso: requer sessão administrativa; faça login antes de acessar.
 - Descrição: retorna em JSON o método, o caminho e o tipo de acesso das rotas registradas no catálogo da aplicação.
 - Retorno: JSON com sucesso e a lista de rotas.
-- Observação: ao adicionar ou remover uma rota, atualize também o catálogo em routes.js.
+- Observação: ao adicionar ou remover uma rota, atualize também o catálogo em `src/routes/routes.js`.
 
 ### A. Verificar se o servidor está online
 - **Rota:** `/`

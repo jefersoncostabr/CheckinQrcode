@@ -1,6 +1,6 @@
 import { createHash, randomBytes } from 'crypto'
-import faceProfile from '../faceProfileModel.js'
-import { normalizarTexto } from '../salasService.js'
+import faceProfile from '../models/faceProfileModel.js'
+import { normalizarTexto } from '../services/salasService.js'
 
 export const FACE_DESCRIPTOR_LENGTH = 128
 const FACE_MATCH_THRESHOLD = 0.48

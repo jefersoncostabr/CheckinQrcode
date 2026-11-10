@@ -1,6 +1,6 @@
 import request from 'supertest';
 import mongoose from 'mongoose';
-import app from '../app.js';
+import app from '../src/app.js';
 import 'dotenv/config';
 
 // Para rodar o teste, use o comando: npm test

@@ -1,4 +1,4 @@
-import { getQrBaseUrl } from './qrCodeService.js'
+import { getQrBaseUrl } from '../src/services/qrCodeService.js'
 
 const mockRequest = (host, protocol = 'http') => ({
     get: () => host,

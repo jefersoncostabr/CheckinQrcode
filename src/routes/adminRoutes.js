@@ -1,10 +1,10 @@
 import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { generateQRCodeBuffer, getQrBaseUrl } from './scripts/qrCodeService.js';
-import { requireAuth } from './middleware/auth.js';
-import { cadastrarPerfilFacial, verificarCadastroFacial } from './middleware/faceEnrollment.js';
-import { encontrarSala, getConfigDoc } from './salasService.js';
+import { generateQRCodeBuffer, getQrBaseUrl } from '../services/qrCodeService.js';
+import { requireAuth } from '../middleware/auth.js';
+import { cadastrarPerfilFacial, verificarCadastroFacial } from '../middleware/faceEnrollment.js';
+import { encontrarSala, getConfigDoc } from '../services/salasService.js';
 
 // Helper para obter o __dirname em módulos ES
 const __filename = fileURLToPath(import.meta.url);

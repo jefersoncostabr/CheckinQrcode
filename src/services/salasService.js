@@ -1,4 +1,4 @@
-import lotacaoSala from './lotacaoSalaModel.js'
+import lotacaoSala from '../models/lotacaoSalaModel.js'
 
 export const LIMITE_QRCODES = 10
 

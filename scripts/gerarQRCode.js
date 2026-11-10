@@ -1,4 +1,4 @@
-import { generateQRCodeFile } from './qrCodeService.js';
+import { generateQRCodeFile } from '../src/services/qrCodeService.js';
 import path from 'path';
 
 const url = 'https://checkinqrcode.onrender.com/add';
