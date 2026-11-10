@@ -5,6 +5,47 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Painel de Administração</title>
     <link rel="stylesheet" href="admEstilo.css">
+    <style>
+        #cadastroUsuarioDialog {
+            width: min(92vw, 520px);
+            border: 0;
+            border-radius: 8px;
+            padding: 24px;
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+        }
+
+        #cadastroUsuarioDialog::backdrop {
+            background: rgba(15, 23, 42, 0.6);
+        }
+
+        #cadastroUsuarioForm {
+            display: grid;
+            gap: 12px;
+        }
+
+        #cadastroUsuarioForm h2,
+        #cadastroUsuarioForm p {
+            margin: 0;
+        }
+
+        #nomeUsuarioInput {
+            min-height: 42px;
+            padding: 8px 10px;
+        }
+
+        .consentimento-admin {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            line-height: 1.4;
+        }
+
+        #videoCadastroUsuario {
+            width: 100%;
+            max-height: 280px;
+            background: #111;
+        }
+    </style>
 </head>
 <body>
     <div class="container">
@@ -36,6 +77,7 @@
             </div>
             <div class="actions">
                 <button id="btnAddPresenca" class="btn-primary">Adicionar Presença</button>
+                <button id="btnCadastrarUsuario" class="btn-primary" type="button">Cadastrar usuário</button>
                 <button id="btnReduzir" class="btn-danger">Remover Último Check-in</button>
                 <button id="btnLimpar" class="btn-danger">Zerar Contagem</button>
             </div>
@@ -79,6 +121,25 @@
             </div>
         </div>
 
+        <dialog id="cadastroUsuarioDialog" aria-labelledby="cadastroUsuarioTitulo">
+            <form id="cadastroUsuarioForm">
+                <h2 id="cadastroUsuarioTitulo">Cadastrar usuário</h2>
+                <p>O cadastro armazena o nome e um descritor matemático do rosto, não a imagem.</p>
+                <label for="nomeUsuarioInput">Nome completo</label>
+                <input id="nomeUsuarioInput" name="nome" type="text" maxlength="120" autocomplete="name" required>
+                <label class="consentimento-admin">
+                    <input id="consentimentoUsuario" type="checkbox" required>
+                    A pessoa confirmou que consente com o cadastro e armazenamento do descritor facial.
+                </label>
+                <video id="videoCadastroUsuario" autoplay muted playsinline hidden></video>
+                <p id="statusCadastroUsuario" role="status" aria-live="polite"></p>
+                <div class="actions">
+                    <button id="btnConfirmarCadastro" class="btn-primary" type="submit">Capturar rosto e cadastrar</button>
+                    <button id="btnCancelarCadastro" type="button">Cancelar</button>
+                </div>
+            </form>
+        </dialog>
+
         <div id="status" class="status-message">
             <p>Pronto.</p>
         </div>
@@ -87,6 +148,8 @@
         </div>
     </div>
 
-    <script src="admScript.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+    <script defer src="/faceRecognition.js"></script>
+    <script defer src="/admScript.js"></script>
 </body>
 </html>

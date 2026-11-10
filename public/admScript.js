@@ -15,10 +15,19 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnAtualizarQtd = document.getElementById('btnAtualizarQtd');
     const btnReduzir = document.getElementById('btnReduzir');
     const btnAddPresenca = document.getElementById('btnAddPresenca');
+    const btnCadastrarUsuario = document.getElementById('btnCadastrarUsuario');
     const btnLimpar = document.getElementById('btnLimpar');
     const btnGerarQRCode = document.getElementById('btnGerarQRCode');
     const btnAddSala = document.getElementById('btnAddSala');
     const btnCriarQr = document.getElementById('btnCriarQr');
+    const cadastroUsuarioDialog = document.getElementById('cadastroUsuarioDialog');
+    const cadastroUsuarioForm = document.getElementById('cadastroUsuarioForm');
+    const nomeUsuarioInput = document.getElementById('nomeUsuarioInput');
+    const consentimentoUsuario = document.getElementById('consentimentoUsuario');
+    const videoCadastroUsuario = document.getElementById('videoCadastroUsuario');
+    const statusCadastroUsuario = document.getElementById('statusCadastroUsuario');
+    const btnConfirmarCadastro = document.getElementById('btnConfirmarCadastro');
+    const btnCancelarCadastro = document.getElementById('btnCancelarCadastro');
     let atualizandoCheckins = false;
 
     // Estilização dos botões de Adicionar (Verde - Igual ao Relatório)
@@ -310,6 +319,57 @@ document.addEventListener('DOMContentLoaded', () => {
 
     btnAddPresenca.addEventListener('click', () => {
         window.location.href = '/adm/adicionar-manual';
+    });
+
+    btnCadastrarUsuario.addEventListener('click', () => {
+        cadastroUsuarioForm.reset();
+        statusCadastroUsuario.textContent = '';
+        cadastroUsuarioDialog.showModal();
+        nomeUsuarioInput.focus();
+    });
+
+    btnCancelarCadastro.addEventListener('click', () => cadastroUsuarioDialog.close());
+
+    cadastroUsuarioForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const nome = nomeUsuarioInput.value.trim();
+        if (!nome) {
+            statusCadastroUsuario.textContent = 'Informe o nome completo.';
+            nomeUsuarioInput.focus();
+            return;
+        }
+        if (!consentimentoUsuario.checked) {
+            statusCadastroUsuario.textContent = 'Confirme o consentimento antes de usar a câmera.';
+            consentimentoUsuario.focus();
+            return;
+        }
+
+        btnConfirmarCadastro.disabled = true;
+        btnCancelarCadastro.disabled = true;
+        try {
+            const descritor = await FaceRecognition.capturarDescritorFacial(videoCadastroUsuario, status => {
+                statusCadastroUsuario.textContent = status;
+            });
+            const response = await fetch('/adm/cadastrar-usuario', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ nome, descritor, consentimento: true }),
+            });
+            const data = await response.json();
+            if (!response.ok || !data.sucesso) {
+                throw new Error(data.mensagem || 'Não foi possível cadastrar o usuário.');
+            }
+
+            cadastroUsuarioDialog.close();
+            updateStatus(`Usuário "${nome}" cadastrado com sucesso.`, 'success');
+        } catch (error) {
+            console.error('Erro ao cadastrar usuário:', error);
+            statusCadastroUsuario.textContent = window.FaceRecognition?.mensagemErroFacial(error) ||
+                error.message || 'Não foi possível cadastrar o usuário.';
+        } finally {
+            btnConfirmarCadastro.disabled = false;
+            btnCancelarCadastro.disabled = false;
+        }
     });
 
     btnReduzir.addEventListener('click', async () => {

@@ -3,6 +3,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { generateQRCodeBuffer, getQrBaseUrl } from './scripts/qrCodeService.js';
 import { requireAuth } from './middleware/auth.js';
+import { cadastrarPerfilFacial, verificarCadastroFacial } from './middleware/faceEnrollment.js';
 import { encontrarSala, getConfigDoc } from './salasService.js';
 
 // Helper para obter o __dirname em módulos ES
@@ -13,6 +14,8 @@ const router = express.Router();
 
 // Protege todas as rotas desta rota de administração
 router.use(requireAuth);
+
+router.post('/cadastrar-usuario', verificarCadastroFacial, cadastrarPerfilFacial);
 
 /**
  * Rota para gerar um QR Code para a URL de check-in.

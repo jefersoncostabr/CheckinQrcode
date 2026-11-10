@@ -3,8 +3,14 @@ import lotacaoSala from './lotacaoSalaModel.js'
 import faceProfile from './faceProfileModel.js'
 import path from 'path'
 import { fileURLToPath } from 'url'
-import { createHash, randomBytes, timingSafeEqual } from 'crypto'
+import { createHash, timingSafeEqual } from 'crypto'
 import { requireAuth } from './middleware/auth.js'
+import {
+    cadastrarPerfilFacial,
+    FACE_DESCRIPTOR_LENGTH,
+    validarDescritor,
+    verificarCadastroFacial,
+} from './middleware/faceEnrollment.js'
 import {
     criarQrDisponivel,
     encontrarQr,
@@ -22,14 +28,7 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
 const router = express.Router()
-const FACE_DESCRIPTOR_LENGTH = 128
 const FACE_MATCH_THRESHOLD = 0.48
-
-function validarDescritor(descritor) {
-    return Array.isArray(descritor) &&
-        descritor.length === FACE_DESCRIPTOR_LENGTH &&
-        descritor.every(valor => Number.isFinite(valor) && Math.abs(valor) <= 2)
-}
 
 function distanciaFacial(primeiro, segundo) {
     return Math.sqrt(primeiro.reduce((soma, valor, indice) =>
@@ -181,50 +180,7 @@ router.get('/api/checkin/sala', async (req, res) => {
 
 router.post('/add', (req, res) => registrarPresenca(req, res))
 
-router.post('/api/face/enroll', async (req, res) => {
-    const body = req.body || {}
-    const nome = String(body.nome || '').trim()
-    const { descritor, consentimento } = body
-    if (!nome || nome.length > 120) {
-        return res.status(400).json({ sucesso: false, mensagem: 'Informe um nome com até 120 caracteres.' })
-    }
-    if (consentimento !== true) {
-        return res.status(400).json({ sucesso: false, mensagem: 'É necessário consentir com o cadastro facial.' })
-    }
-    if (!validarDescritor(descritor)) {
-        return res.status(400).json({ sucesso: false, mensagem: 'Não foi possível ler o rosto. Tente novamente.' })
-    }
-
-    try {
-        const perfis = await faceProfile.find().select('+descritor')
-        const jaCadastrado = perfis.some(perfil =>
-            perfil.descritor?.length === FACE_DESCRIPTOR_LENGTH &&
-            distanciaFacial(descritor, perfil.descritor) <= FACE_MATCH_THRESHOLD
-        )
-        if (jaCadastrado) {
-            return res.status(409).json({
-                sucesso: false,
-                mensagem: 'Este rosto já possui cadastro. Use “Fazer check-in com meu rosto”.',
-            })
-        }
-
-        const tokenExclusao = randomBytes(32).toString('hex')
-        const perfilCriado = await faceProfile.create({
-            nome,
-            descritor,
-            tokenExclusaoHash: hashToken(tokenExclusao),
-        })
-        return res.status(201).json({
-            sucesso: true,
-            mensagem: 'Rosto cadastrado. Faça o check-in com seu rosto ou digite seu nome.',
-            perfilId: perfilCriado.id,
-            tokenExclusao,
-        })
-    } catch (error) {
-        console.error('Erro ao cadastrar perfil facial:', error)
-        return res.status(500).json({ sucesso: false, mensagem: 'Erro ao cadastrar o rosto.' })
-    }
-})
+router.post('/api/face/enroll', verificarCadastroFacial, cadastrarPerfilFacial)
 
 router.post('/api/face/checkin', async (req, res) => {
     const { descritor } = req.body || {}

@@ -33,6 +33,13 @@ describe('Testes das Rotas de Check-in', () => {
         expect(res.statusCode).toEqual(302); // Redirecionamento para /login
     });
 
+    it('Deve proteger o cadastro administrativo de usuários', async () => {
+        const res = await request(app)
+            .post('/adm/cadastrar-usuario')
+            .send({});
+        expect(res.statusCode).toBe(302);
+    });
+
     it('Deve proteger a lista de pessoas e perfis faciais', async () => {
         const res = await request(app).get('/api/face/pessoas');
         expect(res.statusCode).toBe(302);

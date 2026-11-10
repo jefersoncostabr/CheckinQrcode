@@ -54,6 +54,7 @@ Todas as rotas desta seção exigem sessão administrativa.
 | `POST` | `/api/qrcodes` | Nenhum | Cria QR disponível; retorna `409` ao atingir o limite. |
 | `DELETE` | `/api/qrcodes/:id` | ID do QR | Exclui somente QRs disponíveis; QRs associados são protegidos. |
 | `POST` | `/adm/adicionar-manual` | JSON: `nome`, `salaId` | Registra presença manual autenticada, inclusive em sala fechada. |
+| `POST` | `/adm/cadastrar-usuario` | JSON: `nome`, `descritor`, `consentimento: true` | Cadastra um perfil facial pela administração; valida se o nome ou o rosto já está cadastrado. |
 | `GET` | `/adm/gerar-qrcode?sala=ID` | Query obrigatória: `sala` | Gera QR Code com URL estável `/add?id=ID` e imagem em Data URI. |
 | `GET` | `/adm/gerar-qrcode?sala=ID&download=true` | Query obrigatória: `sala`; `download=true` | Retorna a imagem PNG do QR Code para download. |
 
