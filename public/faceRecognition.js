@@ -22,7 +22,41 @@ function mensagemErroFacial(error) {
     }
 }
 
-async function capturarDescritorFacial(video, atualizarStatus) {
+function verificarCancelamento(signal) {
+    if (signal?.aborted) {
+        throw new DOMException('Captura cancelada.', 'AbortError');
+    }
+}
+
+function obterStream(constraints, signal) {
+    const cameraPromise = navigator.mediaDevices.getUserMedia(constraints);
+    if (!signal) return cameraPromise;
+
+    return new Promise((resolve, reject) => {
+        const cancelar = () => reject(new DOMException('Captura cancelada.', 'AbortError'));
+        if (signal.aborted) {
+            cancelar();
+            cameraPromise.then(stream => stream.getTracks().forEach(track => track.stop())).catch(() => {});
+            return;
+        }
+
+        signal.addEventListener('abort', cancelar, { once: true });
+        cameraPromise.then(stream => {
+            signal.removeEventListener('abort', cancelar);
+            if (signal.aborted) {
+                stream.getTracks().forEach(track => track.stop());
+                cancelar();
+                return;
+            }
+            resolve(stream);
+        }, error => {
+            signal.removeEventListener('abort', cancelar);
+            reject(error);
+        });
+    });
+}
+
+async function capturarDescritorFacial(video, atualizarStatus, atualizarFeedback = () => {}, signal) {
     if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
         throw new Error(`O navegador bloqueia a câmera neste endereço (${window.location.origin}). No Android, um endereço por IP local precisa de HTTPS; localhost só é considerado seguro no próprio dispositivo.`);
     }
@@ -30,7 +64,9 @@ async function capturarDescritorFacial(video, atualizarStatus) {
         throw new Error('Não foi possível carregar o reconhecimento facial. Verifique a conexão e tente novamente.');
     }
 
-    atualizarStatus('Carregando os modelos faciais...');
+    verificarCancelamento(signal);
+    atualizarStatus('Preparando a captura facial...');
+    atualizarFeedback('aguardando', 'Preparando a câmera e os modelos faciais...');
     try {
         await Promise.all([
             faceapi.nets.tinyFaceDetector.loadFromUri(faceModelsUrl),
@@ -41,20 +77,23 @@ async function capturarDescritorFacial(video, atualizarStatus) {
         throw new Error('Não foi possível baixar os modelos faciais. Confira a internet no celular e tente novamente.');
     }
 
+    verificarCancelamento(signal);
     atualizarStatus('Aguardando permissão da câmera...');
+    atualizarFeedback('aguardando', 'Permita o acesso à câmera quando o navegador solicitar.');
     let stream;
     try {
-        stream = await navigator.mediaDevices.getUserMedia({
+        stream = await obterStream({
             video: {
                 facingMode: { ideal: 'user' },
                 width: { ideal: 640 },
                 height: { ideal: 480 },
             },
             audio: false,
-        });
+        }, signal);
     } catch (error) {
+        if (error.name === 'AbortError') throw error;
         if (!['OverconstrainedError', 'NotFoundError'].includes(error.name)) throw error;
-        stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+        stream = await obterStream({ video: true, audio: false }, signal);
     }
     video.srcObject = stream;
     video.hidden = false;
@@ -74,18 +113,68 @@ async function capturarDescritorFacial(video, atualizarStatus) {
                 }, { once: true });
             });
         }
-        atualizarStatus('Posicione apenas um rosto na câmera e aguarde...');
-        await new Promise(resolve => setTimeout(resolve, 1200));
-        const detections = await faceapi
-            .detectAllFaces(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 }))
-            .withFaceLandmarks(true)
-            .withFaceDescriptors();
-        if (detections.length !== 1) {
-            throw new Error(detections.length === 0
-                ? 'Nenhum rosto detectado. Ajuste a iluminação e tente novamente.'
-                : 'Mais de um rosto detectado. Deixe apenas uma pessoa diante da câmera.');
+        atualizarStatus('Ajuste seu rosto dentro da moldura.');
+        atualizarFeedback('procurando', 'Centralize seu rosto na moldura. A captura acontece automaticamente.');
+        let deteccoesAlinhadas = 0;
+        let ultimoFeedback = '';
+
+        while (true) {
+            verificarCancelamento(signal);
+            const detections = await faceapi
+                .detectAllFaces(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 }))
+                .withFaceLandmarks(true);
+
+            let feedback;
+            if (detections.length === 0) {
+                feedback = ['procurando', 'Não detectamos um rosto. Aproxime-se e procure um local bem iluminado.'];
+                deteccoesAlinhadas = 0;
+            } else if (detections.length > 1) {
+                feedback = ['ajuste', 'Detectamos mais de um rosto. Deixe apenas uma pessoa diante da câmera.'];
+                deteccoesAlinhadas = 0;
+            } else {
+                const { x, y, width, height } = detections[0].detection.box;
+                const centroX = (x + width / 2) / video.videoWidth;
+                const centroY = (y + height / 2) / video.videoHeight;
+                const larguraRosto = width / video.videoWidth;
+                const alturaRosto = height / video.videoHeight;
+                const enquadrado = centroX >= 0.37 && centroX <= 0.63 &&
+                    centroY >= 0.3 && centroY <= 0.7 &&
+                    larguraRosto >= 0.18 && larguraRosto <= 0.48 &&
+                    alturaRosto <= 0.72;
+
+                if (!enquadrado) {
+                    feedback = ['ajuste', larguraRosto < 0.18
+                        ? 'Rosto detectado. Aproxime-se um pouco da câmera.'
+                        : larguraRosto > 0.62
+                            ? 'Rosto muito próximo. Afaste-se um pouco da câmera.'
+                            : 'Rosto detectado. Centralize-o dentro da moldura.'];
+                    deteccoesAlinhadas = 0;
+                } else {
+                    deteccoesAlinhadas += 1;
+                    feedback = ['alinhado', 'Ótimo! Mantenha o rosto parado; estamos finalizando a captura...'];
+                    if (deteccoesAlinhadas >= 3) {
+                        const deteccaoFinal = await faceapi
+                            .detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 }))
+                            .withFaceLandmarks(true)
+                            .withFaceDescriptor();
+                        if (deteccaoFinal) {
+                            atualizarFeedback('sucesso', 'Rosto capturado com sucesso.');
+                            atualizarStatus('Rosto capturado. Finalizando...');
+                            return Array.from(deteccaoFinal.descriptor);
+                        }
+                        deteccoesAlinhadas = 0;
+                    }
+                }
+            }
+
+            const chaveFeedback = feedback.join(':');
+            if (chaveFeedback !== ultimoFeedback) {
+                atualizarFeedback(...feedback);
+                atualizarStatus(feedback[1]);
+                ultimoFeedback = chaveFeedback;
+            }
+            await new Promise(resolve => setTimeout(resolve, 350));
         }
-        return Array.from(detections[0].descriptor);
     } finally {
         stream.getTracks().forEach(track => track.stop());
         video.srcObject = null;

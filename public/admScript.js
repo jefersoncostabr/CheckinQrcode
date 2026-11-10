@@ -25,10 +25,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const nomeUsuarioInput = document.getElementById('nomeUsuarioInput');
     const consentimentoUsuario = document.getElementById('consentimentoUsuario');
     const videoCadastroUsuario = document.getElementById('videoCadastroUsuario');
+    const cameraCadastroStage = document.getElementById('cameraCadastroStage');
     const statusCadastroUsuario = document.getElementById('statusCadastroUsuario');
     const btnConfirmarCadastro = document.getElementById('btnConfirmarCadastro');
     const btnCancelarCadastro = document.getElementById('btnCancelarCadastro');
     let atualizandoCheckins = false;
+    let capturaUsuarioController;
 
     // Estilização dos botões de Adicionar (Verde - Igual ao Relatório)
     [btnAddPresenca, btnAddSala].forEach(btn => {
@@ -323,12 +325,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
     btnCadastrarUsuario.addEventListener('click', () => {
         cadastroUsuarioForm.reset();
+        cadastroUsuarioDialog.classList.remove('capture-active');
+        cadastroUsuarioDialog.removeAttribute('data-capture-state');
+        cameraCadastroStage.hidden = true;
         statusCadastroUsuario.textContent = '';
         cadastroUsuarioDialog.showModal();
         nomeUsuarioInput.focus();
     });
 
-    btnCancelarCadastro.addEventListener('click', () => cadastroUsuarioDialog.close());
+    btnCancelarCadastro.addEventListener('click', () => {
+        if (capturaUsuarioController) {
+            capturaUsuarioController.abort();
+            return;
+        }
+        cadastroUsuarioDialog.close();
+    });
+
+    cadastroUsuarioDialog.addEventListener('cancel', event => {
+        if (capturaUsuarioController) {
+            event.preventDefault();
+            capturaUsuarioController.abort();
+        }
+    });
 
     cadastroUsuarioForm.addEventListener('submit', async (event) => {
         event.preventDefault();
@@ -345,11 +363,19 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         btnConfirmarCadastro.disabled = true;
-        btnCancelarCadastro.disabled = true;
+        cadastroUsuarioDialog.classList.add('capture-active');
+        cameraCadastroStage.hidden = false;
+        capturaUsuarioController = new AbortController();
         try {
-            const descritor = await FaceRecognition.capturarDescritorFacial(videoCadastroUsuario, status => {
-                statusCadastroUsuario.textContent = status;
-            });
+            const descritor = await FaceRecognition.capturarDescritorFacial(
+                videoCadastroUsuario,
+                status => { statusCadastroUsuario.textContent = status; },
+                (state, message) => {
+                    cadastroUsuarioDialog.dataset.captureState = state;
+                    statusCadastroUsuario.textContent = message;
+                },
+                capturaUsuarioController.signal,
+            );
             const response = await fetch('/adm/cadastrar-usuario', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -363,10 +389,18 @@ document.addEventListener('DOMContentLoaded', () => {
             cadastroUsuarioDialog.close();
             updateStatus(`Usuário "${nome}" cadastrado com sucesso.`, 'success');
         } catch (error) {
-            console.error('Erro ao cadastrar usuário:', error);
-            statusCadastroUsuario.textContent = window.FaceRecognition?.mensagemErroFacial(error) ||
-                error.message || 'Não foi possível cadastrar o usuário.';
+            if (error.name !== 'AbortError') {
+                console.error('Erro ao cadastrar usuário:', error);
+            }
+            cadastroUsuarioDialog.classList.remove('capture-active');
+            cameraCadastroStage.hidden = true;
+            cadastroUsuarioDialog.removeAttribute('data-capture-state');
+            statusCadastroUsuario.textContent = error.name === 'AbortError'
+                ? 'Captura cancelada. Você pode tentar novamente.'
+                : error.message || window.FaceRecognition?.mensagemErroFacial(error) ||
+                    'Não foi possível cadastrar o usuário.';
         } finally {
+            capturaUsuarioController = undefined;
             btnConfirmarCadastro.disabled = false;
             btnCancelarCadastro.disabled = false;
         }

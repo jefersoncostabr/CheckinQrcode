@@ -26,8 +26,36 @@ const faceCheckinBtn = document.getElementById('faceCheckinBtn');
 const faceEnrollBtn = document.getElementById('faceEnrollBtn');
 const faceDeleteBtn = document.getElementById('faceDeleteBtn');
 const faceVideo = document.getElementById('faceVideo');
+const faceCameraStage = document.getElementById('faceCameraStage');
+const faceCaptureCancel = document.getElementById('faceCaptureCancel');
 const faceStatus = document.getElementById('faceStatus');
 const faceStorageKey = 'checkin_face_profile';
+let faceCaptureController;
+
+function iniciarCapturaFacial() {
+    faceCaptureController = new AbortController();
+    facePanel.classList.add('capture-active');
+    document.body.classList.add('face-capture-active');
+    faceCameraStage.hidden = false;
+    faceCaptureCancel.hidden = false;
+    return faceCaptureController;
+}
+
+function finalizarCapturaFacial() {
+    facePanel.classList.remove('capture-active');
+    facePanel.removeAttribute('data-capture-state');
+    document.body.classList.remove('face-capture-active');
+    faceCameraStage.hidden = true;
+    faceCaptureCancel.hidden = true;
+    faceCaptureController = undefined;
+}
+
+function atualizarFeedbackCaptura(state, message) {
+    facePanel.dataset.captureState = state;
+    faceStatus.textContent = message;
+}
+
+faceCaptureCancel.addEventListener('click', () => faceCaptureController?.abort());
 
 async function validarSala() {
     if (!salaAtual) {
@@ -95,15 +123,22 @@ faceCheckinBtn.addEventListener('click', async () => {
     faceCheckinBtn.disabled = true;
     faceEnrollBtn.disabled = true;
     let checkinConcluido = false;
+    const controller = iniciarCapturaFacial();
     try {
-        const descritor = await FaceRecognition.capturarDescritorFacial(faceVideo, status => {
-            faceStatus.textContent = status;
-        });
+        const descritor = await FaceRecognition.capturarDescritorFacial(
+            faceVideo,
+            status => { faceStatus.textContent = status; },
+            atualizarFeedbackCaptura,
+            controller.signal,
+        );
         await enviarCheckinFacial(descritor);
         checkinConcluido = true;
     } catch (error) {
-        faceStatus.textContent = FaceRecognition.mensagemErroFacial(error);
+        faceStatus.textContent = error.name === 'AbortError'
+            ? 'Captura cancelada. Você pode tentar novamente.'
+            : FaceRecognition.mensagemErroFacial(error);
     } finally {
+        finalizarCapturaFacial();
         faceCheckinBtn.disabled = checkinConcluido;
         faceEnrollBtn.disabled = checkinConcluido;
     }
@@ -120,10 +155,14 @@ faceEnrollBtn.addEventListener('click', async () => {
     faceCheckinBtn.disabled = true;
     faceEnrollBtn.disabled = true;
     let checkinConcluido = false;
+    const controller = iniciarCapturaFacial();
     try {
-        const descritor = await FaceRecognition.capturarDescritorFacial(faceVideo, status => {
-            faceStatus.textContent = status;
-        });
+        const descritor = await FaceRecognition.capturarDescritorFacial(
+            faceVideo,
+            status => { faceStatus.textContent = status; },
+            atualizarFeedbackCaptura,
+            controller.signal,
+        );
         const response = await fetch('/api/face/enroll', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -141,8 +180,11 @@ faceEnrollBtn.addEventListener('click', async () => {
         await enviarCheckinFacial(descritor);
         checkinConcluido = true;
     } catch (error) {
-        faceStatus.textContent = FaceRecognition.mensagemErroFacial(error);
+        faceStatus.textContent = error.name === 'AbortError'
+            ? 'Captura cancelada. Você pode tentar novamente.'
+            : FaceRecognition.mensagemErroFacial(error);
     } finally {
+        finalizarCapturaFacial();
         faceCheckinBtn.disabled = checkinConcluido;
         faceEnrollBtn.disabled = checkinConcluido;
     }

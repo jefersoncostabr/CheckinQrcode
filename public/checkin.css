@@ -90,10 +90,114 @@ button:disabled {
 }
 
 #faceVideo {
-    width: min(100%, 360px);
-    margin: 12px auto;
-    border-radius: 8px;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
     background: #222;
+    transform: scaleX(-1);
+}
+
+.face-camera-stage {
+    position: relative;
+    display: grid;
+    width: min(100%, 760px);
+    aspect-ratio: 4 / 3;
+    margin: 12px auto;
+    overflow: hidden;
+    border-radius: 18px;
+    background: #101820;
+}
+
+.face-guide {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 48%;
+    height: 72%;
+    border: 4px solid #f4b740;
+    border-radius: 50%;
+    box-shadow: 0 0 0 999px rgba(4, 12, 20, 0.42), 0 0 20px rgba(244, 183, 64, 0.45);
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    transition: border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.face-panel[data-capture-state="procurando"] .face-guide,
+.face-panel[data-capture-state="ajuste"] .face-guide {
+    border-color: #ff6868;
+    box-shadow: 0 0 0 999px rgba(4, 12, 20, 0.42), 0 0 20px rgba(255, 104, 104, 0.5);
+}
+
+.face-panel[data-capture-state="alinhado"] .face-guide,
+.face-panel[data-capture-state="sucesso"] .face-guide {
+    border-color: #36d399;
+    box-shadow: 0 0 0 999px rgba(4, 12, 20, 0.42), 0 0 24px rgba(54, 211, 153, 0.65);
+}
+
+#faceStatus {
+    min-height: 1.5em;
+    font-weight: 700;
+}
+
+body.face-capture-active {
+    overflow: hidden;
+}
+
+.face-panel.capture-active {
+    position: fixed;
+    z-index: 10;
+    inset: 0;
+    display: grid;
+    width: 100%;
+    height: 100vh;
+    height: 100dvh;
+    max-width: none;
+    box-sizing: border-box;
+    align-content: center;
+    justify-items: center;
+    gap: 12px;
+    margin: 0;
+    padding: max(20px, env(safe-area-inset-top)) 20px max(20px, env(safe-area-inset-bottom));
+    overflow-y: auto;
+    border: 0;
+    background: #0c141c;
+    color: #fff;
+}
+
+.face-panel.capture-active > :not(.face-camera-stage):not(#faceStatus):not(#faceCaptureCancel) {
+    display: none;
+}
+
+.face-panel.capture-active .face-camera-stage {
+    width: min(100%, 900px);
+    max-height: 68dvh;
+}
+
+.face-panel.capture-active #faceStatus {
+    max-width: 760px;
+    margin: 0;
+}
+
+.face-panel.capture-active #faceCaptureCancel {
+    min-height: 48px;
+}
+
+@media (max-width: 600px) {
+    .face-panel.capture-active {
+        padding-left: 12px;
+        padding-right: 12px;
+    }
+
+    .face-panel.capture-active .face-camera-stage {
+        width: 100%;
+        aspect-ratio: 3 / 4;
+        max-height: 65dvh;
+    }
+
+    .face-panel.capture-active .face-guide {
+        width: 62%;
+        height: 68%;
+    }
 }
 
 .face-test {
@@ -126,9 +230,59 @@ button:disabled {
     color: #222;
 }
 
-#faceTestVideo {
-    width: min(100%, 360px);
-    margin: 12px auto;
-    border-radius: 8px;
-    background: #222;
+.face-test.capture-active {
+    position: fixed;
+    z-index: 10;
+    inset: 0;
+    display: grid;
+    width: 100%;
+    height: 100vh;
+    height: 100dvh;
+    max-width: none;
+    box-sizing: border-box;
+    align-content: center;
+    justify-items: center;
+    gap: 12px;
+    margin: 0;
+    padding: max(20px, env(safe-area-inset-top)) 20px max(20px, env(safe-area-inset-bottom));
+    overflow-y: auto;
+    background: #0c141c;
+    color: #fff;
+}
+
+.face-test.capture-active > :not(.face-camera-stage):not(#faceTestStatus):not(#faceTestResult):not(#faceTestCancel) {
+    display: none;
+}
+
+.face-test.capture-active .face-camera-stage {
+    width: min(100%, 900px);
+    max-height: 68dvh;
+}
+
+.face-test[data-capture-state="procurando"] .face-guide,
+.face-test[data-capture-state="ajuste"] .face-guide {
+    border-color: #ff6868;
+}
+
+.face-test[data-capture-state="alinhado"] .face-guide,
+.face-test[data-capture-state="sucesso"] .face-guide {
+    border-color: #36d399;
+}
+
+@media (max-width: 600px) {
+    .face-test.capture-active {
+        padding-left: 12px;
+        padding-right: 12px;
+    }
+
+    .face-test.capture-active .face-camera-stage {
+        width: 100%;
+        aspect-ratio: 3 / 4;
+        max-height: 65dvh;
+    }
+
+    .face-test.capture-active .face-guide {
+        width: 62%;
+        height: 68%;
+    }
 }

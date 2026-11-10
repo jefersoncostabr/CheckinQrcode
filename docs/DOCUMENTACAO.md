@@ -68,6 +68,7 @@ DancaHub
 
 - Na página `/add`, a pessoa pode cadastrar o rosto voluntariamente ou reconhecer um rosto já cadastrado. O nome continua disponível como alternativa.
 - A câmera e os modelos faciais são usados pelo navegador com `getUserMedia` e `face-api.js`. É exigido HTTPS (ou `localhost` no próprio dispositivo) para acesso à câmera. Em celular acessando o servidor pelo IP local, HTTP não é considerado seguro; use um endereço HTTPS. Os modelos e a biblioteca são carregados pelo jsDelivr, portanto o dispositivo também precisa de internet.
+- Depois de iniciar o fluxo facial, a captura ocupa a tela e procura automaticamente até detectar um rosto bem enquadrado; a moldura e as mensagens orientam o posicionamento. É possível cancelar a busca.
 - A imagem não é enviada ao servidor; o descritor facial de 128 valores é enviado para comparação e salvo na coleção `faceProfiles`. Esse descritor continua sendo dado biométrico sensível.
 - `/api/face/enroll` cadastra um descritor após consentimento explícito; `/api/face/checkin` compara o descritor e registra a presença usando o nome associado; `DELETE /api/face/profile/:id` apaga o perfil com a credencial de exclusão guardada localmente no navegador que fez o cadastro.
 - No painel `/adm`, a opção **Cadastrar usuário** abre um popup com captura facial e consentimento explícito. O servidor rejeita nomes já cadastrados e rostos que correspondam a um perfil existente.

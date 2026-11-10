@@ -34,8 +34,12 @@
         </div>
 
         <button id="faceCheckinBtn" type="button">Fazer check-in com meu rosto</button>
-        <video id="faceVideo" autoplay muted playsinline hidden></video>
+        <div id="faceCameraStage" class="face-camera-stage" hidden>
+            <video id="faceVideo" autoplay muted playsinline hidden></video>
+            <div class="face-guide" aria-hidden="true"></div>
+        </div>
         <p id="faceStatus" role="status" aria-live="polite"></p>
+        <button id="faceCaptureCancel" type="button" class="secondary" hidden>Cancelar captura</button>
         <button id="faceDeleteBtn" type="button" class="secondary" hidden>Excluir meu cadastro facial deste dispositivo</button>
     </section>
 </body>

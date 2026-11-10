@@ -1,16 +1,33 @@
 const faceTestName = document.getElementById('faceTestName');
 const faceTestButton = document.getElementById('faceTestButton');
+const faceTestPanel = document.getElementById('faceTestPanel');
 const faceTestVideo = document.getElementById('faceTestVideo');
+const faceTestCameraStage = document.getElementById('faceTestCameraStage');
 const faceTestStatus = document.getElementById('faceTestStatus');
 const faceTestResult = document.getElementById('faceTestResult');
+const faceTestCancel = document.getElementById('faceTestCancel');
+let faceTestController;
+
+faceTestCancel.addEventListener('click', () => faceTestController?.abort());
 
 faceTestButton.addEventListener('click', async () => {
     faceTestResult.hidden = true;
     faceTestButton.disabled = true;
+    faceTestController = new AbortController();
+    faceTestPanel.classList.add('capture-active');
+    faceTestPanel.removeAttribute('data-capture-state');
+    faceTestCameraStage.hidden = false;
+    faceTestCancel.hidden = false;
     try {
-        const descritor = await FaceRecognition.capturarDescritorFacial(faceTestVideo, status => {
-            faceTestStatus.textContent = status;
-        });
+        const descritor = await FaceRecognition.capturarDescritorFacial(
+            faceTestVideo,
+            status => { faceTestStatus.textContent = status; },
+            (state, message) => {
+                faceTestPanel.dataset.captureState = state;
+                faceTestStatus.textContent = message;
+            },
+            faceTestController.signal,
+        );
         const nome = faceTestName.value.trim();
         const response = await fetch('/api/face/verify', {
             method: 'POST',
@@ -36,8 +53,15 @@ faceTestButton.addEventListener('click', async () => {
         }
         faceTestResult.hidden = false;
     } catch (error) {
-        faceTestStatus.textContent = FaceRecognition.mensagemErroFacial(error);
+        faceTestStatus.textContent = error.name === 'AbortError'
+            ? 'Captura cancelada. Você pode tentar novamente.'
+            : FaceRecognition.mensagemErroFacial(error);
     } finally {
+        faceTestController = undefined;
+        faceTestPanel.classList.remove('capture-active');
+        faceTestPanel.removeAttribute('data-capture-state');
+        faceTestCameraStage.hidden = true;
+        faceTestCancel.hidden = true;
         faceTestButton.disabled = false;
     }
 });
