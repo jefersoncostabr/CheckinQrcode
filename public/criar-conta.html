@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Tela de criação de conta do Check-in." />
+    <title>Criar conta - Check-in</title>
+    <link rel="stylesheet" href="/auth.css" />
+</head>
+<body>
+    <main class="auth-card">
+        <div class="brand" aria-label="Check-in">
+            <span class="brand-mark" aria-hidden="true">C</span>
+            <span>Check-in</span>
+        </div>
+
+        <h1>Crie sua conta</h1>
+        <p class="auth-subtitle">Preencha seus dados para começar a organizar suas presenças.</p>
+        <p class="auth-message" role="status">
+            Esta tela é apenas visual. A criação de contas ainda não está disponível.
+        </p>
+
+        <div class="auth-form" role="group" aria-label="Dados para criar conta">
+            <label for="name">Nome completo</label>
+            <input id="name" type="text" autocomplete="name" placeholder="Seu nome" />
+
+            <label for="email">E-mail</label>
+            <input id="email" type="email" autocomplete="email" placeholder="voce@exemplo.com" />
+
+            <label for="password">Senha</label>
+            <input id="password" type="password" autocomplete="new-password" placeholder="Crie uma senha" />
+
+            <label for="passwordConfirmation">Confirmar senha</label>
+            <input id="passwordConfirmation" type="password" autocomplete="new-password" placeholder="Digite a senha novamente" />
+
+            <button class="auth-button" type="button" disabled>Criar conta em breve</button>
+        </div>
+
+        <p class="auth-footer">Já tem uma conta? <a class="auth-link" href="/login">Entrar</a></p>
+        <p class="auth-note">Nenhum dado é enviado ou armazenado por esta página.</p>
+    </main>
+</body>
+</html>
