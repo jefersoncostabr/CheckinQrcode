@@ -19,12 +19,12 @@ O papel deve ficar em `Membership`, não diretamente em `User`, para permitir qu
 - ~~Etapa 1: schemas das entidades principais e índices compostos declarados nos modelos.~~
 - Etapa 1: índices declarados nos modelos e cobertos por testes de schema.
 - Etapa 3: serviço, endpoints e telas de cadastro/login tenant; seleção e troca de tenant revalidam o Membership antes de atualizar a sessão.
-- Etapa 4 (parcial): matriz central de permissões e middleware que verifica Membership, usuário e tenant ativos em cada autorização.
-- Etapa 5 (parcial): Membership ativo é resolvido novamente no servidor, e `loadActiveTenant` popula `req.tenant` com dados validados pela sessão e banco.
-- Etapa 6 (em andamento): salas em `/api/tenant/rooms` e QR Codes em `/api/tenant/qrcodes` usam o tenant validado, permissões e documentos separados.
+- Etapa 4: matriz central de permissões e middleware verificam Membership, usuário e tenant ativos em cada autorização.
+- Etapa 5: Membership ativo é resolvido novamente no servidor, e `loadActiveTenant` popula `req.tenant` com dados validados pela sessão e banco.
+- Etapa 6: rotas de salas, QR Codes, presenças e biometria usam o tenant validado, permissões e documentos separados.
 - ~~A escolha do tenant ainda não tem fluxo de tela/rota.~~ Login e seleção/troca do tenant estão disponíveis na tela de autenticação e na API.
-- Cadastro tenant agora está ligado à tela e à rota e inicia `tenantAuth`; a tela permite selecionar uma organização e a API também permite trocar a ativa. As rotas globais legadas continuam separadas e não aceitam essa sessão.
-- O painel administrativo já existe; não criar um painel duplicado.
+- Cadastro tenant está ligado à tela e à rota e inicia `tenantAuth`; a tela permite selecionar uma organização e a API também permite trocar a ativa.
+- O painel existente em `/adm` foi conectado às APIs tenant-scoped para salas, QR Codes, presenças, relatórios e biometria. Os fluxos de autenticação e check-in globais antigos foram desativados.
 
 ## Princípios que devem valer em todas as etapas
 
@@ -102,9 +102,9 @@ O formulário público não deve receber ou definir o papel. O servidor sempre a
 - ~~Não recalcular o hash da senha fornecida para comparar.~~
 - ~~Criar helper que regenera a sessão e guarda somente usuário, tenant, membership e papel em `tenantAuth`.~~
 - ~~Rotas HTTP de login/logout tenant; seleção e troca de tenant com revalidação do Membership.~~
-- A sessão `tenantAuth` não concede acesso às rotas administrativas legadas; o painel precisa ser integrado às APIs tenant-scoped.
+- A sessão `tenantAuth` protege o painel e as operações tenant-scoped.
 - ~~Configurar cookies de sessão (`httpOnly`, `secure` e `sameSite`).~~ Armazenamento de sessão persistente apropriado ao ambiente continua pendente.
-- Não migrar a conta administrativa antiga. Após limpar o banco, criar a primeira conta pelo fluxo de cadastro multi-tenant; remover `ADMIN_USER` e `ADMIN_PASS` quando o novo fluxo estiver validado.
+- Não migrar a conta administrativa antiga. A primeira conta deve ser criada pelo fluxo multi-tenant; `ADMIN_USER` e `ADMIN_PASS` não são mais usados pelo login.
 
 ### Critério de conclusão
 
@@ -129,7 +129,7 @@ Criar middleware de autorização por ação. O middleware está em `src/middlew
 
 Permissões disponíveis: `tenant:manage`, `members:manage`, `rooms:read`, `rooms:manage`, `qrcodes:read`, `qrcodes:manage`, `attendance:create`, `attendance:read`, `attendance:manage`, `reports:read` e `biometrics:manage`.
 
-Aplicar o middleware em cada rota multi-tenant permanece pendente até as consultas dessas rotas incluírem `tenantId`; aplicar só a autorização sem isolamento não é suficiente e pode expor dados compartilhados.
+O middleware de permissão está aplicado às rotas operacionais do painel. O escopo `tenantId` é obtido a partir do Membership revalidado no servidor e é aplicado nas consultas dos respectivos serviços.
 
 Para usuários adicionais, usar convite ou criação administrativa dentro de um tenant existente. O papel é definido pelo servidor após autorização; nunca aceitar um papel privilegiado escolhido pelo próprio usuário.
 
@@ -138,8 +138,8 @@ Para usuários adicionais, usar convite ou criação administrativa dentro de um
 - ~~Matriz de permissões por papel definida e testada.~~
 - ~~Middleware nega usuário, tenant ou Membership inativo e papel sem permissão.~~
 - ~~Alteração de papel no banco tem efeito imediato: o middleware não confia no papel antigo da sessão.~~
-- Proteger rotas com a permissão correta e o escopo `tenantId` continua pendente.
-- Usuário `viewer` deve ser testado contra as rotas quando essas forem conectadas.
+- ~~Proteger rotas com a permissão correta e o escopo `tenantId`.~~
+- Usuário `viewer` deve continuar sendo coberto pelos testes de autorização das rotas.
 
 ## Etapa 5 — Resolver e aplicar o tenant ativo
 
@@ -149,7 +149,7 @@ Para usuários adicionais, usar convite ou criação administrativa dentro de um
 - ~~Validar que o usuário autenticado possui Membership ativo para o tenant escolhido e que a própria conta e o tenant também estão ativos.~~
 - ~~Criar middleware `loadActiveTenant` que disponibiliza o tenant validado em `req.tenant`, sem ler `tenantId` do query/body.~~
 - ~~Nas APIs públicas, resolver o tenant pelo token do QR Code, nunca por um `tenantId` arbitrário informado pelo cliente.~~
-- Validar o tenant das referências associadas, por exemplo, pessoa, sala e QR Code; QR Code e sala estão validados no fluxo público.
+- ~~Validar o tenant das referências associadas, como pessoa, sala e QR Code.~~
 
 ### Critério de conclusão
 
@@ -161,7 +161,7 @@ Para usuários adicionais, usar convite ou criação administrativa dentro de um
 
 ### Trabalho
 
-Módulos migrados até agora: salas em `src/services/tenantRoomService.js` e `src/routes/tenantRoomRoutes.js`; QR Codes em `src/services/tenantQrCodeService.js` e `src/routes/tenantQrCodeRoutes.js`; resolução pública do token e registro de presença QR em `src/services/tenantCheckinService.js` e `src/routes/tenantCheckinRoutes.js`; consulta/remoção de presenças e relatório agregado em `src/services/tenantAttendanceService.js` e `src/routes/tenantAttendanceRoutes.js`; biometria tenant-scoped em `src/services/tenantBiometricService.js` e nas rotas públicas de check-in por QR.
+Módulos migrados: salas em `src/services/tenantRoomService.js` e `src/routes/tenantRoomRoutes.js`; QR Codes em `src/services/tenantQrCodeService.js` e `src/routes/tenantQrCodeRoutes.js`; resolução pública do token e registro de presença QR em `src/services/tenantCheckinService.js` e `src/routes/tenantCheckinRoutes.js`; consulta/remoção de presenças e relatório agregado em `src/services/tenantAttendanceService.js` e `src/routes/tenantAttendanceRoutes.js`; biometria em `src/services/tenantBiometricService.js`, `src/routes/tenantBiometricRoutes.js` e nas rotas públicas de check-in por QR.
 
 - ~~Salas: listar, criar, alterar estado e arquivar com filtros por `tenantId`.~~
 - Salas usam índice único tenant-scoped para nome ativo; arquivar remove a chave ativa sem apagar a sala/histórico.
@@ -169,20 +169,19 @@ Módulos migrados até agora: salas em `src/services/tenantRoomService.js` e `sr
 - ~~Check-in público pelo token: resolve QR ativo, valida tenant e sala no servidor, e registra a presença em `attendances`.~~
 - ~~Presenças: consulta paginada, filtro por sala do tenant e remoção tenant-scoped. Relatório agregado por sala.~~
 - ~~Biometria: cadastro com consentimento explícito, comparação limitada ao tenant do QR, check-in e exclusão com credencial de retirada.~~
-- Cadastro e gestão de usuários e memberships.
+- Gestão de contas e memberships da organização não faz parte das telas existentes migradas nesta etapa.
 
-As rotas administrativas novas exigem permissões específicas e obtêm o tenant via middleware, sem aceitar `tenantId` do corpo. A associação de QR valida que sala e QR pertencem ao tenant ativo; a revogação mantém o documento e limpa sua associação. O check-in público por QR está integrado à tela. O painel administrativo já existente não deve ser duplicado. A aplicação deverá iniciar sem os dados antigos após a limpeza.
+As rotas administrativas exigem permissões específicas e obtêm o tenant via middleware, sem aceitar `tenantId` do corpo. A associação de QR valida que sala e QR pertencem ao tenant ativo; a criação de sala com QR associa ambos em uma transação. A revogação mantém o documento e limpa sua associação. O check-in público por QR e o painel `/adm` usam os fluxos tenant-scoped. Os dados existentes no banco não foram apagados nem migrados.
 
 ### Critério de conclusão
 
 - ~~As operações do novo serviço de salas filtram por `tenantId`; alterações também combinam ID da sala e tenant.~~
 - ~~As rotas novas requerem a permissão correta e ignoram `tenantId` vindo do cliente.~~
 - ~~QR Codes e salas relacionados são consultados no escopo do mesmo tenant; o hash secreto nunca é serializado.~~
-- Check-in público usa o token bearer do QR, valida estado do tenant/sala e não confia em IDs de tenant ou sala enviados pelo navegador.
-- Presenças e relatórios filtram por tenant; a remoção combina ID da presença e tenant.
-- Outros módulos/rotas ainda não foram migrados.
-- Referências cruzadas entre tenants devem ser validadas nos módulos restantes.
-- Testes automatizados de salas e QR Codes passam; cobertura de isolamento dos demais módulos está pendente.
+- ~~Check-in público usa token do QR, valida estado do tenant/sala e não confia em IDs enviados pelo navegador.~~
+- ~~Presenças e relatórios filtram por tenant; a remoção combina ID da presença e tenant.~~
+- Gestão de contas e memberships ainda não está disponível no painel.
+- A cobertura automatizada precisa ser executada para as últimas alterações; os testes de integração que dependem de MongoDB exigem o banco configurado.
 
 ## Etapa 7 — Reinicializar o banco sem migrar dados antigos
 
@@ -209,7 +208,7 @@ Antes de executar, confirme host e nome do banco e faça backup se houver qualqu
 - ~~Decisão registrada de não migrar os dados antigos.~~
 - Script de limpeza exige confirmação do banco alvo e bloqueia produção por `NODE_ENV`.
 - A limpeza não é executada como parte dos testes ou da inicialização normal do servidor.
-- O check-in por QR tenant-scoped usa token no fragmento da URL e envia o token no corpo da API; o fluxo legado continua disponível separadamente.
+- O check-in por QR tenant-scoped usa token no fragmento da URL e envia o token no corpo da API; os endpoints globais antigos foram desativados.
 - A biometria tenant-scoped exige consentimento a cada uso.
 
 ## Etapa 8 — Tratar biometria como dado sensível
@@ -231,9 +230,9 @@ Antes de executar, confirme host e nome do banco e faça backup se houver qualqu
 
 ### Trabalho
 
-- Rodar testes unitários, integração, reset seguro do banco e regressão.
+- Rodar testes unitários e de integração com o MongoDB configurado.
 - Liberar gradualmente e monitorar erros de autorização e persistência.
-- Atualizar `docs/ROTAS.md`, `docs/DOCUMENTACAO.md` e exemplos Postman.
+- Manter `docs/ROTAS.md` e a documentação relacionada alinhadas às rotas disponíveis.
 
 ### Critério de conclusão
 

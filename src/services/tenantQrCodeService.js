@@ -3,6 +3,8 @@ import mongoose from 'mongoose'
 import QrCode from '../models/qrCodeModel.js'
 import Room from '../models/roomModel.js'
 
+export const TENANT_QR_CODE_LIMIT = 10
+
 export class TenantQrCodeError extends Error {
     constructor(message, statusCode) {
         super(message)
@@ -49,6 +51,14 @@ export async function listarQrCodesDoTenant(tenantId) {
 
 export async function criarQrCodeDoTenant(tenantId) {
     validarId(tenantId, 'Organização')
+    const activeCount = await QrCode.countDocuments({
+        tenantId,
+        status: { $ne: 'revoked' },
+    })
+    if (activeCount >= TENANT_QR_CODE_LIMIT) {
+        throw new TenantQrCodeError('Limite de 10 QR Codes atingido.', 409)
+    }
+
     const token = randomBytes(32).toString('base64url')
     const tokenHash = createHash('sha256').update(token).digest('hex')
     const qrCode = await QrCode.create({
@@ -60,6 +70,19 @@ export async function criarQrCodeDoTenant(tenantId) {
         ...serializarQrCode(qrCode),
         token,
     }
+}
+
+export async function rotacionarQrCodeDoTenant(tenantId, qrCodeId) {
+    validarId(tenantId, 'Organização')
+    validarId(qrCodeId, 'QR Code')
+    const token = randomBytes(32).toString('base64url')
+    const tokenHash = createHash('sha256').update(token).digest('hex')
+    const qrCode = await QrCode.findOneAndUpdate(
+        { _id: qrCodeId, tenantId, status: 'active', roomId: { $exists: true } },
+        { $set: { tokenHash } },
+        { new: true, runValidators: true },
+    ).lean()
+    return qrCode ? { ...serializarQrCode(qrCode), token } : null
 }
 
 export async function associarQrCodeASalaDoTenant(tenantId, qrCodeId, roomId) {

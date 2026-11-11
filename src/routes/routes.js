@@ -4,7 +4,8 @@ import faceProfile from '../models/faceProfileModel.js'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import { createHash, timingSafeEqual } from 'crypto'
-import { requireAuth } from '../middleware/auth.js'
+import { requireAuth, requireTenantAuth } from '../middleware/auth.js'
+import { authorizeTenantPermission } from '../middleware/authorizeTenant.js'
 import {
     cadastrarPerfilFacial,
     FACE_DESCRIPTOR_LENGTH,
@@ -22,6 +23,7 @@ import {
     normalizarTexto,
     serializarSala,
 } from '../services/salasService.js'
+import { obterResumoDoTenant } from '../services/tenantAttendanceService.js'
 
 // Helper para obter o __dirname em módulos ES
 const __filename = fileURLToPath(import.meta.url)
@@ -30,6 +32,13 @@ const publicDir = path.resolve(__dirname, '..', '..', 'public')
 
 const router = express.Router()
 const FACE_MATCH_THRESHOLD = 0.48
+
+function legacyDisabled(req, res) {
+    return res.status(410).json({
+        sucesso: false,
+        mensagem: 'Este fluxo antigo foi desativado. Use as funcionalidades da organização.',
+    })
+}
 
 function distanciaFacial(primeiro, segundo) {
     return Math.sqrt(primeiro.reduce((soma, valor, indice) =>
@@ -99,12 +108,12 @@ router.get('/', (req, res) => {
     res.send('O servidor funcionando.')
 })
 
-router.get('/api/rotas', requireAuth, (req, res) => {
+router.get('/api/rotas', requireTenantAuth, (req, res) => {
     const rotasDisponiveis = [
         { metodo: 'GET', caminho: '/', acesso: 'público' },
-        { metodo: 'GET', caminho: '/api/rotas', acesso: 'sessão administrativa' },
+        { metodo: 'GET', caminho: '/api/rotas', acesso: 'sessão tenant' },
         { metodo: 'GET', caminho: '/login', acesso: 'público' },
-        { metodo: 'POST', caminho: '/login', acesso: 'público' },
+        { metodo: 'POST', caminho: '/login', acesso: 'desativada; use /api/tenant/auth/login' },
         { metodo: 'GET', caminho: '/logout', acesso: 'público' },
         { metodo: 'POST', caminho: '/api/tenant/auth/register', acesso: 'público' },
         { metodo: 'POST', caminho: '/api/tenant/auth/login', acesso: 'público' },
@@ -112,40 +121,43 @@ router.get('/api/rotas', requireAuth, (req, res) => {
         { metodo: 'POST', caminho: '/api/tenant/auth/switch', acesso: 'sessão tenant' },
         { metodo: 'GET', caminho: '/api/tenant/auth/session', acesso: 'sessão tenant' },
         { metodo: 'POST', caminho: '/api/tenant/auth/logout', acesso: 'sessão' },
-        { metodo: 'GET', caminho: '/qtd', acesso: 'público' },
+        { metodo: 'GET', caminho: '/qtd', acesso: 'attendance:read + tenant ativo' },
         { metodo: 'GET', caminho: '/add', acesso: 'público' },
-        { metodo: 'POST', caminho: '/add', acesso: 'público' },
-        { metodo: 'GET', caminho: '/teste-rosto', acesso: 'público' },
-        { metodo: 'GET', caminho: '/api/checkin/sala', acesso: 'público' },
+        { metodo: 'POST', caminho: '/add', acesso: 'desativada; use /api/checkin/tenant/attendance' },
+        { metodo: 'GET', caminho: '/teste-rosto', acesso: 'biometrics:manage + tenant ativo' },
+        { metodo: 'GET', caminho: '/api/checkin/sala', acesso: 'desativada; QR tenant obrigatório' },
         { metodo: 'POST', caminho: '/api/checkin/tenant/resolve', acesso: 'token QR ativo' },
         { metodo: 'POST', caminho: '/api/checkin/tenant/attendance', acesso: 'token QR ativo' },
         { metodo: 'POST', caminho: '/api/checkin/tenant/biometrics/enroll', acesso: 'consentimento + token QR ativo' },
         { metodo: 'POST', caminho: '/api/checkin/tenant/biometrics/checkin', acesso: 'consentimento + token QR ativo' },
         { metodo: 'DELETE', caminho: '/api/checkin/tenant/biometrics/profiles/:id', acesso: 'token de exclusão + token QR ativo' },
-        { metodo: 'POST', caminho: '/api/face/enroll', acesso: 'verificação e consentimento' },
-        { metodo: 'POST', caminho: '/api/face/checkin', acesso: 'público' },
-        { metodo: 'POST', caminho: '/api/face/verify', acesso: 'público' },
-        { metodo: 'GET', caminho: '/api/face/pessoas', acesso: 'sessão administrativa' },
-        { metodo: 'DELETE', caminho: '/api/face/profile/:id', acesso: 'token de exclusão' },
-        { metodo: 'DELETE', caminho: '/reduce', acesso: 'sessão administrativa' },
-        { metodo: 'DELETE', caminho: '/clean', acesso: 'sessão administrativa' },
-        { metodo: 'GET', caminho: '/resetls', acesso: 'sessão administrativa' },
-        { metodo: 'GET', caminho: '/api/relatorio', acesso: 'sessão administrativa' },
-        { metodo: 'GET', caminho: '/api/salas', acesso: 'sessão administrativa' },
-        { metodo: 'POST', caminho: '/api/salas', acesso: 'sessão administrativa' },
-        { metodo: 'DELETE', caminho: '/api/salas', acesso: 'sessão administrativa' },
-        { metodo: 'PATCH', caminho: '/api/salas/:id', acesso: 'sessão administrativa' },
-        { metodo: 'GET', caminho: '/api/qrcodes', acesso: 'sessão administrativa' },
-        { metodo: 'POST', caminho: '/api/qrcodes', acesso: 'sessão administrativa' },
-        { metodo: 'DELETE', caminho: '/api/qrcodes/:id', acesso: 'sessão administrativa' },
-        { metodo: 'GET', caminho: '/relatorio', acesso: 'sessão administrativa' },
-        { metodo: 'GET', caminho: '/adm', acesso: 'sessão administrativa' },
-        { metodo: 'GET', caminho: '/adm/adicionar-manual', acesso: 'sessão administrativa' },
-        { metodo: 'POST', caminho: '/adm/adicionar-manual', acesso: 'sessão administrativa' },
-        { metodo: 'GET', caminho: '/adm/gerar-qrcode', acesso: 'sessão administrativa' },
-        { metodo: 'POST', caminho: '/adm/cadastrar-usuario', acesso: 'sessão administrativa' },
+        { metodo: 'POST', caminho: '/api/face/enroll', acesso: 'desativada; use /api/checkin/tenant/biometrics/enroll' },
+        { metodo: 'POST', caminho: '/api/face/checkin', acesso: 'desativada; use /api/checkin/tenant/biometrics/checkin' },
+        { metodo: 'POST', caminho: '/api/face/verify', acesso: 'desativada; use /api/tenant/biometrics/verify' },
+        { metodo: 'GET', caminho: '/api/face/pessoas', acesso: 'desativada; use /api/tenant/biometrics/profiles' },
+        { metodo: 'DELETE', caminho: '/api/face/profile/:id', acesso: 'desativada; use /api/checkin/tenant/biometrics/profiles/:id' },
+        { metodo: 'DELETE', caminho: '/reduce', acesso: 'desativada; use /api/tenant/attendances/latest' },
+        { metodo: 'DELETE', caminho: '/clean', acesso: 'desativada; use /api/tenant/attendances' },
+        { metodo: 'GET', caminho: '/resetls', acesso: 'sessão tenant' },
+        { metodo: 'GET', caminho: '/api/relatorio', acesso: 'desativada; use /api/tenant/attendances' },
+        { metodo: 'GET', caminho: '/api/salas', acesso: 'desativada; use /api/tenant/rooms' },
+        { metodo: 'POST', caminho: '/api/salas', acesso: 'desativada; use /api/tenant/rooms' },
+        { metodo: 'DELETE', caminho: '/api/salas', acesso: 'desativada; use /api/tenant/rooms/:id' },
+        { metodo: 'PATCH', caminho: '/api/salas/:id', acesso: 'desativada; use /api/tenant/rooms/:id' },
+        { metodo: 'GET', caminho: '/api/qrcodes', acesso: 'desativada; use /api/tenant/qrcodes' },
+        { metodo: 'POST', caminho: '/api/qrcodes', acesso: 'desativada; use /api/tenant/qrcodes' },
+        { metodo: 'DELETE', caminho: '/api/qrcodes/:id', acesso: 'desativada; use /api/tenant/qrcodes/:id' },
+        { metodo: 'GET', caminho: '/relatorio', acesso: 'reports:read + tenant ativo' },
+        { metodo: 'GET', caminho: '/adm', acesso: 'sessão tenant' },
+        { metodo: 'GET', caminho: '/adm/adicionar-manual', acesso: 'attendance:create + tenant ativo' },
+        { metodo: 'GET', caminho: '/adm/monitor-facial', acesso: 'biometrics:manage + tenant ativo' },
+        { metodo: 'GET', caminho: '/adm/relatorio', acesso: 'reports:read + tenant ativo' },
+        { metodo: 'GET', caminho: '/adm/resetls', acesso: 'sessão tenant' },
+        { metodo: 'POST', caminho: '/adm/adicionar-manual', acesso: 'desativada; use /api/tenant/attendances/manual' },
+        { metodo: 'GET', caminho: '/adm/gerar-qrcode', acesso: 'desativada; use /api/tenant/qrcodes' },
+        { metodo: 'POST', caminho: '/adm/cadastrar-usuario', acesso: 'desativada; use /api/tenant/auth/register' },
         { metodo: 'GET', caminho: '/api/tenant/rooms', acesso: 'rooms:read + tenant ativo' },
-        { metodo: 'POST', caminho: '/api/tenant/rooms', acesso: 'rooms:manage + tenant ativo' },
+        { metodo: 'POST', caminho: '/api/tenant/rooms', acesso: 'rooms:manage + tenant ativo; aceita qrCodeId opcional' },
         { metodo: 'PATCH', caminho: '/api/tenant/rooms/:id', acesso: 'rooms:manage + tenant ativo' },
         { metodo: 'DELETE', caminho: '/api/tenant/rooms/:id', acesso: 'rooms:manage + tenant ativo' },
         { metodo: 'GET', caminho: '/api/tenant/qrcodes', acesso: 'qrcodes:read + tenant ativo' },
@@ -155,10 +167,24 @@ router.get('/api/rotas', requireAuth, (req, res) => {
         { metodo: 'GET', caminho: '/api/tenant/attendances', acesso: 'attendance:read + tenant ativo' },
         { metodo: 'GET', caminho: '/api/tenant/reports/attendance', acesso: 'reports:read + tenant ativo' },
         { metodo: 'DELETE', caminho: '/api/tenant/attendances/:id', acesso: 'attendance:manage + tenant ativo' },
+        { metodo: 'GET', caminho: '/api/tenant/dashboard', acesso: 'attendance:read + tenant ativo' },
+        { metodo: 'POST', caminho: '/api/tenant/attendances/manual', acesso: 'attendance:create + tenant ativo' },
+        { metodo: 'DELETE', caminho: '/api/tenant/attendances/latest', acesso: 'attendance:manage + tenant ativo' },
+        { metodo: 'DELETE', caminho: '/api/tenant/attendances', acesso: 'attendance:manage + tenant ativo' },
+        { metodo: 'GET', caminho: '/api/tenant/biometrics/profiles', acesso: 'biometrics:manage + tenant ativo' },
+        { metodo: 'POST', caminho: '/api/tenant/biometrics/enroll', acesso: 'biometrics:manage + tenant ativo' },
+        { metodo: 'POST', caminho: '/api/tenant/biometrics/checkin', acesso: 'attendance:create + tenant ativo' },
+        { metodo: 'POST', caminho: '/api/tenant/biometrics/verify', acesso: 'biometrics:manage + tenant ativo' },
+        { metodo: 'DELETE', caminho: '/api/tenant/biometrics/profiles/:id', acesso: 'biometrics:manage + tenant ativo' },
+        { metodo: 'POST', caminho: '/api/tenant/qrcodes/:id/rotate', acesso: 'qrcodes:manage + tenant ativo' },
     ]
 
     return res.json({ sucesso: true, rotas: rotasDisponiveis })
 })
+
+router.use(['/api/salas', '/api/qrcodes', '/api/relatorio', '/api/face'], legacyDisabled)
+router.use(['/reduce', '/clean'], legacyDisabled)
+router.use(['/adm/adicionar-manual', '/adm/gerar-qrcode', '/adm/cadastrar-usuario'], legacyDisabled)
 
 // Autenticação
 router.get('/login', (req, res) => {
@@ -166,22 +192,10 @@ router.get('/login', (req, res) => {
 })
 
 router.post('/login', (req, res) => {
-    const user = (req.body.user || '').toString().trim()
-    const pass = (req.body.pass || '').toString().trim()
-
-    const expectedUser = process.env.ADMIN_USER
-    const expectedPass = process.env.ADMIN_PASS
-
-    if (!expectedUser || !expectedPass) {
-        return res.status(500).send('Admin credentials not configured (ADMIN_USER / ADMIN_PASS).')
-    }
-
-    if (user === expectedUser && pass === expectedPass) {
-        req.session.user = { username: user }
-        return res.redirect('/adm')
-    }
-
-    return res.redirect('/login?error=1')
+    return res.status(410).json({
+        sucesso: false,
+        mensagem: 'O login por credenciais administrativas foi desativado. Use a tela de login tenant.',
+    })
 })
 
 router.get('/logout', (req, res) => {
@@ -190,29 +204,27 @@ router.get('/logout', (req, res) => {
     })
 })
 
-router.get('/qtd', async (req, res) => {
+router.get('/qtd', authorizeTenantPermission('attendance:read'), async (req, res, next) => {
     try {
-        const referencia = req.query.sala
-        const resultado = await getConfigDoc()
-        const historico = resultado.historico || []
-
-        if (!referencia) {
-            const total = historico.length
-            const salas = {}
-            historico.forEach(item => {
-                if (!item || !item.sala) return
-                salas[item.sala] = (salas[item.sala] || 0) + 1
+        const resumo = await obterResumoDoTenant(req.tenant.id)
+        const roomId = req.query.roomId
+        if (roomId) {
+            const sala = resumo.salas.find(room => room.id === roomId)
+            return res.json({
+                sucesso: true,
+                quantidade: sala?.quantidade || 0,
+                sala: sala?.nome || null,
+                salaId: sala?.id || roomId,
             })
-            return res.json({ sucesso: true, quantidade: total, total, salas })
         }
-
-        const sala = encontrarSala(resultado, referencia)
-        if (!sala) return res.json({ sucesso: true, quantidade: 0, sala: referencia })
-        const quantidade = historico.filter(item => pertenceSala(item, sala)).length
-        return res.json({ sucesso: true, quantidade, sala: sala.nome, salaId: sala.id })
+        return res.json({
+            sucesso: true,
+            quantidade: resumo.total,
+            total: resumo.total,
+            salas: Object.fromEntries(resumo.salas.map(room => [room.nome, room.quantidade])),
+        })
     } catch (error) {
-        console.error('Erro ao buscar quantidade:', error)
-        res.status(500).json({ sucesso: false, mensagem: 'Erro ao buscar a contagem.' })
+        return next(error)
     }
 })
 
@@ -221,26 +233,13 @@ router.get('/add', async (req, res) => {
     res.sendFile(path.join(publicDir, 'checkin.html'))
 })
 
-router.get('/teste-rosto', (req, res) => {
+router.get('/teste-rosto', requireTenantAuth, authorizeTenantPermission('biometrics:manage'), (req, res) => {
     res.sendFile(path.join(publicDir, 'face-test.html'))
 })
 
-router.get('/api/checkin/sala', async (req, res) => {
-    try {
-        const doc = await getConfigDoc()
-        const sala = req.query.id != null
-            ? encontrarSalaPorId(doc, req.query.id)
-            : encontrarSalaPorNome(doc, req.query.sala)
-        if (!sala) return res.status(404).json({ sucesso: false, mensagem: 'Sala não cadastrada. Fale com a administração.' })
-        if (sala.aberta === false) return res.status(403).json({ sucesso: false, mensagem: 'Esta sala está fechada para check-in pelo QR Code.' })
-        return res.json({ sucesso: true, sala: serializarSala(sala) })
-    } catch (error) {
-        console.error('Erro ao validar sala do QR Code:', error)
-        return res.status(500).json({ sucesso: false, mensagem: 'Erro ao consultar a sala.' })
-    }
-})
+router.get('/api/checkin/sala', legacyDisabled)
 
-router.post('/add', (req, res) => registrarPresenca(req, res))
+router.post('/add', legacyDisabled)
 
 router.post('/api/face/enroll', verificarCadastroFacial, cadastrarPerfilFacial)
 
@@ -427,7 +426,7 @@ router.delete('/clean', requireAuth, async (req, res) => {
 })
 
 // Rota para resetar o localStorage do navegador (interface)
-router.get('/resetls', requireAuth, (req, res) => {
+router.get('/resetls', requireTenantAuth, (req, res) => {
     res.send(`
         <script>
             // Limpa todo o armazenamento local do navegador para este site
@@ -616,7 +615,7 @@ router.delete('/api/qrcodes/:id', requireAuth, async (req, res) => {
 })
 
 // Rota de interface: Exibe a página de relatório estática
-router.get('/relatorio', requireAuth, (req, res) => {
+router.get('/relatorio', authorizeTenantPermission('reports:read'), (req, res) => {
     // O arquivo HTML agora busca os dados dinamicamente da /api/relatorio
     res.sendFile(path.join(publicDir, 'relatorio.html'))
 })

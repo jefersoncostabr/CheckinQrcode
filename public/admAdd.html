@@ -162,20 +162,21 @@
 
         async function carregarSalas() {
             try {
-                const response = await fetch('/api/salas');
+                const response = await fetch('/api/tenant/rooms');
                 if (!response.ok) throw new Error('Falha ao carregar salas.');
                 const data = await response.json();
                 const salas = Array.isArray(data.salas) ? data.salas : [];
 
                 salaSelect.innerHTML = '';
                 salas.forEach(sala => {
+                    if (sala.status === 'archived') return;
                     const opt = document.createElement('option');
                     opt.value = sala.id;
-                    opt.textContent = `${sala.id} - ${sala.nome}${sala.aberta ? '' : ' (fechada)'}`;
+                    opt.textContent = `${sala.nome}${sala.status === 'open' ? '' : ' (fechada)'}`;
                     salaSelect.appendChild(opt);
                 });
 
-                if (salas.length === 0) {
+                if (!salaSelect.options.length) {
                     salaSelect.innerHTML = '<option value="">Nenhuma sala cadastrada</option>';
                 }
             } catch (err) {
@@ -202,16 +203,16 @@
             }
 
             try {
-                const res = await fetch('/adm/adicionar-manual', {
+                const res = await fetch('/api/tenant/attendances/manual', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ nome, salaId: Number(sala) })
+                    body: JSON.stringify({ nome, roomId: sala })
                 });
                 const data = await res.json();
 
                 if(data.sucesso) { 
                     statusMsg.className = 'status-msg success';
-                    statusMsg.innerText = `"${nome}" adicionado com sucesso! (Total na sala: ${data.novaQuantidade})`;
+                    statusMsg.innerText = `"${nome}" adicionado com sucesso à sala "${data.sala}".`;
                     nomeInput.value = ''; // Limpa o campo para o próximo
                     nomeInput.focus();    // Mantém o foco no input
                 } else { 

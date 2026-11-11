@@ -10,14 +10,22 @@
 
             async function carregarRelatorio() {
                 const sala = salaFiltro.value;
-                const url = sala ? `/api/relatorio?sala=${encodeURIComponent(sala)}` : '/api/relatorio';
-
                 try {
-                    const response = await fetch(url);
-                    if (!response.ok) {
-                        throw new Error('Falha ao buscar os dados do relatório.');
-                    }
-                    const historico = await response.json();
+                    let pagina = 1;
+                    let totalPaginas = 1;
+                    const historico = [];
+                    do {
+                        const parametros = new URLSearchParams({ page: String(pagina) });
+                        if (sala) parametros.set('roomId', sala);
+                        const response = await fetch(`/api/tenant/attendances?${parametros}`);
+                        const result = await response.json();
+                        if (!response.ok) {
+                            throw new Error(result.mensagem || 'Falha ao buscar os dados do relatório.');
+                        }
+                        historico.push(...(Array.isArray(result.presencas) ? result.presencas : []));
+                        totalPaginas = result.paginacao?.totalPaginas || 0;
+                        pagina += 1;
+                    } while (pagina <= totalPaginas);
 
                     quantidadeTotalEl.textContent = historico.length;
                     listaNomesEl.innerHTML = '';
@@ -25,8 +33,8 @@
                     if (historico.length > 0) {
                         historico.forEach(h => {
                             const li = document.createElement('li');
-                            const dataFormatada = new Date(h.data).toLocaleString('pt-BR');
-                            const salaTexto = h.sala ? ` - ${h.sala}` : '';
+                            const dataFormatada = new Date(h.criadaEm).toLocaleString('pt-BR');
+                            const salaTexto = h.roomName ? ` - ${h.roomName}` : '';
                             const nomeEl = document.createElement('strong');
                             nomeEl.textContent = h.nome;
                             const detalheEl = document.createElement('span');
@@ -46,7 +54,7 @@
             }
 
             async function buscarSalas() {
-                const response = await fetch('/api/salas', { cache: 'no-store' });
+                const response = await fetch('/api/tenant/rooms', { cache: 'no-store' });
                 if (!response.ok) {
                     throw new Error('Falha ao buscar as salas.');
                 }
@@ -62,7 +70,7 @@
                     salas.forEach(sala => {
                         const opt = document.createElement('option');
                         opt.value = sala.id;
-                        opt.textContent = `${sala.id} - ${sala.nome}`;
+                        opt.textContent = sala.nome;
                         salaFiltro.appendChild(opt);
                     });
                 } catch (error) {
@@ -89,7 +97,7 @@
 
                     salas.forEach(sala => {
                         const item = document.createElement('li');
-                        item.textContent = `${sala.id} - ${sala.nome}${sala.aberta ? '' : ' (fechada)'}`;
+                        item.textContent = `${sala.nome}${sala.status === 'open' ? '' : ' (fechada)'}`;
                         listaSalasCadastradas.appendChild(item);
                     });
                 } catch (error) {

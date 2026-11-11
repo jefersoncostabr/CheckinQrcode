@@ -50,8 +50,10 @@ jest.unstable_mockModule('../src/services/tenantCheckinService.js', () => ({
 }))
 
 const {
+    cadastrarBiometriaAdminDoTenant,
     cadastrarBiometriaDoTenant,
     excluirBiometriaDoTenant,
+    excluirBiometriaAdministrativaDoTenant,
     registrarCheckinFacialDoTenant,
     TenantBiometricError,
 } = await import('../src/services/tenantBiometricService.js')
@@ -107,6 +109,40 @@ describe('serviço de biometria isolada por tenant', () => {
         })).rejects.toBeInstanceOf(TenantBiometricError)
         expect(Person.findOneAndUpdate).not.toHaveBeenCalled()
         expect(BiometricProfile.create).not.toHaveBeenCalled()
+    })
+
+    it('cadastra biometria administrativa no tenant informado pelo middleware', async () => {
+        BiometricProfile.create.mockResolvedValue({ _id: profileId })
+
+        await expect(cadastrarBiometriaAdminDoTenant({
+            tenantId,
+            name: 'Ana Silva',
+            descriptor,
+            consentimento: true,
+        })).resolves.toMatchObject({ profileId })
+
+        expect(obterContextoQr).not.toHaveBeenCalled()
+        expect(Person.findOneAndUpdate).toHaveBeenCalledWith(
+            { tenantId, nameKey: 'ana silva' },
+            {
+                $setOnInsert: {
+                    tenantId,
+                    name: 'Ana Silva',
+                    nameKey: 'ana silva',
+                    status: 'active',
+                },
+            },
+            { new: true, upsert: true, runValidators: true },
+        )
+    })
+
+    it('exclui perfil administrativo somente dentro do tenant', async () => {
+        await expect(excluirBiometriaAdministrativaDoTenant(tenantId, profileId))
+            .resolves.toBe(true)
+        expect(BiometricProfile.deleteOne).toHaveBeenCalledWith({
+            _id: profileId,
+            tenantId,
+        })
     })
 
     it('cria pessoa e perfil no tenant do QR e devolve apenas credencial de exclusão', async () => {

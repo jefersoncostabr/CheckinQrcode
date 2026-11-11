@@ -39,6 +39,127 @@ function serializarPresenca(attendance, roomName) {
     }
 }
 
+function normalizarNome(name) {
+    return name
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .trim()
+        .replace(/\s+/g, ' ')
+}
+
+function validarNome(name) {
+    if (typeof name !== 'string' || !name.trim() || name.trim().length > 120) {
+        throw new TenantAttendanceError('O nome deve ter entre 1 e 120 caracteres.', 400)
+    }
+    return name.trim()
+}
+
+function tratarDuplicidade(error) {
+    if (
+        error?.code === 11000 &&
+        error.keyPattern?.tenantId &&
+        error.keyPattern?.roomId &&
+        error.keyPattern?.personNameKey
+    ) {
+        throw new TenantAttendanceError(
+            'Este nome já está na lista de presença para esta sala.',
+            409,
+        )
+    }
+    throw error
+}
+
+export async function obterResumoDoTenant(tenantId) {
+    validarId(tenantId, 'Organização')
+    const [rooms, results] = await Promise.all([
+        Room.find({ tenantId, status: { $ne: 'archived' } })
+            .select('_id name status')
+            .sort({ name: 1 })
+            .lean(),
+        Attendance.aggregate([
+            { $match: { tenantId: new mongoose.Types.ObjectId(tenantId) } },
+            { $group: { _id: '$roomId', quantidade: { $sum: 1 } } },
+        ]),
+    ])
+    const counts = new Map(results.map(result => [String(result._id), result.quantidade]))
+    return {
+        salas: rooms.map(room => ({
+            id: String(room._id),
+            nome: room.name,
+            status: room.status,
+            aberta: room.status === 'open',
+            quantidade: counts.get(String(room._id)) || 0,
+        })),
+        total: results.reduce((sum, result) => sum + result.quantidade, 0),
+    }
+}
+
+export async function criarPresencaManualDoTenant(tenantId, { roomId, name, sourceIp } = {}) {
+    validarId(tenantId, 'Organização')
+    validarId(roomId, 'Sala')
+    const personNameSnapshot = validarNome(name)
+    const room = await Room.findOne({
+        _id: roomId,
+        tenantId,
+        status: { $ne: 'archived' },
+    }).select('_id name').lean()
+    if (!room) {
+        throw new TenantAttendanceError('Sala não encontrada.', 404)
+    }
+
+    try {
+        await Attendance.create({
+            tenantId,
+            roomId: room._id,
+            personNameSnapshot,
+            personNameKey: normalizarNome(personNameSnapshot),
+            method: 'manual',
+            sourceIp: typeof sourceIp === 'string' ? sourceIp.slice(0, 45) : undefined,
+        })
+    } catch (error) {
+        tratarDuplicidade(error)
+    }
+
+    return { sucesso: true, sala: room.name }
+}
+
+export async function removerUltimaPresencaDoTenant(tenantId, roomId) {
+    validarId(tenantId, 'Organização')
+    validarId(roomId, 'Sala')
+    const room = await Room.exists({
+        _id: roomId,
+        tenantId,
+        status: { $ne: 'archived' },
+    })
+    if (!room) {
+        throw new TenantAttendanceError('Sala não encontrada.', 404)
+    }
+    const deleted = await Attendance.findOneAndDelete(
+        { tenantId, roomId },
+        { sort: { createdAt: -1, _id: -1 } },
+    ).lean()
+    if (!deleted) {
+        throw new TenantAttendanceError('Nenhuma presença encontrada nesta sala.', 404)
+    }
+    return { sucesso: true }
+}
+
+export async function limparPresencasDaSalaDoTenant(tenantId, roomId) {
+    validarId(tenantId, 'Organização')
+    validarId(roomId, 'Sala')
+    const room = await Room.exists({
+        _id: roomId,
+        tenantId,
+        status: { $ne: 'archived' },
+    })
+    if (!room) {
+        throw new TenantAttendanceError('Sala não encontrada.', 404)
+    }
+    const result = await Attendance.deleteMany({ tenantId, roomId })
+    return { sucesso: true, registrosRemovidos: result.deletedCount }
+}
+
 export async function listarPresencasDoTenant(tenantId, { roomId, page: pageInput } = {}) {
     validarId(tenantId, 'Organização')
     const page = validarPagina(pageInput)

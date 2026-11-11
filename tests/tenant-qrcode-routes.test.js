@@ -11,7 +11,9 @@ const authorizeTenantPermission = jest.fn(permission => (req, res, next) => {
 const listarQrCodesDoTenant = jest.fn()
 const criarQrCodeDoTenant = jest.fn()
 const associarQrCodeASalaDoTenant = jest.fn()
+const rotacionarQrCodeDoTenant = jest.fn()
 const revogarQrCodeDoTenant = jest.fn()
+const TENANT_QR_CODE_LIMIT = 10
 class TenantQrCodeError extends Error {
     constructor(message, statusCode) {
         super(message)
@@ -26,8 +28,14 @@ jest.unstable_mockModule('../src/services/tenantQrCodeService.js', () => ({
     listarQrCodesDoTenant,
     criarQrCodeDoTenant,
     associarQrCodeASalaDoTenant,
+    rotacionarQrCodeDoTenant,
     revogarQrCodeDoTenant,
     TenantQrCodeError,
+    TENANT_QR_CODE_LIMIT,
+}))
+jest.unstable_mockModule('../src/services/qrCodeService.js', () => ({
+    generateQRCodeBuffer: jest.fn().mockResolvedValue(Buffer.from('png')),
+    getQrBaseUrl: jest.fn(() => 'https://example.test'),
 }))
 
 const { default: tenantQrCodeRoutes } = await import('../src/routes/tenantQrCodeRoutes.js')
@@ -57,6 +65,7 @@ describe('rotas de QR Codes multi-tenant', () => {
         criarQrCodeDoTenant.mockResolvedValue({ id: 'qr-id', token: 'secret-token' })
         associarQrCodeASalaDoTenant.mockResolvedValue({ id: 'qr-id', status: 'active' })
         revogarQrCodeDoTenant.mockResolvedValue({ id: 'qr-id', status: 'revoked' })
+        rotacionarQrCodeDoTenant.mockResolvedValue({ id: 'qr-id', token: 'new-token' })
 
         await request(app).get('/api/tenant/qrcodes').expect(200)
         await request(app).post('/api/tenant/qrcodes').expect(201)
@@ -98,5 +107,27 @@ describe('rotas de QR Codes multi-tenant', () => {
             .send({ roomId: 'bad-id' })
             .expect(400)
         expect(response.body).toEqual({ sucesso: false, mensagem: 'Sala inválida.' })
+    })
+
+    it('rotaciona QR e entrega nova imagem sem reutilizar o token anterior', async () => {
+        rotacionarQrCodeDoTenant.mockResolvedValue({
+            id: 'qr-id',
+            token: 'new-token',
+            status: 'active',
+        })
+
+        const response = await request(app)
+            .post('/api/tenant/qrcodes/qr-id/rotate')
+            .expect(200)
+
+        expect(rotacionarQrCodeDoTenant).toHaveBeenCalledWith(
+            '65f1a0000000000000000001',
+            'qr-id',
+        )
+        expect(response.body.qrcode).toMatchObject({
+            token: 'new-token',
+            url: 'https://example.test/add#new-token',
+            qrCodeDataUri: 'data:image/png;base64,cG5n',
+        })
     })
 })

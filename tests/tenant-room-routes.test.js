@@ -13,6 +13,7 @@ const authorizeTenantPermission = jest.fn(permission => (req, res, next) => {
 })
 const listarSalasDoTenant = jest.fn()
 const criarSalaDoTenant = jest.fn()
+const criarSalaComQrDoTenant = jest.fn()
 const alterarEstadoSalaDoTenant = jest.fn()
 const arquivarSalaDoTenant = jest.fn()
 class TenantRoomError extends Error {
@@ -28,6 +29,7 @@ jest.unstable_mockModule('../src/middleware/authorizeTenant.js', () => ({
 jest.unstable_mockModule('../src/services/tenantRoomService.js', () => ({
     listarSalasDoTenant,
     criarSalaDoTenant,
+    criarSalaComQrDoTenant,
     alterarEstadoSalaDoTenant,
     arquivarSalaDoTenant,
     TenantRoomError,
@@ -58,6 +60,7 @@ describe('rotas de salas multi-tenant', () => {
     it('aplica permissões de leitura e administração por operação', async () => {
         listarSalasDoTenant.mockResolvedValue([])
         criarSalaDoTenant.mockResolvedValue({ id: 'room-id', nome: 'Sala A', status: 'open' })
+        criarSalaComQrDoTenant.mockResolvedValue({ id: 'room-id', nome: 'Sala A', status: 'open' })
         alterarEstadoSalaDoTenant.mockResolvedValue({ id: 'room-id', status: 'closed' })
         arquivarSalaDoTenant.mockResolvedValue({ id: 'room-id', status: 'archived' })
 
@@ -86,6 +89,22 @@ describe('rotas de salas multi-tenant', () => {
             '65f1a0000000000000000001',
             'Sala A',
         )
+    })
+
+    it('usa criação transacional quando um QR disponível é informado', async () => {
+        criarSalaComQrDoTenant.mockResolvedValue({ id: 'room-id', nome: 'Sala A', status: 'open' })
+
+        await request(app)
+            .post('/api/tenant/rooms')
+            .send({ name: 'Sala A', qrCodeId: 'qr-id' })
+            .expect(201)
+
+        expect(criarSalaComQrDoTenant).toHaveBeenCalledWith(
+            '65f1a0000000000000000001',
+            'Sala A',
+            'qr-id',
+        )
+        expect(criarSalaDoTenant).not.toHaveBeenCalled()
     })
 
     it('retorna erros de validação do serviço sem convertê-los em sucesso', async () => {

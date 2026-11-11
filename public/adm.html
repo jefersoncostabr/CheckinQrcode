@@ -160,9 +160,10 @@
 <body>
     <div class="container">
         <h1>Checkin QRCode</h1>
-        <p>Painel de Administração</p>
+        <p>Painel da organização: <strong id="tenantNameDisplay">Carregando...</strong></p>
+        <button id="btnTenantLogout" class="btn-secondary" type="button">Sair</button>
 
-        <div class="card">
+        <div class="card" id="attendanceDashboardCard">
             <h2>Check-ins</h2>
             <div class="checkins-header">
                 <p>Atualização automática a cada minuto.</p>
@@ -175,7 +176,7 @@
             <p id="checkinsVazio" class="checkins-empty" role="status">Carregando...</p>
         </div>
 
-        <div class="card">
+        <div class="card" id="attendanceActionsCard">
             <h2>Ações de presença</h2>
             <div class="info-display">
                 <p>
@@ -193,28 +194,28 @@
             </div>
         </div>
 
-        <div class="card">
+        <div class="card" id="qrManagementCard">
             <h2>QR codes disponíveis para associar</h2>
-            <p id="qrLimite">0 de 10 QR codes</p>
+            <p id="qrLimite">0 QR codes ativos</p>
             <div class="actions">
                 <button id="btnCriarQr" class="btn-primary">Criar QR disponível</button>
             </div>
             <ul id="listaQrs" style="margin-top: 10px; padding-left: 20px;"></ul>
         </div>
 
-        <div class="card">
+        <div class="card" id="roomManagementCard">
             <h2>Salas do Evento</h2>
             <div class="actions">
                 <input type="text" id="salaInput" placeholder="Nome da sala" style="flex: 1; min-width: 180px;" />
                 <select id="salaQrSelect" aria-label="QR Code para associar à sala" style="min-width: 220px;">
-                    <option value="auto">Criar/usar QR automaticamente</option>
+                    <option value="">Sem QR Code associado</option>
                 </select>
                 <button id="btnAddSala" class="btn-primary">Adicionar Sala</button>
             </div>
             <ul id="listaSalas" style="margin-top: 10px; padding-left: 20px;"></ul>
         </div>
 
-        <div class="card">
+        <div class="card" id="tenantManagementCard">
             <h2>Gestão do Sistema</h2>
             <div class="info-display">
                 <p>
@@ -231,6 +232,11 @@
                 <a id="btnTestarBiometria" href="/teste-rosto" class="btn-secondary" target="_blank" rel="noopener">Testar biometria facial</a>
                 <a href="/resetls" class="btn-secondary" target="_blank">Resetar Memória de Check-in (para um dispositivo)</a>
             </div>
+        </div>
+
+        <div class="card" id="biometricManagementCard">
+            <h2>Perfis biométricos desta organização</h2>
+            <ul id="listaPerfisFaciais"></ul>
         </div>
 
         <dialog id="cadastroUsuarioDialog" aria-labelledby="cadastroUsuarioTitulo">

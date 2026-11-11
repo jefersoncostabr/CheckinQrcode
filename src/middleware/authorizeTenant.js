@@ -31,6 +31,7 @@ export const TENANT_ROLE_PERMISSIONS = Object.freeze({
         'rooms:read',
         'qrcodes:read',
         'attendance:create',
+        'attendance:read',
     ]),
     viewer: Object.freeze([
         'rooms:read',

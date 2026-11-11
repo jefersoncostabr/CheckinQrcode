@@ -3,6 +3,7 @@ import { authorizeTenantPermission } from '../middleware/authorizeTenant.js'
 import {
     arquivarSalaDoTenant,
     alterarEstadoSalaDoTenant,
+    criarSalaComQrDoTenant,
     criarSalaDoTenant,
     listarSalasDoTenant,
     TenantRoomError,
@@ -31,7 +32,9 @@ router.get('/rooms', authorizeTenantPermission('rooms:read'), async (req, res, n
 
 router.post('/rooms', authorizeTenantPermission('rooms:manage'), async (req, res, next) => {
     try {
-        const sala = await criarSalaDoTenant(req.tenant.id, req.body?.name)
+        const sala = req.body?.qrCodeId
+            ? await criarSalaComQrDoTenant(req.tenant.id, req.body?.name, req.body.qrCodeId)
+            : await criarSalaDoTenant(req.tenant.id, req.body?.name)
         return res.status(201).json({ sucesso: true, sala })
     } catch (error) {
         return responderErro(error, res, next)

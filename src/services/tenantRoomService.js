@@ -1,4 +1,5 @@
 import mongoose from 'mongoose'
+import QrCode from '../models/qrCodeModel.js'
 import Room from '../models/roomModel.js'
 
 export class TenantRoomError extends Error {
@@ -74,6 +75,46 @@ export async function criarSalaDoTenant(tenantId, nameInput) {
     } catch (error) {
         capturarDuplicidade(error)
     }
+}
+
+export async function criarSalaComQrDoTenant(tenantId, nameInput, qrCodeId) {
+    validarId(tenantId, 'Organização')
+    validarId(qrCodeId, 'QR Code')
+    if (typeof nameInput !== 'string') {
+        throw new TenantRoomError('Nome da sala é obrigatório.', 400)
+    }
+
+    const name = nameInput.trim()
+    if (!name || name.length > 120) {
+        throw new TenantRoomError('O nome da sala deve ter entre 1 e 120 caracteres.', 400)
+    }
+
+    const session = await mongoose.startSession()
+    let salaCriada
+    try {
+        await session.withTransaction(async () => {
+            const [room] = await Room.create([{
+                tenantId,
+                name,
+                activeName: normalizarNomeSala(name),
+                status: 'open',
+            }], { session })
+            const qrcode = await QrCode.findOneAndUpdate(
+                { _id: qrCodeId, tenantId, status: 'available' },
+                { $set: { roomId: room._id, status: 'active' } },
+                { new: true, session, runValidators: true },
+            )
+            if (!qrcode) {
+                throw new TenantRoomError('O QR Code selecionado não está mais disponível.', 409)
+            }
+            salaCriada = room
+        })
+    } catch (error) {
+        capturarDuplicidade(error)
+    } finally {
+        await session.endSession()
+    }
+    return serializarSala(salaCriada)
 }
 
 export async function alterarEstadoSalaDoTenant(tenantId, roomId, status) {

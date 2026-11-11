@@ -18,8 +18,8 @@
         <div id="message" class="auth-message" role="status" aria-live="polite" hidden></div>
 
         <form class="auth-form" method="POST" action="/login">
-            <label for="user">E-mail ou usuário</label>
-            <input id="user" name="user" type="text" autocomplete="username" placeholder="voce@exemplo.com" required />
+            <label for="user">E-mail</label>
+            <input id="user" name="user" type="email" autocomplete="username" placeholder="voce@exemplo.com" required />
 
             <label for="pass">Senha</label>
             <input id="pass" name="pass" type="password" autocomplete="current-password" placeholder="Sua senha" required />
@@ -28,7 +28,7 @@
         </form>
 
         <p class="auth-footer">Ainda não tem uma conta? <a class="auth-link" href="/criar-conta.html">Criar conta</a></p>
-        <p class="auth-note">Você também pode entrar com uma conta de organização. O acesso administrativo legado permanece separado.</p>
+        <p class="auth-note">Entre com seu e-mail e a senha da sua conta da organização.</p>
     </main>
 
     <script>
@@ -52,7 +52,7 @@
             });
             const result = await response.json();
             if (!response.ok) throw new Error(result.mensagem || 'Não foi possível selecionar a organização.');
-            showMessage('Sessão da organização iniciada. O painel legado continua separado.');
+            window.location.replace('/adm');
         }
 
         if (params.has('error')) {
@@ -80,8 +80,7 @@
                 const result = await response.json();
 
                 if (response.status === 401) {
-                    form.submit();
-                    return;
+                    throw new Error(result.mensagem || 'E-mail ou senha incorretos.');
                 }
                 if (!response.ok) throw new Error(result.mensagem || 'Não foi possível entrar.');
 
@@ -113,7 +112,7 @@
                     return;
                 }
 
-                showMessage('Sessão da organização iniciada. O painel legado continua separado.');
+                window.location.replace('/adm');
             } catch (error) {
                 showMessage(error.message, true);
             } finally {

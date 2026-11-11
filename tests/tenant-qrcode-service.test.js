@@ -10,6 +10,7 @@ const roomQuery = { lean: jest.fn() }
 const updateQuery = { lean: jest.fn() }
 const QrCode = {
     find: jest.fn(),
+    countDocuments: jest.fn(),
     create: jest.fn(),
     findOneAndUpdate: jest.fn(),
 }
@@ -37,6 +38,7 @@ const {
     listarQrCodesDoTenant,
     revogarQrCodeDoTenant,
     TenantQrCodeError,
+    TENANT_QR_CODE_LIMIT,
 } = await import('../src/services/tenantQrCodeService.js')
 
 const tenantId = '65f1a0000000000000000001'
@@ -52,6 +54,7 @@ describe('serviço de QR Codes isolados por tenant', () => {
         roomQuery.lean.mockResolvedValue(null)
         updateQuery.lean.mockResolvedValue(null)
         QrCode.find.mockReturnValue(listQuery)
+        QrCode.countDocuments.mockResolvedValue(0)
         Room.find.mockReturnValue(roomListQuery)
         Room.findOne.mockReturnValue(roomQuery)
         QrCode.findOneAndUpdate.mockReturnValue(updateQuery)
@@ -98,6 +101,18 @@ describe('serviço de QR Codes isolados por tenant', () => {
             status: 'available',
         })
         expect(result).not.toHaveProperty('tokenHash')
+        expect(QrCode.countDocuments).toHaveBeenCalledWith({
+            tenantId,
+            status: { $ne: 'revoked' },
+        })
+    })
+
+    it('aplica o limite de QR Codes por tenant', async () => {
+        QrCode.countDocuments.mockResolvedValue(TENANT_QR_CODE_LIMIT)
+
+        await expect(criarQrCodeDoTenant(tenantId))
+            .rejects.toMatchObject({ statusCode: 409 })
+        expect(QrCode.create).not.toHaveBeenCalled()
     })
 
     it('associa somente sala não arquivada do mesmo tenant', async () => {

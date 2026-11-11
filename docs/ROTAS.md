@@ -1,135 +1,87 @@
-# Resumo de Rotas da Aplicação
+# Rotas da aplicação
 
-## URL Base
+## Endereço base
 
-Os caminhos das rotas são os mesmos em desenvolvimento e no Render; muda apenas a URL base:
+- Local: `http://localhost:3000`
+- Render: `https://checkinqrcode.onrender.com`
 
-- **Desenvolvimento local:** `http://localhost:3000`
-- **Render:** `https://checkinqrcode.onrender.com`
+O nome e a porta local podem variar conforme a configuração. Para acessar pelo celular na rede local, use o IPv4 do computador. O check-in por QR usa somente tokens multi-tenant no fragmento `/add#TOKEN`.
 
-Por exemplo, a rota de login local é `http://localhost:3000/login`; no Render é `https://checkinqrcode.onrender.com/login`. Não use `localhost` para acessar o serviço publicado. Para testar em um celular na rede local, use o IPv4 do PC no lugar de `localhost`.
-
-As rotas administrativas legadas exigem uma sessão iniciada por `POST /login`. O login tenant é feito pela tela usando `/api/tenant/auth/login` e não concede acesso às rotas globais. Sem sessão administrativa, o painel legado redireciona para `/login`. No Postman, mantenha o cookie recebido no login correspondente.
-
-## Páginas e Autenticação
+## Páginas
 
 | Método | Rota | Acesso | Descrição |
-| :--- | :--- | :--- | :--- |
-| `GET` | `/` | Público | Verifica se o servidor está online; responde `O servidor funcionando.` |
-| `GET` | `/login` | Público | Exibe a página de login. |
-| `POST` | `/login` | Público | Recebe `user` e `pass` como formulário. Se as credenciais estiverem corretas, cria a sessão e redireciona para `/adm`; se estiverem incorretas, redireciona para `/login?error=1`. |
-| `GET` | `/logout` | Público | Desloga o usuário, encerra a sessão atual e redireciona para `/login?loggedout=1`. |
-| `GET` | `/add?id=...` | Público | Exibe a página de confirmação do check-in para a sala identificada pelo ID correspondente. |
-| `GET` | `/add?sala=...` | Público | Compatibilidade temporária com QR Codes antigos que guardam o apelido da sala. |
-| `GET` | `/teste-rosto` | Público | Exibe a página para verificar se um rosto está cadastrado e, opcionalmente, se corresponde ao nome informado. Também pode ser aberta pelo botão “Testar biometria facial” na seção Gestão do Sistema de `/adm`. |
-| `GET` | `/adm` | Requer autenticação (`requireAuth`) | Exibe o painel administrativo. Requer uma sessão autenticada; sem ela, redireciona para `/login`. |
-| `GET` | `/adm/monitor-facial` | Requer autenticação (`requireAuth`) | Abre o monitor contínuo de presença por reconhecimento facial. A pessoa administradora escolhe uma sala aberta (manualmente ou lendo um QR de check-in `/add?id=ID` ou `/add?sala=NOME`), confirma que as pessoas foram informadas e consente, e inicia o monitoramento manualmente. A busca verifica aproximadamente uma vez por segundo e registra uma pessoa cadastrada uma vez por apresentação do rosto. |
-| Vários | `/adm/*` | Requer autenticação (`requireAuth`) | Protege as sub-rotas administrativas, como `/adm/gerar-qrcode` e `/adm/cadastrar-usuario`. Sem sessão autenticada, redireciona para `/login`. |
-| `GET` | `/adm/adicionar-manual` | Administrativa | Exibe a página para registrar presença manualmente. |
-| `GET` | `/relatorio` | Administrativa | Exibe uma página HTML com o total de pessoas e a lista de nomes e datas/horários dos check-ins, com filtro por sala. O botão copia um cabeçalho que identifica todas as salas ou a sala selecionada (ID e nome), seguido apenas pelos nomes. |
-| `GET` | `/resetls` | Administrativa | Limpa o `localStorage` do navegador e redireciona para `/add`. Pode desbloquear dispositivos que impedem incorretamente um novo check-in (por exemplo, exibindo “Você já confirmou presença”). Não limpa o banco de dados. |
+|---|---|---|---|
+| `GET` | `/` | Público | Verifica se o servidor está online. |
+| `GET` | `/login` | Público | Login com e-mail e senha de uma conta tenant. |
+| `GET` | `/criar-conta.html` | Público | Cria uma organização e sua primeira conta `owner`. |
+| `GET` | `/adm` | Sessão tenant | Painel administrativo da organização ativa. |
+| `GET` | `/adm/adicionar-manual` | Sessão tenant | Tela de lançamento manual de presença. |
+| `GET` | `/adm/monitor-facial` | Sessão tenant | Monitor facial para uma sala do tenant. |
+| `GET` | `/adm/relatorio` ou `/relatorio` | `reports:read` + sessão tenant | Relatório e lista de presenças da organização ativa. |
+| `GET` | `/adm/resetls` ou `/resetls` | Sessão tenant | Limpa o armazenamento local do navegador; não altera o banco. |
+| `GET` | `/add#TOKEN` | Público | Check-in por nome ou biometria usando um QR ativo. |
+| `GET` | `/teste-rosto` | Sessão tenant | Página administrativa de teste facial. |
 
-## API Pública
+O cadastro e o login abrem o painel `/adm` após autenticação. Se a conta pertencer a mais de uma organização, o login pede para selecionar uma.
 
-| Método | Rota | Parâmetros/Corpo | Descrição |
-| :--- | :--- | :--- | :--- |
-| `GET` | `/qtd` | Query opcional: `sala` | Retorna a contagem total e as contagens por sala. Com `sala`, retorna a contagem daquela sala. |
-| `GET` | `/api/checkin/sala?id=...` | Query `id` ou `sala` legado | Valida se o QR corresponde a uma sala cadastrada e aberta. |
-| `POST` | `/add` | JSON: `nome`, `salaId`; legado: `nome`, `sala` | Registra um check-in. A sala deve existir e estar aberta para check-in via QR; o nome não pode já estar registrado nela. |
-| `POST` | `/api/face/enroll` | JSON: `nome`, `descritor` (128 números), `consentimento: true` | Cadastra um perfil facial com consentimento explícito. Retorna `409` se o nome já tiver perfil ou se o rosto já estiver cadastrado; em caso de sucesso, retorna o ID do perfil e o token de exclusão. |
-| `POST` | `/api/face/checkin` | JSON: `descritor` (128 números), `salaId`; legado: `sala` | Localiza o perfil facial correspondente e registra presença na sala. |
-| `POST` | `/api/face/verify` | JSON: `descritor` (128 números), `nome` opcional | Informa se o rosto está cadastrado e, quando enviado, se corresponde ao nome. Não retorna o nome associado ao rosto. |
-| `DELETE` | `/api/face/profile/:id` | Header `x-face-delete-token` | Exclui o perfil facial quando o token de exclusão correspondente é informado. |
+## Cadastro e autenticação
 
-## API Multi-tenant (em implantação)
+Estas rotas usam cookie de sessão HTTP-only:
 
-As rotas administrativas abaixo são uma nova superfície isolada por tenant e ainda não estão conectadas ao painel legado. Elas exigem uma sessão `tenantAuth` com Membership ativo. O tenant é obtido e validado no servidor; `tenantId` enviado pelo cliente não define o escopo. As rotas públicas de resolução/check-in são exceção: recebem o token do QR e resolvem o tenant no banco.
+| Método | Rota | Corpo | Descrição |
+|---|---|---|---|
+| `POST` | `/api/tenant/auth/register` | `tenantName`, `name`, `email`, `password` | Cria tenant, conta e vínculo `owner`; inicia a sessão. |
+| `POST` | `/api/tenant/auth/login` | `email`, `password` | Autentica a conta; pode retornar organizações para seleção. |
+| `POST` | `/api/tenant/auth/select` | `membershipId` | Seleciona uma organização após login. |
+| `POST` | `/api/tenant/auth/switch` | `tenantId`, `membershipId` | Troca a organização ativa para um vínculo da conta. |
+| `GET` | `/api/tenant/auth/session` | — | Revalida e retorna a organização ativa. |
+| `POST` | `/api/tenant/auth/logout` | — | Encerra a sessão. |
 
-### Cadastro e autenticação tenant
+O escopo tenant é determinado e revalidado no servidor; um `tenantId` enviado pelo cliente não substitui a organização ativa da sessão.
 
-| Método | Rota | Parâmetros/Corpo | Descrição |
-| :--- | :--- | :--- | :--- |
-| `POST` | `/api/tenant/auth/register` | JSON: `tenantName`, `name`, `email`, `password` | Cria tenant, conta e Membership `owner` em transação e inicia uma sessão tenant. Retorna `409` para e-mail já cadastrado e `400` para dados inválidos. |
-| `POST` | `/api/tenant/auth/login` | JSON: `email`, `password` | Autentica com bcrypt. Se houver uma organização ativa, inicia a sessão; se houver várias, retorna os vínculos para seleção. |
-| `POST` | `/api/tenant/auth/select` | JSON: `membershipId` | Seleciona uma das organizações retornadas no login e revalida o vínculo antes de iniciar a sessão tenant. |
-| `POST` | `/api/tenant/auth/switch` | JSON: `tenantId`, `membershipId` | Troca a organização ativa após validar que o Membership pertence ao usuário autenticado. |
-| `GET` | `/api/tenant/auth/session` | Nenhum | Confirma a sessão tenant e revalida usuário, tenant e Membership ativos. |
-| `POST` | `/api/tenant/auth/logout` | Nenhum | Encerra a sessão atual. |
+## Administração tenant
 
-Essas rotas usam o cookie de sessão HTTP-only. O login administrativo antigo em `POST /login` continua separado. Por segurança, uma sessão `tenantAuth` não autentica o painel nem as APIs globais legadas; o painel existente ainda precisa ser conectado às APIs tenant-scoped antes que uma conta tenant possa usá-lo.
+Todas as rotas abaixo exigem sessão tenant e a permissão indicada. O serviço filtra os registros pela organização ativa.
 
-| Método | Rota | Parâmetros/Corpo | Descrição |
-| :--- | :--- | :--- | :--- |
-| `GET` | `/api/tenant/rooms` | Nenhum | Lista salas não arquivadas do tenant ativo; exige `rooms:read`. |
-| `POST` | `/api/tenant/rooms` | JSON: `name` | Cria sala no tenant ativo; exige `rooms:manage`. |
-| `PATCH` | `/api/tenant/rooms/:id` | JSON: `{"status":"open"}` ou `{"status":"closed"}` | Altera estado de sala pertencente ao tenant ativo; exige `rooms:manage`. |
-| `DELETE` | `/api/tenant/rooms/:id` | ID da sala | Arquiva a sala do tenant ativo sem apagar seu histórico; exige `rooms:manage`. |
-| `GET` | `/api/tenant/qrcodes` | Nenhum | Lista QR Codes do tenant ativo sem expor o hash nem o token; exige `qrcodes:read`. |
-| `POST` | `/api/tenant/qrcodes` | Nenhum | Cria QR Code disponível e retorna o token secreto uma única vez para gerar sua imagem; exige `qrcodes:manage`. |
-| `PATCH` | `/api/tenant/qrcodes/:id` | JSON: `{"roomId":"ID"}` ou `{"roomId":null}` | Associa a uma sala não arquivada do mesmo tenant ou libera a associação; exige `qrcodes:manage`. |
-| `DELETE` | `/api/tenant/qrcodes/:id` | ID do QR Code | Revoga o QR Code sem apagar seu registro; exige `qrcodes:manage`. |
-| `POST` | `/api/checkin/tenant/resolve` | JSON: `{"token":"TOKEN"}` | Resolve um token QR ativo para uma sala aberta; não recebe `tenantId`. |
-| `POST` | `/api/checkin/tenant/attendance` | JSON: `{"token":"TOKEN","nome":"Nome"}` | Registra presença na sala associada ao token, limitada ao tenant do QR; impede nome duplicado por sala. |
-| `POST` | `/api/checkin/tenant/biometrics/enroll` | JSON: `token`, `nome`, `descritor` (128 números), `consentimento:true` | Cadastra perfil no tenant do QR, após consentimento explícito; retorna uma credencial de exclusão uma única vez. |
-| `POST` | `/api/checkin/tenant/biometrics/checkin` | JSON: `token`, `descritor` (128 números), `consentimento:true` | Compara somente perfis consentidos do tenant do QR e registra presença sem revelar a identidade da correspondência na resposta. |
-| `DELETE` | `/api/checkin/tenant/biometrics/profiles/:id` | Header `x-biometric-delete-token` | Exclui o perfil biométrico e retira o consentimento após validar a credencial individual emitida no cadastro; não depende do QR permanecer ativo. |
-| `GET` | `/api/tenant/attendances?page=1&roomId=ID` | `roomId` e `page` opcionais | Lista presenças do tenant ativo, 100 por página; permite filtrar por sala do mesmo tenant. Exige `attendance:read`. |
-| `GET` | `/api/tenant/reports/attendance` | Nenhum | Retorna total de presenças agrupadas por sala do tenant ativo; exige `reports:read`. |
-| `DELETE` | `/api/tenant/attendances/:id` | ID da presença | Exclui presença pertencente ao tenant ativo; exige `attendance:manage`. |
+| Método | Rota | Corpo/query | Permissão e função |
+|---|---|---|---|
+| `GET` | `/api/tenant/rooms` | — | `rooms:read`; lista salas não arquivadas. |
+| `POST` | `/api/tenant/rooms` | `name`; opcional `qrCodeId` | `rooms:manage`; cria sala. Se incluir QR disponível, cria e associa ambos em uma transação. |
+| `PATCH` | `/api/tenant/rooms/:id` | `status: "open" \| "closed"` | `rooms:manage`; altera estado. |
+| `DELETE` | `/api/tenant/rooms/:id` | — | `rooms:manage`; arquiva sem apagar o histórico. |
+| `GET` | `/api/tenant/qrcodes` | — | `qrcodes:read`; lista QR sem revelar tokens ou hashes e retorna limite/quantidade ativa. |
+| `POST` | `/api/tenant/qrcodes` | — | `qrcodes:manage`; cria QR e retorna token/imagem uma única vez (limite de 10 por tenant). Configure `PUBLIC_BASE_URL` quando o endereço público não puder ser detectado. |
+| `PATCH` | `/api/tenant/qrcodes/:id` | `roomId` ou `null` | `qrcodes:manage`; associa a uma sala da mesma organização ou libera a associação. |
+| `POST` | `/api/tenant/qrcodes/:id/rotate` | — | `qrcodes:manage`; gera token/imagem novos e invalida cópias anteriores. |
+| `DELETE` | `/api/tenant/qrcodes/:id` | — | `qrcodes:manage`; revoga o QR. |
+| `GET` | `/api/tenant/dashboard` | — | `attendance:read`; contagem por sala. |
+| `GET` | `/qtd?roomId=ID` | `roomId` opcional | Alias compatível para consultar a contagem; requer `attendance:read` e escopa pelo tenant ativo. |
+| `GET` | `/api/tenant/attendances?page=1&roomId=ID` | `page`, `roomId` opcionais | `attendance:read`; lista até 100 presenças por página. |
+| `POST` | `/api/tenant/attendances/manual` | `roomId`, `nome` | `attendance:create`; registra presença manual. |
+| `DELETE` | `/api/tenant/attendances/latest?roomId=ID` | `roomId` | `attendance:manage`; remove a presença mais recente da sala. |
+| `DELETE` | `/api/tenant/attendances?roomId=ID` | `roomId` | `attendance:manage`; remove presenças da sala. |
+| `DELETE` | `/api/tenant/attendances/:id` | — | `attendance:manage`; remove uma presença. |
+| `GET` | `/api/tenant/reports/attendance` | — | `reports:read`; total agrupado por sala. |
+| `GET` | `/api/tenant/biometrics/profiles` | — | `biometrics:manage`; lista perfis sem descritores. |
+| `POST` | `/api/tenant/biometrics/enroll` | `nome`, `descritor`, `consentimento: true` | `biometrics:manage`; cadastra biometria com consentimento. |
+| `POST` | `/api/tenant/biometrics/verify` | `descritor`, `nome` opcional | `biometrics:manage`; verifica somente perfis da organização ativa. |
+| `POST` | `/api/tenant/biometrics/checkin` | `roomId`, `descritor`, `consentimento: true` | `attendance:create`; registra presença facial na sala. |
+| `DELETE` | `/api/tenant/biometrics/profiles/:id` | — | `biometrics:manage`; exclui perfil da organização ativa. |
 
-Para criar uma imagem QR, use como destino `https://<dominio>/add#<TOKEN>` com o token retornado uma única vez pela criação. O token fica no fragmento da URL e é enviado ao servidor somente no corpo das requisições de resolução e check-in. O uso da biometria nesse fluxo exige consentimento para cada operação; descritores nunca são incluídos em respostas. Os QR Codes legados continuam usando o fluxo anterior.
+## Check-in público via QR
 
-## API Administrativa
+O QR aponta para `/add#TOKEN`. A página envia o token no corpo da API; o servidor resolve a organização, a sala e seus estados. Não envie `tenantId` nem `roomId` para selecionar a organização.
 
-Todas as rotas desta seção exigem sessão administrativa.
+| Método | Rota | Corpo/header | Descrição |
+|---|---|---|---|
+| `POST` | `/api/checkin/tenant/resolve` | `token` | Valida o QR e retorna a sala. |
+| `POST` | `/api/checkin/tenant/attendance` | `token`, `nome` | Registra presença pelo nome. |
+| `POST` | `/api/checkin/tenant/biometrics/enroll` | `token`, `nome`, `descritor`, `consentimento: true` | Cadastra perfil no tenant do QR e devolve uma credencial de exclusão. |
+| `POST` | `/api/checkin/tenant/biometrics/checkin` | `token`, `descritor`, `consentimento: true` | Compara apenas perfis consentidos daquele tenant e registra presença. |
+| `DELETE` | `/api/checkin/tenant/biometrics/profiles/:id` | `x-biometric-delete-token` | Exclui o perfil com a credencial individual emitida no cadastro. |
 
-| Método | Rota | Parâmetros/Corpo | Descrição |
-| :--- | :--- | :--- | :--- |
-| `DELETE` | `/reduce?sala=...` | Query obrigatória: `sala` | Remove o check-in mais recente daquela sala. |
-| `DELETE` | `/clean?sala=...` | Query obrigatória: `sala` | Remove do histórico os check-ins daquela sala, sem excluir o cadastro da sala. |
-| `DELETE` | `/clean?all=true` | `all=true` (ou `tudo=true`) | Remove todos os check-ins do histórico, mantendo os cadastros das salas. |
-| `GET` | `/api/relatorio` | Query opcional: `sala` | Retorna os registros do relatório em JSON; pode filtrar por sala. |
-| `GET` | `/api/face/pessoas` | Nenhum | Lista nomes únicos do histórico de presenças e informa `temRosto: true/false` conforme haja perfil facial correspondente. Retorna somente nomes e o indicador, nunca descritores biométricos. |
-| `GET` | `/api/salas` | Nenhum | Retorna os nomes das salas cadastradas. |
-| `POST` | `/api/salas` | JSON: `sala`, `qrId` quando há QR disponível | Cadastra uma sala; exige selecionar QR livre ou cria automaticamente se não houver nenhum disponível e o limite permitir. |
-| `PATCH` | `/api/salas/:id` | JSON: `{"aberta":false}` | Fecha ou reabre a sala. Sala fechada não aceita check-in por QR, mas permite lançamento manual administrativo. |
-| `DELETE` | `/api/salas?sala=ID` | Query com ID ou apelido | Exclui sala e históricos associados; o QR fica inativo e nunca é reutilizado. |
-| `GET` | `/api/qrcodes` | Nenhum | Lista QRs e retorna limite e quantidade ativa (máximo 10). |
-| `POST` | `/api/qrcodes` | Nenhum | Cria QR disponível; retorna `409` ao atingir o limite. |
-| `DELETE` | `/api/qrcodes/:id` | ID do QR | Exclui somente QRs disponíveis; QRs associados são protegidos. |
-| `POST` | `/adm/adicionar-manual` | JSON: `nome`, `salaId` | Registra presença manual autenticada, inclusive em sala fechada. |
-| `POST` | `/adm/cadastrar-usuario` | JSON: `nome`, `descritor` (128 números), `consentimento: true` | Cadastra um perfil facial pela administração; valida se o nome ou o rosto já está cadastrado. Retorna `409` em caso de duplicidade. |
-| `GET` | `/adm/gerar-qrcode?sala=ID` | Query obrigatória: `sala` | Gera QR Code com URL estável `/add?id=ID` e imagem em Data URI. |
-| `GET` | `/adm/gerar-qrcode?sala=ID&download=true` | Query obrigatória: `sala`; `download=true` | Retorna a imagem PNG do QR Code para download. |
+## Rotas antigas desativadas
 
-## Exemplos no Postman
+O login de credenciais administrativas em `POST /login` retorna `410 Gone`; use o login tenant na tela `/login`. Os endpoints antigos de check-in global (`POST /add`, `/api/checkin/sala`, `/api/face/*`, `/reduce`, `/clean`, `/api/salas`, `/api/qrcodes` e `/api/relatorio`) também retornam `410 Gone` ou, no caso de `/qtd`, exigem sessão tenant e consultam somente o tenant ativo. As páginas administrativas antigas foram redirecionadas/conectadas ao painel tenant.
 
-1. Faça login com `POST <URL_BASE>/login`, usando `x-www-form-urlencoded` com os campos `user` e `pass`. O Postman deve manter o cookie da sessão.
-2. Para apagar todos os check-ins, use `DELETE <URL_BASE>/clean?all=true`.
-3. Para consultar a contagem, use `GET <URL_BASE>/qtd`.
-
-Substitua `<URL_BASE>` por `http://localhost:3000` no desenvolvimento ou por `https://checkinqrcode.onrender.com` no Render.
-
-## Captura biométrica
-
-O cadastro de usuário no painel administrativo abre um popup; ao iniciar a captura, a câmera ocupa a tela inteira. O mesmo fluxo de tela cheia é usado no check-in facial e na página `/teste-rosto`. A moldura e as mensagens orientam o posicionamento, e o navegador tenta detectar o rosto automaticamente, sem exigir um clique para cada tentativa. A pausa entre verificações é de 200 ms. Após três verificações alinhadas, o descritor é calculado usando a última detecção validada, sem repetir a detecção facial. A captura é concluída quando um único rosto está centralizado e permanece alinhado por alguns instantes; é possível cancelar a busca.
-
-A câmera requer consentimento e um contexto seguro (HTTPS ou `localhost`). A imagem permanece no dispositivo: somente o descritor facial é enviado ao servidor.
-
-Os modelos faciais começam a ser carregados depois que a página termina de abrir e são reutilizados durante a captura. Se o pré-carregamento falhar, a captura tenta carregá-los novamente.
-
-O monitoramento contínuo (`/adm/monitor-facial`) só opera enquanto a página do monitor está aberta, usa a sala aberta escolhida pela administração e exige que o rosto saia do enquadramento por duas verificações consecutivas antes de processar outra pessoa, evitando registros repetidos enquanto a pessoa permanece diante da câmera. Depois de iniciar, a tela ocupa a viewport sem rolagem e deixa visíveis apenas a câmera, o guia oval com feedback de enquadramento, iluminação e quantidade de rostos, a mensagem de status e o botão para parar. O vídeo não é enviado nem armazenado; somente o descritor facial é consultado.
-
-A página de monitoramento pode ler QR Codes de sala no formato `/add?id=ID` ou no formato legado `/add?sala=NOME`. A leitura solicita a câmera frontal e exibe a prévia em tela cheia, com uma moldura para posicionar o QR e opção para cancelar. O conteúdo é validado por `GET /api/checkin/sala`; somente o ID ou nome da sala é utilizado. O leitor não executa comandos nem consulta URLs arbitrárias. A câmera do leitor QR é desligada antes de iniciar o monitor facial.
-
-Exemplo de resposta de `GET /api/face/pessoas`:
-
-```json
-{
-  "sucesso": true,
-  "pessoas": [
-    { "nome": "Ana Silva", "temRosto": true },
-    { "nome": "Bruno Souza", "temRosto": false }
-  ]
-}
-```
+O endpoint `GET /api/rotas` requer sessão tenant e lista as rotas registradas, incluindo o nível de acesso.

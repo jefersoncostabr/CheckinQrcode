@@ -9,6 +9,7 @@ import tenantQrCodeRoutes from './routes/tenantQrCodeRoutes.js'
 import tenantCheckinRoutes from './routes/tenantCheckinRoutes.js'
 import tenantAttendanceRoutes from './routes/tenantAttendanceRoutes.js'
 import tenantAuthRoutes from './routes/tenantAuthRoutes.js'
+import tenantBiometricRoutes from './routes/tenantBiometricRoutes.js'
 
 const app = express()
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -21,7 +22,7 @@ if (process.env.NODE_ENV === 'production') {
 app.use(express.urlencoded({ extended: true }))
 app.use(express.json())
 
-// Sessões (usadas para autenticação básica)
+// Sessões usadas pela autenticação tenant
 const sessionSecret = process.env.SESSION_SECRET || 'mudar-para-uma-senha-aleatoria'
 if (!process.env.SESSION_SECRET) {
     console.warn('A variável de ambiente SESSION_SECRET não está definida. Use um valor forte em produção.')
@@ -47,9 +48,17 @@ app.use((req, res, next) => {
         req.path === '/adm.html' ||
         req.path === '/admAdd.html' ||
         req.path === '/admScript.js' ||
-        req.path === '/admEstilo.css'
+        req.path === '/admEstilo.css' ||
+        req.path === '/admFaceMonitor.html' ||
+        req.path === '/admFaceMonitor.js' ||
+        req.path === '/relatorio' ||
+        req.path === '/relatorio.html' ||
+        req.path === '/relatorioScript.js' ||
+        req.path === '/relatorioEstilo.css' ||
+        req.path === '/face-test.html' ||
+        req.path === '/face-test.js'
 
-    if (isAdminPath && !req.session?.user) {
+    if (isAdminPath && !req.session?.tenantAuth?.userId) {
         return res.redirect('/login')
     }
 
@@ -64,6 +73,7 @@ app.use('/api/tenant', tenantRoomRoutes)
 app.use('/api/tenant', tenantQrCodeRoutes)
 app.use('/api/checkin/tenant', tenantCheckinRoutes)
 app.use('/api/tenant', tenantAttendanceRoutes)
+app.use('/api/tenant', tenantBiometricRoutes)
 app.use('/api/tenant/auth', tenantAuthRoutes)
 app.use(routes)
 

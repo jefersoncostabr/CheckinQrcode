@@ -10,6 +10,7 @@ import tenantRoomRoutes from '../src/routes/tenantRoomRoutes.js'
 import tenantCheckinRoutes from '../src/routes/tenantCheckinRoutes.js'
 import tenantAttendanceRoutes from '../src/routes/tenantAttendanceRoutes.js'
 import tenantAuthRoutes from '../src/routes/tenantAuthRoutes.js'
+import tenantBiometricRoutes from '../src/routes/tenantBiometricRoutes.js'
 import * as qrCodeService from '../src/services/qrCodeService.js'
 import * as salasService from '../src/services/salasService.js'
 import request from 'supertest'
@@ -89,10 +90,13 @@ describe('regressão da reorganização de arquivos', () => {
             'GET /relatorio',
             'POST /adm/adicionar-manual',
             'GET /adm/adicionar-manual',
+            'GET /adm/adicionar-manual',
             'GET /adm',
+            'GET /adm/',
             'GET /adm/monitor-facial',
-            'POST /adm/cadastrar-usuario',
-            'GET /adm/gerar-qrcode',
+            'GET /adm/monitor-facial',
+            'GET /adm/relatorio',
+            'GET /adm/resetls',
             'GET /api/tenant/rooms',
             'POST /api/tenant/auth/register',
             'POST /api/tenant/auth/login',
@@ -110,6 +114,16 @@ describe('regressão da reorganização de arquivos', () => {
             'GET /api/tenant/attendances',
             'GET /api/tenant/reports/attendance',
             'DELETE /api/tenant/attendances/:id',
+            'GET /api/tenant/dashboard',
+            'POST /api/tenant/attendances/manual',
+            'DELETE /api/tenant/attendances/latest',
+            'DELETE /api/tenant/attendances',
+            'GET /api/tenant/biometrics/profiles',
+            'POST /api/tenant/biometrics/enroll',
+            'DELETE /api/tenant/biometrics/profiles/:id',
+            'POST /api/tenant/biometrics/verify',
+            'POST /api/tenant/biometrics/checkin',
+            'POST /api/tenant/qrcodes/:id/rotate',
         ].sort()
 
         const rotasAtuais = [
@@ -120,6 +134,7 @@ describe('regressão da reorganização de arquivos', () => {
             ...listarRotas(tenantCheckinRoutes, '/api/checkin/tenant'),
             ...listarRotas(tenantAttendanceRoutes, '/api/tenant'),
             ...listarRotas(tenantAuthRoutes, '/api/tenant/auth'),
+            ...listarRotas(tenantBiometricRoutes, '/api/tenant'),
         ].sort()
 
         expect(rotasAtuais).toEqual(rotasOriginais)
@@ -129,7 +144,6 @@ describe('regressão da reorganização de arquivos', () => {
         const paginas = [
             ['/login', 'Login'],
             ['/add', 'check-in'],
-            ['/teste-rosto', 'Testar cadastro facial'],
         ]
 
         for (const [url, textoEsperado] of paginas) {
@@ -138,7 +152,17 @@ describe('regressão da reorganização de arquivos', () => {
             expect(response.text.toLowerCase()).toContain(textoEsperado.toLowerCase())
         }
 
+        await request(app).get('/teste-rosto').expect(302).expect('Location', '/login')
         await request(app).get('/adm/monitor-facial').expect(302).expect('Location', '/login')
+    })
+
+    it('desativa os endpoints globais legados e protege a contagem por tenant', async () => {
+        await request(app).post('/login').send({ user: 'admin', pass: 'senha' }).expect(410)
+        await request(app).post('/add').send({ nome: 'Pessoa', sala: 'Sala antiga' }).expect(410)
+        await request(app).get('/api/checkin/sala?sala=Sala%20antiga').expect(410)
+        await request(app).post('/api/face/checkin').send({ descritor: Array(128).fill(0) }).expect(410)
+        await request(app).get('/api/salas').expect(410)
+        await request(app).get('/qtd').expect(401)
     })
 
     it('mantém a nova API tenant fechada sem contexto tenant autenticado', async () => {

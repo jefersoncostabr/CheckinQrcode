@@ -1,4 +1,5 @@
 import { jest } from '@jest/globals'
+import mongoose from 'mongoose'
 
 const listQuery = {
     sort: jest.fn(),
@@ -10,6 +11,9 @@ const Room = {
     create: jest.fn(),
     findOneAndUpdate: jest.fn(),
 }
+const QrCode = {
+    findOneAndUpdate: jest.fn(),
+}
 
 listQuery.sort.mockReturnValue(listQuery)
 listQuery.lean.mockResolvedValue([])
@@ -18,10 +22,12 @@ Room.find.mockReturnValue(listQuery)
 Room.findOneAndUpdate.mockReturnValue(updateQuery)
 
 jest.unstable_mockModule('../src/models/roomModel.js', () => ({ default: Room }))
+jest.unstable_mockModule('../src/models/qrCodeModel.js', () => ({ default: QrCode }))
 
 const {
     arquivarSalaDoTenant,
     alterarEstadoSalaDoTenant,
+    criarSalaComQrDoTenant,
     criarSalaDoTenant,
     listarSalasDoTenant,
     TenantRoomError,
@@ -38,6 +44,7 @@ describe('serviço de salas isoladas por tenant', () => {
         updateQuery.lean.mockResolvedValue(null)
         Room.find.mockReturnValue(listQuery)
         Room.findOneAndUpdate.mockReturnValue(updateQuery)
+        QrCode.findOneAndUpdate.mockResolvedValue({ _id: 'qr-id' })
     })
 
     it('lista salas não arquivadas usando somente o tenant validado', async () => {
@@ -88,6 +95,38 @@ describe('serviço de salas isoladas por tenant', () => {
 
         await expect(criarSalaDoTenant(tenantId, 'Sala Azul'))
             .rejects.toMatchObject({ statusCode: 409 })
+    })
+
+    it('cria sala e associa QR disponível na mesma transação', async () => {
+        const session = {
+            withTransaction: jest.fn(async operation => operation()),
+            endSession: jest.fn(),
+        }
+        jest.spyOn(mongoose, 'startSession').mockResolvedValue(session)
+        Room.create.mockResolvedValue([{
+            _id: roomId,
+            name: 'Sala Azul',
+            status: 'open',
+        }])
+
+        await expect(criarSalaComQrDoTenant(tenantId, 'Sala Azul', '65f1a0000000000000000004'))
+            .resolves.toMatchObject({ id: roomId, status: 'open' })
+        expect(Room.create).toHaveBeenCalledWith([{
+            tenantId,
+            name: 'Sala Azul',
+            activeName: 'sala azul',
+            status: 'open',
+        }], { session })
+        expect(QrCode.findOneAndUpdate).toHaveBeenCalledWith(
+            {
+                _id: '65f1a0000000000000000004',
+                tenantId,
+                status: 'available',
+            },
+            { $set: { roomId, status: 'active' } },
+            { new: true, session, runValidators: true },
+        )
+        expect(session.endSession).toHaveBeenCalled()
     })
 
     it('altera estado com filtro simultâneo por sala e tenant', async () => {

@@ -2,6 +2,7 @@ import { createHash, randomBytes, timingSafeEqual } from 'node:crypto'
 import Attendance from '../models/attendanceModel.js'
 import BiometricProfile from '../models/biometricProfileModel.js'
 import Person from '../models/personModel.js'
+import Room from '../models/roomModel.js'
 import { obterContextoQr, TenantCheckinError } from './tenantCheckinService.js'
 
 const FACE_DESCRIPTOR_LENGTH = 128
@@ -91,37 +92,16 @@ async function obterPessoaDoTenant(tenantId, name) {
     return person
 }
 
-export async function cadastrarBiometriaDoTenant({
-    token,
-    name: nameInput,
-    descriptor,
-    consentimento,
-}) {
-    validarConsentimento(consentimento)
-    const name = validarNome(nameInput)
-    if (!validarDescritor(descriptor)) {
-        throw new TenantBiometricError('Descritor facial inválido.', 400)
-    }
-
-    const context = await obterContexto(token)
-    if (!context) {
-        throw new TenantBiometricError('QR Code inválido ou indisponível.', 404)
-    }
-    if (context.room.status !== 'open') {
-        throw new TenantBiometricError('Esta sala está fechada para check-in.', 403)
-    }
-
-    const person = await obterPessoaDoTenant(context.tenantId, name)
-    const existing = await BiometricProfile.findOne({
-        tenantId: context.tenantId,
-        personId: person._id,
-    }).select('_id').lean()
+async function criarPerfilBiometricoDoTenant(tenantId, name, descriptor) {
+    const person = await obterPessoaDoTenant(tenantId, name)
+    const existing = await BiometricProfile.findOne({ tenantId, personId: person._id })
+        .select('_id').lean()
     if (existing) {
         throw new TenantBiometricError('Este participante já possui perfil biométrico.', 409)
     }
 
     const profiles = await BiometricProfile.find({
-        tenantId: context.tenantId,
+        tenantId,
         'consent.status': 'granted',
     }).select('+descriptor').lean()
     const duplicateFace = profiles.some(profile =>
@@ -136,7 +116,7 @@ export async function cadastrarBiometriaDoTenant({
     let profile
     try {
         profile = await BiometricProfile.create({
-            tenantId: context.tenantId,
+            tenantId,
             personId: person._id,
             descriptor,
             deleteTokenHash: hashToken(deleteToken),
@@ -158,6 +138,43 @@ export async function cadastrarBiometriaDoTenant({
         profileId: String(profile._id),
         deleteToken,
     }
+}
+
+export async function cadastrarBiometriaDoTenant({
+    token,
+    name: nameInput,
+    descriptor,
+    consentimento,
+}) {
+    validarConsentimento(consentimento)
+    const name = validarNome(nameInput)
+    if (!validarDescritor(descriptor)) {
+        throw new TenantBiometricError('Descritor facial inválido.', 400)
+    }
+
+    const context = await obterContexto(token)
+    if (!context) {
+        throw new TenantBiometricError('QR Code inválido ou indisponível.', 404)
+    }
+    if (context.room.status !== 'open') {
+        throw new TenantBiometricError('Esta sala está fechada para check-in.', 403)
+    }
+
+    return criarPerfilBiometricoDoTenant(context.tenantId, name, descriptor)
+}
+
+export async function cadastrarBiometriaAdminDoTenant({
+    tenantId,
+    name: nameInput,
+    descriptor,
+    consentimento,
+}) {
+    validarConsentimento(consentimento)
+    const name = validarNome(nameInput)
+    if (!validarDescritor(descriptor)) {
+        throw new TenantBiometricError('Descritor facial inválido.', 400)
+    }
+    return criarPerfilBiometricoDoTenant(tenantId, name, descriptor)
 }
 
 export async function registrarCheckinFacialDoTenant({ token, descriptor, consentimento, sourceIp }) {
@@ -227,6 +244,151 @@ export async function registrarCheckinFacialDoTenant({ token, descriptor, consen
     }
 
     return { sucesso: true }
+}
+
+export async function listarPerfisBiometricosDoTenant(tenantId) {
+    const people = await Person.find({ tenantId, status: 'active' })
+        .select('_id name')
+        .sort({ name: 1 })
+        .lean()
+    const profiles = people.length
+        ? await BiometricProfile.find({
+            tenantId,
+            personId: { $in: people.map(person => person._id) },
+            'consent.status': 'granted',
+        }).select('_id personId').lean()
+        : []
+    const profilesByPerson = new Map(
+        profiles.map(profile => [String(profile.personId), String(profile._id)]),
+    )
+    return people.map(person => ({
+        nome: person.name,
+        temRosto: profilesByPerson.has(String(person._id)),
+        perfilId: profilesByPerson.get(String(person._id)) || null,
+    }))
+}
+
+export async function verificarBiometriaDoTenant({ tenantId, descriptor, name: nameInput }) {
+    if (!validarDescritor(descriptor)) {
+        throw new TenantBiometricError('Descritor facial inválido.', 400)
+    }
+    const nameProvided = nameInput !== undefined
+    const name = nameProvided ? validarNome(nameInput) : null
+    const profiles = await BiometricProfile.find({
+        tenantId,
+        'consent.status': 'granted',
+    }).select('+descriptor').lean()
+    let matchedProfile = null
+    let bestDistance = FACE_MATCH_THRESHOLD
+    for (const profile of profiles) {
+        if (!validarDescritor(profile.descriptor)) continue
+        const distance = distanciaFacial(descriptor, profile.descriptor)
+        if (distance <= bestDistance) {
+            matchedProfile = profile
+            bestDistance = distance
+        }
+    }
+    if (!matchedProfile) {
+        return { cadastrada: false, corresponde: nameProvided ? false : null }
+    }
+
+    const person = await Person.findOne({
+        _id: matchedProfile.personId,
+        tenantId,
+        status: 'active',
+    }).select('name').lean()
+    if (!person) {
+        return { cadastrada: false, corresponde: nameProvided ? false : null }
+    }
+    return {
+        cadastrada: true,
+        corresponde: nameProvided ? normalizarNome(person.name) === normalizarNome(name) : null,
+    }
+}
+
+export async function excluirBiometriaAdministrativaDoTenant(tenantId, profileId) {
+    if (!/^[a-f\d]{24}$/i.test(String(profileId))) {
+        throw new TenantBiometricError('Perfil biométrico inválido.', 400)
+    }
+    const result = await BiometricProfile.deleteOne({ _id: profileId, tenantId })
+    return result.deletedCount > 0
+}
+
+export async function registrarCheckinFacialNaSalaDoTenant({
+    tenantId,
+    roomId,
+    descriptor,
+    consentimento,
+    sourceIp,
+}) {
+    validarConsentimento(consentimento)
+    if (!validarDescritor(descriptor)) {
+        throw new TenantBiometricError('Descritor facial inválido.', 400)
+    }
+    const room = await Room.findOne({
+        _id: roomId,
+        tenantId,
+        status: { $ne: 'archived' },
+    }).select('_id name status').lean()
+    if (!room) {
+        throw new TenantBiometricError('Sala não encontrada.', 404)
+    }
+    if (room.status !== 'open') {
+        throw new TenantBiometricError('Esta sala está fechada para check-in.', 403)
+    }
+
+    const profiles = await BiometricProfile.find({
+        tenantId,
+        'consent.status': 'granted',
+    }).select('+descriptor').lean()
+    let matchedProfile = null
+    let bestDistance = FACE_MATCH_THRESHOLD
+    for (const profile of profiles) {
+        if (!validarDescritor(profile.descriptor)) continue
+        const distance = distanciaFacial(descriptor, profile.descriptor)
+        if (distance <= bestDistance) {
+            matchedProfile = profile
+            bestDistance = distance
+        }
+    }
+    if (!matchedProfile) {
+        throw new TenantBiometricError('Não foi encontrado um perfil facial correspondente.', 404)
+    }
+
+    const person = await Person.findOne({
+        _id: matchedProfile.personId,
+        tenantId,
+        status: 'active',
+    }).select('_id name nameKey').lean()
+    if (!person) {
+        throw new TenantBiometricError('Perfil facial indisponível.', 404)
+    }
+
+    try {
+        await Attendance.create({
+            tenantId,
+            roomId: room._id,
+            personId: person._id,
+            personNameSnapshot: person.name,
+            personNameKey: person.nameKey,
+            method: 'face',
+            sourceIp: typeof sourceIp === 'string' ? sourceIp.slice(0, 45) : undefined,
+        })
+    } catch (error) {
+        if (
+            error?.code === 11000 &&
+            error.keyPattern?.tenantId &&
+            error.keyPattern?.roomId &&
+            error.keyPattern?.personNameKey
+        ) {
+            throw new TenantBiometricError(
+                'Este participante já está na lista de presença para esta sala.',
+                409,
+            )
+        }
+        throw error
+    }
+    return { sucesso: true, sala: room.name }
 }
 
 export async function excluirBiometriaDoTenant({ profileId, deleteToken }) {

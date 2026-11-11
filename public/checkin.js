@@ -9,15 +9,12 @@ const getTodayString = () => {
     return `${year}-${month}-${day}`;
 }
 
-// QR Codes tenant-scoped usam token no fragmento; IDs e apelidos continuam no fluxo legado.
-const parametros = new URLSearchParams(window.location.search);
+// O check-in da aplicação usa exclusivamente tokens tenant-scoped no fragmento do QR.
 const fragmentoQr = window.location.hash.slice(1);
 const tenantQrToken = fragmentoQr.startsWith('token=')
     ? new URLSearchParams(fragmentoQr).get('token')
     : fragmentoQr;
-const salaIdAtual = parametros.get('id');
-const salaLegada = parametros.get('sala');
-const salaAtual = tenantQrToken || salaIdAtual || salaLegada || '';
+const salaAtual = tenantQrToken || '';
 let checkinRoomKey = salaAtual;
 
 const tituloEl = document.querySelector('h1');
@@ -34,13 +31,10 @@ const faceVideo = document.getElementById('faceVideo');
 const faceCameraStage = document.getElementById('faceCameraStage');
 const faceCaptureCancel = document.getElementById('faceCaptureCancel');
 const faceStatus = document.getElementById('faceStatus');
-const faceStorageKey = 'checkin_face_profile';
 let faceCaptureController;
 
 function obterChaveArmazenamentoFacial() {
-    return tenantQrToken
-        ? `checkin_tenant_face_${tenantQrToken}`
-        : faceStorageKey;
+    return `checkin_tenant_face_${tenantQrToken}`;
 }
 
 function habilitarExclusaoSemQrAtivo() {
@@ -81,17 +75,15 @@ faceCaptureCancel.addEventListener('click', () => faceCaptureController?.abort()
 
 async function validarSala() {
     if (!salaAtual) {
-        salaStatus.textContent = 'Sala não cadastrada. Fale com a administração.';
+        salaStatus.textContent = 'QR Code inválido. Solicite à administração um QR Code novo desta organização.';
         return;
     }
     try {
-        const response = tenantQrToken
-            ? await fetch('/api/checkin/tenant/resolve', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ token: tenantQrToken }),
-            })
-            : await fetch(`/api/checkin/sala?${salaIdAtual ? 'id' : 'sala'}=${encodeURIComponent(salaAtual)}`);
+        const response = await fetch('/api/checkin/tenant/resolve', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token: tenantQrToken }),
+        });
         const data = await response.json();
         if (!response.ok) {
             salaStatus.textContent = data.mensagem || 'Sala não cadastrada. Fale com a administração.';
@@ -102,14 +94,10 @@ async function validarSala() {
         salaStatus.textContent = 'Confirme sua presença.';
         nomeInput.disabled = false;
         btn.disabled = false;
-        checkinRoomKey = tenantQrToken ? data.sala.id : salaAtual;
+        checkinRoomKey = data.sala.id;
         facePanel.hidden = false;
-        if (tenantQrToken) faceDeleteBtn.textContent = 'Excluir meu perfil biométrico';
-        else faceDeleteBtn.textContent = 'Excluir meu cadastro facial deste dispositivo';
+        faceDeleteBtn.textContent = 'Excluir meu perfil biométrico';
         atualizarBotaoExclusao();
-        if (!tenantQrToken && !window.isSecureContext) {
-            faceStatus.textContent = `A câmera está bloqueada neste endereço (${window.location.origin}). No Android, o acesso por IP local em HTTP exige HTTPS. O check-in pelo nome continua disponível.`;
-        }
     } catch {
         salaStatus.textContent = 'Não foi possível verificar a sala. Tente novamente.';
     }
@@ -133,16 +121,11 @@ async function enviarCheckinFacial(descritor) {
         throw new Error('Este dispositivo já confirmou presença hoje.');
     }
 
-    const response = await fetch(
-        tenantQrToken ? '/api/checkin/tenant/biometrics/checkin' : '/api/face/checkin',
-        {
+    const response = await fetch('/api/checkin/tenant/biometrics/checkin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(tenantQrToken
-            ? { token: tenantQrToken, descritor, consentimento: faceConsent.checked }
-            : { descritor, ...(salaIdAtual ? { salaId: Number(salaIdAtual) } : { sala: salaLegada }) }),
-        },
-    );
+        body: JSON.stringify({ token: tenantQrToken, descritor, consentimento: faceConsent.checked }),
+    });
     const data = await response.json();
     if (!response.ok || !data.sucesso) throw new Error(data.mensagem || 'Não foi possível fazer o check-in facial.');
 
@@ -201,18 +184,11 @@ faceEnrollBtn.addEventListener('click', async () => {
             atualizarFeedbackCaptura,
             controller.signal,
         );
-        const response = await fetch(
-            tenantQrToken
-                ? '/api/checkin/tenant/biometrics/enroll'
-                : '/api/face/enroll',
-            {
+        const response = await fetch('/api/checkin/tenant/biometrics/enroll', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(tenantQrToken
-                ? { token: tenantQrToken, nome, descritor, consentimento: faceConsent.checked }
-                : { nome, descritor, consentimento: faceConsent.checked }),
-            },
-        );
+            body: JSON.stringify({ token: tenantQrToken, nome, descritor, consentimento: faceConsent.checked }),
+        });
         const data = await response.json();
         if (!response.ok || !data.sucesso) throw new Error(data.mensagem || 'Não foi possível cadastrar o rosto.');
 
@@ -246,14 +222,10 @@ faceDeleteBtn.addEventListener('click', async () => {
     faceDeleteBtn.disabled = true;
     try {
         const response = await fetch(
-            tenantQrToken
-                ? `/api/checkin/tenant/biometrics/profiles/${encodeURIComponent(perfil.id)}`
-                : `/api/face/profile/${encodeURIComponent(perfil.id)}`,
+            `/api/checkin/tenant/biometrics/profiles/${encodeURIComponent(perfil.id)}`,
             {
                 method: 'DELETE',
-                headers: tenantQrToken
-                    ? { 'Content-Type': 'application/json', 'x-biometric-delete-token': perfil.token }
-                    : { 'x-face-delete-token': perfil.token },
+                headers: { 'Content-Type': 'application/json', 'x-biometric-delete-token': perfil.token },
             },
         );
         const data = await response.json();
@@ -283,22 +255,18 @@ async function confirmar() {
         return;
     }
 
-    if (!salaAtual) {
-        alert('Sala não especificada. Fale com a administração.');
+    if (!tenantQrToken) {
+        alert('QR Code inválido. Solicite à administração um QR Code novo desta organização.');
         return;
     }
 
     btn.disabled = true; btn.innerText = 'Registrando...';
     
     try {
-        const res = await fetch(tenantQrToken ? '/api/checkin/tenant/attendance' : '/add', {
+        const res = await fetch('/api/checkin/tenant/attendance', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(tenantQrToken
-                ? { nome, token: tenantQrToken }
-                : salaIdAtual
-                    ? { nome, salaId: Number(salaIdAtual) }
-                    : { nome, sala: salaLegada }),
+            body: JSON.stringify({ nome, token: tenantQrToken }),
         });
         const data = await res.json();
         if(data.sucesso) { 

@@ -29,7 +29,7 @@ faceTestButton.addEventListener('click', async () => {
             faceTestController.signal,
         );
         const nome = faceTestName.value.trim();
-        const response = await fetch('/api/face/verify', {
+        const response = await fetch('/api/tenant/biometrics/verify', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ descritor, ...(nome ? { nome } : {}) }),
@@ -40,9 +40,9 @@ faceTestButton.addEventListener('click', async () => {
         }
 
         faceTestStatus.textContent = '';
-        faceTestResult.classList.toggle('face-test-success', data.cadastrado);
-        faceTestResult.classList.toggle('face-test-failure', !data.cadastrado || data.corresponde === false);
-        if (!data.cadastrado) {
+        faceTestResult.classList.toggle('face-test-success', data.cadastrada);
+        faceTestResult.classList.toggle('face-test-failure', !data.cadastrada || data.corresponde === false);
+        if (!data.cadastrada) {
             faceTestResult.textContent = 'Este rosto não está cadastrado.';
         } else if (nome) {
             faceTestResult.textContent = data.corresponde

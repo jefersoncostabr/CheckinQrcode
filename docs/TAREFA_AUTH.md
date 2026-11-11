@@ -1,5 +1,7 @@
 # Plano de Implementação: Autenticação Básica com Sessão
 
+> Este plano descreve o login administrativo global antigo e está obsoleto. O `POST /login` legado foi desativado. A autenticação atual é tenant-scoped: consulte [ROTAS.md](./ROTAS.md) e [DOCUMENTACAO.md](./DOCUMENTACAO.md); não implemente os passos abaixo.
+
 Este documento descreve as etapas para proteger a rota `/adm` utilizando `express-session` e um middleware de autenticação simples.
 
 

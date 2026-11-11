@@ -1,69 +1,38 @@
-import express from 'express';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import { generateQRCodeBuffer, getQrBaseUrl } from '../services/qrCodeService.js';
-import { requireAuth } from '../middleware/auth.js';
-import { cadastrarPerfilFacial, verificarCadastroFacial } from '../middleware/faceEnrollment.js';
-import { encontrarSala, getConfigDoc } from '../services/salasService.js';
+import express from 'express'
+import path from 'path'
+import { fileURLToPath } from 'url'
+import { requireTenantAuth } from '../middleware/auth.js'
+import { authorizeTenantPermission } from '../middleware/authorizeTenant.js'
 
-// Helper para obter o __dirname em módulos ES
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const router = express.Router()
+const publicDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'public')
 
-const router = express.Router();
+router.use(requireTenantAuth)
 
-// Protege todas as rotas desta rota de administração
-router.use(requireAuth);
+router.get('/', (req, res) => {
+    res.sendFile(path.join(publicDir, 'adm.html'))
+})
 
-router.post('/cadastrar-usuario', verificarCadastroFacial, cadastrarPerfilFacial);
+router.get('/adicionar-manual', authorizeTenantPermission('attendance:create'), (req, res) => {
+    res.sendFile(path.join(publicDir, 'admAdd.html'))
+})
 
-/**
- * Rota para gerar um QR Code para a URL de check-in.
- * Retorna JSON com a URL de destino e o caminho do arquivo gerado.
- * Se passar ?download=true, retorna o PNG diretamente.
- */
-router.get('/gerar-qrcode', async (req, res) => {
-    const salaId = req.query.sala;
+router.get('/monitor-facial', authorizeTenantPermission('biometrics:manage'), (req, res) => {
+    res.sendFile(path.join(publicDir, 'admFaceMonitor.html'))
+})
 
-    if (!salaId) {
-        return res.status(400).json({ sucesso: false, mensagem: 'Parâmetro sala é obrigatório.' });
-    }
+router.get('/relatorio', authorizeTenantPermission('reports:read'), (req, res) => {
+    res.sendFile(path.join(publicDir, 'relatorio.html'))
+})
 
-    try {
-        const baseUrl = getQrBaseUrl(req);
-        if (!baseUrl) {
-            return res.status(503).json({
-                sucesso: false,
-                mensagem: 'Não foi possível identificar o endereço da rede. Acesse o painel pelo IPv4 do computador ou configure PUBLIC_BASE_URL.',
-            });
-        }
-        const doc = await getConfigDoc();
-        const sala = encontrarSala(doc, salaId);
-        if (!sala) return res.status(404).json({ sucesso: false, mensagem: 'Sala não cadastrada.' });
-        const checkinUrl = `${baseUrl}/add?id=${encodeURIComponent(sala.id)}`;
+router.get('/resetls', (req, res) => {
+    res.send(`<!doctype html>
+        <html lang="pt-BR"><meta charset="utf-8"><title>Limpar dados locais</title>
+        <body><script>
+            localStorage.clear();
+            alert('Dados locais deste site foram limpos.');
+            window.location.href = '/adm';
+        </script></body></html>`)
+})
 
-        const qrCodeBuffer = await generateQRCodeBuffer(checkinUrl);
-
-        if (req.query.download === 'true') {
-            res.setHeader('Content-Disposition', 'attachment; filename=qrcode_checkin.png');
-            res.setHeader('Content-Type', 'image/png');
-            return res.send(qrCodeBuffer);
-        }
-
-        const qrCodeDataUri = `data:image/png;base64,${qrCodeBuffer.toString('base64')}`;
-
-        res.json({
-            sucesso: true,
-            mensagem: 'QR Code gerado com sucesso!',
-            url: checkinUrl,
-            qrCodeDataUri: qrCodeDataUri,
-            sala: sala.nome,
-            salaId: sala.id,
-        });
-    } catch (error) {
-        console.error('Erro ao gerar QR Code via API:', error);
-        res.status(500).json({ sucesso: false, mensagem: 'Falha ao gerar o QR Code.' });
-    }
-});
-
-export default router;
+export default router

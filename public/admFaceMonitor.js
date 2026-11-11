@@ -25,7 +25,7 @@ function atualizarFeedback(state, message) {
 
 async function carregarSalasAbertas() {
     try {
-        const response = await fetch('/api/salas');
+        const response = await fetch('/api/tenant/rooms');
         if (!response.ok) {
             throw new Error(`Erro ao carregar salas (${response.status}).`);
         }
@@ -35,11 +35,11 @@ async function carregarSalasAbertas() {
             throw new Error('A resposta do servidor não contém a lista de salas.');
         }
 
-        const salasAbertas = data.salas.filter(sala => sala.aberta);
+        const salasAbertas = data.salas.filter(sala => sala.status === 'open');
         salaSelect.replaceChildren(new Option('Selecione uma sala aberta', ''));
 
         for (const sala of salasAbertas) {
-            salaSelect.add(new Option(`${sala.id} - ${sala.nome}`, sala.id));
+            salaSelect.add(new Option(sala.nome, sala.id));
         }
 
         if (salasAbertas.length === 0) {
@@ -87,31 +87,16 @@ async function validarQrESelecionarSala(textoQr) {
         throw new Error('Este QR Code não é um QR de sala do sistema.');
     }
 
-    const chaves = [...urlQr.searchParams.keys()];
-    if (chaves.length !== 1 || !['id', 'sala'].includes(chaves[0])) {
-        throw new Error('O QR Code deve conter somente o parâmetro id ou sala.');
+    const token = new URLSearchParams(urlQr.hash.slice(1)).get('token') || urlQr.hash.slice(1)
+    if (!token || !/^[A-Za-z0-9_-]{43}$/.test(token)) {
+        throw new Error('O QR Code não contém um token de sala válido.');
     }
 
-    const tipo = chaves[0];
-    const valores = urlQr.searchParams.getAll(tipo);
-
-    if (valores.length !== 1 || !valores[0].trim()) {
-        throw new Error('O QR Code contém um parâmetro de sala inválido.');
-    }
-
-    const valor = valores[0].trim();
-
-    if (tipo === 'id' && !/^[1-9]\d*$/.test(valor)) {
-        throw new Error('O ID da sala no QR Code é inválido.');
-    }
-
-    if (tipo === 'sala' && valor.length > 120) {
-        throw new Error('O nome da sala no QR Code é muito longo.');
-    }
-
-    const response = await fetch(
-        `/api/checkin/sala?${tipo}=${encodeURIComponent(valor)}`,
-    );
+    const response = await fetch('/api/checkin/tenant/resolve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token }),
+    })
     const data = await response.json();
 
     if (!response.ok || !data.sucesso || !data.sala) {
@@ -216,8 +201,8 @@ botaoIniciar.addEventListener('click', async () => {
         return;
     }
 
-    const salaId = Number(salaSelect.value);
-    if (!Number.isInteger(salaId) || salaId <= 0) {
+    const salaId = salaSelect.value;
+    if (!salaId) {
         statusMonitor.textContent = 'Selecione uma sala aberta.';
         return;
     }
@@ -240,10 +225,10 @@ botaoIniciar.addEventListener('click', async () => {
                 statusMonitor.textContent = 'Rosto alinhado. Verificando cadastro e registrando presença...';
 
                 try {
-                    const response = await fetch('/api/face/checkin', {
+                    const response = await fetch('/api/tenant/biometrics/checkin', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ descritor, salaId }),
+                        body: JSON.stringify({ descritor, roomId: salaId, consentimento: true }),
                         signal: controladorMonitor.signal,
                     });
                     const data = await response.json();
@@ -252,7 +237,7 @@ botaoIniciar.addEventListener('click', async () => {
                         throw new Error(data.mensagem || 'Não foi possível registrar a presença.');
                     }
 
-                    atualizarFeedback('sucesso', `Presença registrada para ${data.nome} na sala selecionada.`);
+                    atualizarFeedback('sucesso', 'Presença registrada na sala selecionada.');
                 } catch (error) {
                     if (error.name === 'AbortError') throw error;
                     atualizarFeedback('ajuste', error.message || 'Falha ao verificar o rosto ou registrar presença.');

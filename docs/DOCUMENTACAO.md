@@ -1,188 +1,79 @@
-# Documentação do Sistema de Check-in
+# Documentação do Check-in QR Code
 
-(teste)
+## Banco de dados
 
-**URL Base:** `http://localhost:3000`
+O servidor conecta ao endereço definido em `MONGO_URI`; o nome do banco não é fixado no código. No `.env` local atual, o caminho da URI seleciona `Checkin_de_sala`. A configuração de produção deve ser conferida separadamente no provedor de hospedagem.
 
-## Estrutura no MongoDB
-
-No banco configurado em `MONGO_URI` (atualmente `DancaHub`), o sistema guarda as salas e os check-ins na mesma coleção, chamada `lotacaoSala`. Essa coleção contém um documento de configuração com os campos:
-
-- `salas`: array de salas com ID permanente, apelido e estado aberto/fechado. Salas antigas em texto são migradas automaticamente na primeira leitura.
-- `qrcodes`: IDs e estados dos QR Codes (`disponivel`, `em_uso` ou `inativo`). IDs excluídos ou inativados não são reutilizados.
-- `proximoQrId`: próximo identificador a atribuir.
-- `historico`: registros com nome, IP, data, apelido da sala e ID da sala. Registros antigos recebem o ID correspondente quando a sala ainda está cadastrada.
-
-No Data Explorer, selecione `DancaHub` e depois a coleção `lotacaoSala`. Ao abrir o documento, você verá `salas` e `historico` como campos dele; eles não são coleções separadas. Excluir uma sala pelo sistema também remove do array `historico` os check-ins associados a ela.
-
-Cadastros faciais opcionais ficam separados na coleção `faceProfiles`. O sistema armazena o descritor matemático do rosto e o nome, não a foto. A credencial de exclusão é armazenada como hash. A pessoa pode excluir o cadastro no mesmo navegador usado para cadastrá-lo; perder os dados locais remove essa opção de autoexclusão.
+As funcionalidades do painel `/adm` e do check-in usam coleções separadas e isoladas por organização:
 
 ```text
-DancaHub
-└── lotacaoSala (coleção)
-	└── documento de configuração
-		├── salas: [{ id, nome, aberta }, ...]
-		├── qrcodes: [{ id, salaId, estado }, ...]
-		├── proximoQrId: número
-		└── historico: [{ nome, ip, data, sala, salaId }, ...]
+Checkin_de_sala
+├── tenants             organizações
+├── users               contas e hashes de senha
+├── memberships         vínculos das contas com organizações e seus papéis
+├── rooms               salas por organização
+├── qrCodes             QR Codes por organização (somente hash do token)
+├── people              participantes por organização
+├── attendances         presenças por organização e sala
+└── biometricProfiles   descritores e consentimentos por organização
 ```
 
-## 1. Rotas da API
+As coleções antigas `lotacaoSala` e `faceProfiles` não são usadas pelos fluxos atuais do painel e do check-in. Elas não foram apagadas nem migradas. O reset do banco não foi executado; não execute `npm run db:reset` sem autorização e confirmação do banco alvo.
 
-### Listar as rotas disponíveis
-- Rota: /api/rotas
-- Método: GET
-- Acesso: requer sessão administrativa; faça login antes de acessar.
-- Descrição: retorna em JSON o método, o caminho e o tipo de acesso das rotas registradas no catálogo da aplicação.
-- Retorno: JSON com sucesso e a lista de rotas.
-- Observação: ao adicionar ou remover uma rota, atualize também o catálogo em `src/routes/routes.js`.
+## Contas e acesso ao painel
 
-### A. Verificar se o servidor está online
-- **Rota:** `/`
-- **Método:** `GET`
-- **Descrição:** Verifica o status da API.
-- **Retorno:** "O servidor funcionando."
+1. Abra `/criar-conta.html` e crie a organização e a primeira conta. Essa conta recebe o papel `owner`.
+2. Entre por `/login` usando e-mail e senha.
+3. Após o login, o sistema abre `/adm`. Se a conta tiver vínculos com mais de uma organização, escolha qual será a ativa.
+4. As APIs verificam novamente o vínculo e o papel no servidor; o tenant enviado pelo navegador não define o escopo.
 
-### B. Ver a quantidade atual de pessoas
-- **Rota:** `/qtd`
-- **Método:** `GET`
-- **Descrição:** Retorna a contagem atual de pessoas na sala.
-- **Retorno:** JSON com a quantidade. Ex: `{ "sucesso": true, "quantidade": 10 }`.
+O endpoint `POST /login` não autentica mais credenciais administrativas globais e responde `410 Gone`. Use o login tenant.
 
-### C. Diminuir a contagem (Alguém saiu)
-- **Rota:** `/reduce`
-- **Método:** `DELETE`
-- **Descrição:** Diminui a contagem em -1 (removendo o último registro de presença).
-- **Retorno:** JSON com mensagem e a nova quantidade. Ex: `{ "sucesso": true, "mensagem": "Check-out...", "novaQuantidade": 9 }`.
+## Painel `/adm`
 
-### D. Zerar a contagem (Limpeza)
-- **Rota:** `/clean`
-- **Método:** `DELETE`
-- **Descrição:** Reseta a contagem para 0 (limpando o histórico de presença).
-- **Retorno:** JSON com mensagem e a nova quantidade. Ex: `{ "sucesso": true, "mensagem": "Histórico limpo!", "novaQuantidade": 0 }`.
+O painel mantém suas funções, mas opera nos endpoints tenant-scoped:
 
-### E. Exibir página de confirmação de Check-in
-- **Rota:** `/add`
-- **Método:** `GET`
-- **Descrição:** Rota acessada pelo QR Code. QR Codes novos usam `/add?id=ID`; links antigos `/add?sala=APELIDO` continuam compatíveis. A página verifica se a sala existe e está aberta antes de liberar o check-in.
-- **Retorno:** Uma página HTML.
+- Salas: criar, fechar/reabrir e arquivar.
+- QR Codes: criar (até 10 por organização), associar a salas, revogar e gerar novo token/imagem quando necessário.
+- Presenças: visualizar contagens, registrar manualmente, remover a última ou limpar as presenças de uma sala.
+- Relatórios: consultar registros e filtrar por sala.
+- Biometria: cadastrar e excluir perfis; testar reconhecimento e usar monitor facial.
 
-### F. Realizar o Check-in (Adicionar uma pessoa)
-- **Rota:** `/add`
-- **Método:** `POST`
-- **Descrição:** Rota chamada pela página de confirmação para efetivamente registrar uma presença. Requer o envio do campo `nome` no corpo da requisição. O sistema valida se o nome já existe na lista (evitando duplicatas) e salva o IP.
-- **Corpo novo:** `{ "nome": "Nome", "salaId": 1 }`. URLs antigas continuam aceitando `{ "nome": "Nome", "sala": "Apelido antigo" }`.
-- **Retorno:** JSON com mensagem e a nova quantidade. Ex: `{ "sucesso": true, "mensagem": "Check-in realizado!", "novaQuantidade": 11 }`.
+As permissões variam conforme o papel da conta. `owner` e `admin` gerenciam salas, QR Codes e biometria; `operator` pode consultar salas/QRs e registrar presenças; `viewer` consulta salas, presenças e relatórios.
 
-### G. Check-in facial opcional
+`/resetls` limpa apenas o `localStorage` do navegador. Não limpa presenças, salas ou qualquer coleção do MongoDB.
 
-- Na página `/add`, a pessoa pode cadastrar o rosto voluntariamente ou reconhecer um rosto já cadastrado. O nome continua disponível como alternativa.
-- A câmera e os modelos faciais são usados pelo navegador com `getUserMedia` e `face-api.js`. Os modelos começam a ser carregados depois que a página termina de abrir e são reutilizados durante a captura. É exigido HTTPS (ou `localhost` no próprio dispositivo) para acesso à câmera. Em celular acessando o servidor pelo IP local, HTTP não é considerado seguro; use um endereço HTTPS. Os modelos e a biblioteca são carregados pelo jsDelivr, portanto o dispositivo também precisa de internet.
-- Depois de iniciar o fluxo facial, a captura ocupa a tela e procura automaticamente até detectar um rosto bem enquadrado; a moldura e as mensagens orientam o posicionamento. A pausa entre verificações é de 200 ms. Após três verificações alinhadas, o descritor é calculado usando a última detecção validada, sem repetir a detecção facial. É possível cancelar a busca.
-- A imagem não é enviada ao servidor; o descritor facial de 128 valores é enviado para comparação e salvo na coleção `faceProfiles`. Esse descritor continua sendo dado biométrico sensível.
-- `/api/face/enroll` cadastra um descritor após consentimento explícito; `/api/face/checkin` compara o descritor e registra a presença usando o nome associado; `DELETE /api/face/profile/:id` apaga o perfil com a credencial de exclusão guardada localmente no navegador que fez o cadastro.
-- No painel `/adm`, a opção **Cadastrar usuário** abre um popup com captura facial e consentimento explícito. O servidor rejeita nomes já cadastrados e rostos que correspondam a um perfil existente.
-- `GET /api/face/pessoas` (requer sessão administrativa) lista os nomes únicos presentes no histórico e informa `temRosto: true` ou `false`. A resposta não inclui descritores faciais.
-- `/teste-rosto` abre uma página independente para testar se um rosto está cadastrado e, opcionalmente, verificar se corresponde a um nome digitado. A página também pode ser aberta pelo botão **Testar biometria facial** na seção Gestão do Sistema do painel `/adm`. O resultado não revela o nome armazenado. A rota `POST /api/face/verify` retorna apenas se há cadastro e se o rosto corresponde ao nome informado.
-- O limite de similaridade é configurado no servidor. Reconhecimento facial não comprova presença física e não tem detecção de vivacidade; uma foto ou vídeo pode ser suficiente para enganar o fluxo. Não use como mecanismo de segurança ou controle de acesso.
-- Antes de usar em produção, avalie requisitos de privacidade, consentimento, segurança, retenção e exclusão aplicáveis, incluindo a LGPD. O check-in por nome deve continuar como alternativa.
+## Check-in com QR Code
 
-### Monitoramento contínuo de presença por reconhecimento facial (`/adm/monitor-facial`)
+O QR aponta para uma URL no formato:
 
-- A rota é protegida por sessão administrativa (`requireAuth`) e é aberta a partir do painel `/adm`.
-- O monitoramento começa somente após ação explícita da administração: selecionar uma sala aberta, marcar o consentimento de que as pessoas foram informadas e clicar em "Iniciar monitoramento".
-- Existe um botão "Parar monitoramento" que encerra o fluxo e desliga a câmera; fechar a página também encerra o monitoramento.
-- Depois de iniciar, a tela ocupa toda a viewport sem rolagem e mantém visíveis apenas o vídeo, o guia oval, as instruções de enquadramento e o botão para parar.
-- A busca roda aproximadamente uma vez por segundo, exige três detecções alinhadas antes de consultar o servidor, e só aceita outra pessoa depois que o rosto anterior sair do enquadramento por duas verificações consecutivas.
-- O vídeo da câmera não é enviado nem armazenado; somente o descritor facial é enviado para comparação no check-in.
-- A sala pode ser selecionada manualmente ou lendo um QR Code de check-in (`/add?id=ID` ou `/add?sala=NOME`). A leitura solicita a câmera frontal e mostra a prévia em tela cheia, com moldura de posicionamento e botão para cancelar. Ela apenas seleciona e valida a sala aberta pela API `/api/checkin/sala`; não inicia o monitoramento automaticamente nem executa URLs arbitrárias.
-- O check-in por nome continua disponível como alternativa manual.
+```text
+https://<dominio-publico>/add#<TOKEN>
+```
 
-### H. Exibir Relatório de Presença
-- **Rota:** `/relatorio`
-- **Método:** `GET`
-- **Descrição:** Exibe uma página HTML com o relatório de presença. A página mostra a quantidade total de pessoas e uma lista com o nome e a data/hora do check-in de cada uma. Inclui um botão para copiar apenas os nomes para a área de transferência.
-- **Retorno:** Uma página HTML.
+O token é emitido quando o QR é criado e não pode ser recuperado depois; a imagem deve ser baixada e guardada. Rotacionar o QR emite outro token e invalida as cópias anteriores. O servidor guarda o hash do token, resolve por ele a organização e a sala e aceita check-in somente se o QR, a organização e a sala estiverem ativos. O token é enviado à API no corpo da requisição; a página não seleciona um tenant por `tenantId`.
 
-### H. Resetar Memória do Dispositivo (LocalStorage)
-- **Rota:** `/resetls`
-- **Método:** `GET`
-- **Descrição:** Limpa o armazenamento local do navegador (localStorage) e redireciona o usuário de volta para a tela de check-in. Útil para desbloquear dispositivos que impedem novos cadastros indevidamente (ex: "Você já confirmou presença").
-- **Retorno:** Script HTML que executa a limpeza e redirecionamento.
+O check-in por nome continua disponível como alternativa ao facial. A biometria requer consentimento explícito no cadastro e em cada operação facial. A câmera é processada no navegador; o servidor recebe o descritor facial, que é um dado biométrico sensível. O nome informado no cadastro biométrico não valida a identidade civil da pessoa.
 
-## 2. Rotas de Administração
+## Leitor e monitor facial
 
-**Prefixo:** `/adm`
+- A câmera requer HTTPS ou `localhost` no próprio dispositivo. Ao abrir pelo celular, o endereço deve ser HTTPS ou um domínio local configurado para HTTPS.
+- A página pública de check-in e o monitor facial pedem consentimento antes da operação biométrica.
+- No monitor do painel, selecione uma sala aberta ou leia o QR dela e inicie manualmente. A câmera encerra ao parar o monitoramento ou fechar a página.
+- Não use reconhecimento facial como prova de identidade ou mecanismo de segurança.
 
-### A. Acessar Painel de Administração
-- **Rota:** `/adm`
-- **Método:** `GET`
-- **Descrição:** Exibe a página HTML do painel de administração, que permite executar diversas funções de controle e gestão do sistema.
-- **Retorno:** Uma página HTML.
+## Endereços e QR na rede local
 
-### B. Gerar QR Code de Check-in
-- **Rota:** `/adm/gerar-qrcode`
-- **Método:** `GET`
-- **Descrição:** Gera um QR Code em memória e o retorna como um Data URI, pronto para ser exibido na tela ou baixado. A URL de check-in é construída dinamicamente. **Esta rota é chamada pelo painel de administração.**
-- **Retorno:** JSON com mensagem de sucesso, URL estável `/add?id=ID` e Data URI da imagem do QR Code.
+- Local: `http://localhost:3000`
+- Render: `https://checkinqrcode.onrender.com`
 
-### C. Gestão de QR Codes e salas
+No celular, `localhost` aponta para o próprio telefone. Para testes locais, conecte o computador e o celular à mesma rede Wi-Fi e use o IPv4 do computador. Configure `PUBLIC_BASE_URL` quando o endereço público ou local não puder ser detectado automaticamente. A variável de produção deve conter o domínio HTTPS canônico.
 
-- O limite é de 10 QR Codes ativos entre disponíveis e associados a salas.
-- `/api/qrcodes` lista QR Codes e informa a quantidade ativa; `POST /api/qrcodes` cria um QR disponível; `DELETE /api/qrcodes/:id` exclui somente QR disponível.
-- `POST /api/salas` exige a seleção de `qrId` quando há QRs disponíveis; sem QR livre, cria e associa um automaticamente respeitando o limite.
-- `PATCH /api/salas/:id` recebe `{ "aberta": false }` para fechar e bloquear check-ins via QR, sem bloquear lançamentos manuais autenticados.
-- QRs sem sala válida exibem “Sala não cadastrada. Fale com a administração.”
-- O relatório possui filtro por sala e o botão “Ver salas cadastradas”, com IDs e apelidos.
+## Configuração para produção
 
-## 3. Como Gerar o QR Code
+- Configure `MONGO_URI` para o banco correto (incluindo `Checkin_de_sala` no caminho da URI) e use valores seguros fora do repositório.
+- Configure um `SESSION_SECRET` forte e `NODE_ENV=production`.
+- Configure `PUBLIC_BASE_URL` com o endereço HTTPS público para criar QR Codes válidos fora da máquina local.
+- A sessão usa o armazenamento padrão em memória do `express-session`; sessões se perdem ao reiniciar o processo. Para múltiplas instâncias ou persistência entre reinícios, configure um armazenamento de sessão persistente antes da produção.
 
-A geração do QR Code pode ser feita de duas maneiras:
-
-### A. Pelo Painel de Administração (Recomendado)
-
-1. Acesse o painel de administração em `http://localhost:3000/adm`.
-2. Crie ou selecione um QR disponível ao cadastrar a sala.
-3. Selecione a sala e clique em "Ver QR Code" para exibir o QR associado ao ID estável.
-
-### B. Manualmente (via Rota de API)
-
-Você também pode gerar o QR Code acessando diretamente a rota da API no seu navegador ou via `curl`:
-
-- **URL:** `http://localhost:3000/adm/gerar-qrcode`
-
-Isso irá retornar um JSON com os dados do QR Code. A ação do painel administrativo é a forma recomendada de uso.
-
-## 4. Acessar pela Rede Local
-
-Se o sistema funciona no PC, mas o celular exibe "conexão recusada", o endereço `localhost` não deve ser usado no celular: ele aponta para o próprio dispositivo. Isso não costuma ser um erro de CORS; normalmente o celular não está alcançando o servidor pela rede.
-
-1. Conecte o PC e o celular à mesma rede Wi-Fi.
-2. No PC, abra o Prompt de Comando e execute `ipconfig`.
-3. No adaptador de rede em uso (por exemplo, Wi-Fi), localize o **Endereço IPv4**.
-4. No navegador do PC, abra o painel usando esse IP e a porta do servidor. Por exemplo: `http://192.168.1.25:3000/adm`.
-5. Ao gerar o QR usando o painel aberto em `localhost`, o servidor substitui automaticamente o loopback pelo IPv4 privado detectado. Se houver várias placas de rede ou quiser fixar o endereço, configure `PUBLIC_BASE_URL`, por exemplo `http://192.168.1.25:3000`.
-6. Leia o QR Code pelo celular. Se a página não abrir, verifique se o Firewall do Windows permite conexões para Node.js ou para a porta `3000` e se a rede Wi-Fi não isola os dispositivos entre si.
-
-QR Codes já impressos com `localhost` continuam apontando para o próprio celular e precisam ser gerados e impressos novamente com o endereço de rede acessível.
-
-Substitua `192.168.1.25` pelo IPv4 exibido no seu PC. O endereço IPv4 pode mudar quando o PC se reconectar à rede.
-
-## 5. Checklist de Publicação e Produção
-
-### Configuração do ambiente
-
-- No Render, configure `ADMIN_USER`, `ADMIN_PASS`, `MONGO_URI`, `SESSION_SECRET` e `NODE_ENV=production` nas variáveis de ambiente. Opcionalmente, defina `PUBLIC_BASE_URL` para o domínio público canônico. Use valores reais e fortes; não inclua os segredos neste documento.
-- Gere um `SESSION_SECRET` aleatório, exclusivo e longo. Ele assina o cookie da sessão; não substitui a senha administrativa (`ADMIN_PASS`). Trocar esse segredo invalida as sessões existentes.
-- Mantenha o arquivo `.env` apenas no ambiente local e fora do Git. Se uma senha ou URI de banco for exposta, troque a credencial no serviço correspondente e atualize as variáveis locais e do Render.
-
-### HTTPS e acesso administrativo
-
-- Em produção, o Express configura `trust proxy` antes do middleware de sessão. Isso permite reconhecer o HTTPS terminado pelo proxy do Render e emitir o cookie seguro da sessão.
-- Acesse o painel pelo domínio HTTPS publicado e gere um novo QR Code. Confira se a URL gerada começa com `https://` antes de distribuí-lo.
-- Após o deploy, teste o login administrativo, atualize a página para confirmar que a sessão continua autenticada e faça um check-in real pelo QR usando um celular.
-
-### Persistência e sessões
-
-- Confirme que os check-ins continuam registrados no MongoDB depois de um novo deploy ou reinício do serviço.
-- O app usa atualmente o armazenamento de sessão padrão em memória do `express-session`. As sessões são perdidas quando o processo reinicia, e esse armazenamento não é recomendado para produção nem para múltiplas instâncias. Para maior confiabilidade, planeje configurar um armazenamento persistente de sessões, como MongoDB (`connect-mongo`) ou Redis.
+Para a lista completa de rotas e permissões, consulte [ROTAS.md](./ROTAS.md).

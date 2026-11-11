@@ -73,8 +73,8 @@
                 });
                 const result = await response.json();
                 if (!response.ok) throw new Error(result.mensagem || 'Não foi possível criar a conta.');
-                showMessage('Conta e organização criadas. Sua sessão tenant foi iniciada; o painel legado continua separado.');
-                form.reset();
+                showMessage('Conta e organização criadas. Abrindo o painel...');
+                window.location.replace('/adm');
             } catch (error) {
                 showMessage(error.message, true);
             } finally {
