@@ -10,16 +10,17 @@ describe('telas de autenticação', () => {
         expect(response.text).toContain('name="user"')
         expect(response.text).toContain('name="pass"')
         expect(response.text).toContain('href="/criar-conta.html"')
+        expect(response.text).toContain('/api/tenant/auth/login')
+        expect(response.text).toContain('/api/tenant/auth/select')
     })
 
-    it('serve uma tela visual de criação de conta sem formulário de envio', async () => {
+    it('serve o formulário de criação de conta conectado ao endpoint tenant', async () => {
         const response = await request(app).get('/criar-conta.html')
 
         expect(response.status).toBe(200)
-        expect(response.text).toContain('Criar conta em breve')
-        expect(response.text).toContain('type="button" disabled')
-        expect(response.text).not.toContain('<form')
-        expect(response.text).not.toContain('<script')
+        expect(response.text).toContain('id="tenantName"')
+        expect(response.text).toContain('id="registerForm"')
+        expect(response.text).toContain('/api/tenant/auth/register')
     })
 
     it('serve a folha de estilos compartilhada pelas telas de autenticação', async () => {

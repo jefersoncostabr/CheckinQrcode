@@ -9,11 +9,16 @@ const getTodayString = () => {
     return `${year}-${month}-${day}`;
 }
 
-// QRs novos usam id; o apelido fica aceito para QRs antigos.
+// QR Codes tenant-scoped usam token no fragmento; IDs e apelidos continuam no fluxo legado.
 const parametros = new URLSearchParams(window.location.search);
+const fragmentoQr = window.location.hash.slice(1);
+const tenantQrToken = fragmentoQr.startsWith('token=')
+    ? new URLSearchParams(fragmentoQr).get('token')
+    : fragmentoQr;
 const salaIdAtual = parametros.get('id');
 const salaLegada = parametros.get('sala');
-const salaAtual = salaIdAtual || salaLegada || '';
+const salaAtual = tenantQrToken || salaIdAtual || salaLegada || '';
+let checkinRoomKey = salaAtual;
 
 const tituloEl = document.querySelector('h1');
 const salaStatus = document.getElementById('salaStatus');
@@ -31,6 +36,23 @@ const faceCaptureCancel = document.getElementById('faceCaptureCancel');
 const faceStatus = document.getElementById('faceStatus');
 const faceStorageKey = 'checkin_face_profile';
 let faceCaptureController;
+
+function obterChaveArmazenamentoFacial() {
+    return tenantQrToken
+        ? `checkin_tenant_face_${tenantQrToken}`
+        : faceStorageKey;
+}
+
+function habilitarExclusaoSemQrAtivo() {
+    if (!tenantQrToken || !localStorage.getItem(obterChaveArmazenamentoFacial())) return
+    facePanel.hidden = false
+    faceConsent.closest('label').hidden = true
+    faceName.closest('.face-register').hidden = true
+    faceCheckinBtn.hidden = true
+    faceEnrollBtn.hidden = true
+    faceStatus.textContent = 'Este QR não está mais ativo. Você ainda pode excluir seu perfil biométrico.'
+    atualizarBotaoExclusao()
+}
 
 function iniciarCapturaFacial() {
     faceCaptureController = new AbortController();
@@ -63,20 +85,29 @@ async function validarSala() {
         return;
     }
     try {
-        const parametro = salaIdAtual ? 'id' : 'sala';
-        const response = await fetch(`/api/checkin/sala?${parametro}=${encodeURIComponent(salaAtual)}`);
+        const response = tenantQrToken
+            ? await fetch('/api/checkin/tenant/resolve', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ token: tenantQrToken }),
+            })
+            : await fetch(`/api/checkin/sala?${salaIdAtual ? 'id' : 'sala'}=${encodeURIComponent(salaAtual)}`);
         const data = await response.json();
         if (!response.ok) {
             salaStatus.textContent = data.mensagem || 'Sala não cadastrada. Fale com a administração.';
+            habilitarExclusaoSemQrAtivo()
             return;
         }
         tituloEl.textContent = `Check-in - ${data.sala.nome}`;
         salaStatus.textContent = 'Confirme sua presença.';
         nomeInput.disabled = false;
         btn.disabled = false;
+        checkinRoomKey = tenantQrToken ? data.sala.id : salaAtual;
         facePanel.hidden = false;
+        if (tenantQrToken) faceDeleteBtn.textContent = 'Excluir meu perfil biométrico';
+        else faceDeleteBtn.textContent = 'Excluir meu cadastro facial deste dispositivo';
         atualizarBotaoExclusao();
-        if (!window.isSecureContext) {
+        if (!tenantQrToken && !window.isSecureContext) {
             faceStatus.textContent = `A câmera está bloqueada neste endereço (${window.location.origin}). No Android, o acesso por IP local em HTTP exige HTTPS. O check-in pelo nome continua disponível.`;
         }
     } catch {
@@ -85,7 +116,7 @@ async function validarSala() {
 }
 
 function atualizarBotaoExclusao() {
-    faceDeleteBtn.hidden = !localStorage.getItem(faceStorageKey);
+    faceDeleteBtn.hidden = !localStorage.getItem(obterChaveArmazenamentoFacial());
 }
 
 function verificarConsentimento() {
@@ -97,16 +128,21 @@ function verificarConsentimento() {
 }
 
 async function enviarCheckinFacial(descritor) {
-    const storageKey = `checkin_realizado_${salaAtual}_${getTodayString()}`;
+    const storageKey = `checkin_realizado_${checkinRoomKey}_${getTodayString()}`;
     if (localStorage.getItem(storageKey)) {
         throw new Error('Este dispositivo já confirmou presença hoje.');
     }
 
-    const response = await fetch('/api/face/checkin', {
+    const response = await fetch(
+        tenantQrToken ? '/api/checkin/tenant/biometrics/checkin' : '/api/face/checkin',
+        {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ descritor, ...(salaIdAtual ? { salaId: Number(salaIdAtual) } : { sala: salaLegada }) }),
-    });
+        body: JSON.stringify(tenantQrToken
+            ? { token: tenantQrToken, descritor, consentimento: faceConsent.checked }
+            : { descritor, ...(salaIdAtual ? { salaId: Number(salaIdAtual) } : { sala: salaLegada }) }),
+        },
+    );
     const data = await response.json();
     if (!response.ok || !data.sucesso) throw new Error(data.mensagem || 'Não foi possível fazer o check-in facial.');
 
@@ -115,7 +151,9 @@ async function enviarCheckinFacial(descritor) {
     btn.disabled = true;
     faceCheckinBtn.disabled = true;
     faceEnrollBtn.disabled = true;
-    faceStatus.textContent = `Presença confirmada para ${data.nome}.`;
+    faceStatus.textContent = data.nome
+        ? `Presença confirmada para ${data.nome}.`
+        : data.mensagem || 'Presença confirmada.';
 }
 
 faceCheckinBtn.addEventListener('click', async () => {
@@ -163,15 +201,22 @@ faceEnrollBtn.addEventListener('click', async () => {
             atualizarFeedbackCaptura,
             controller.signal,
         );
-        const response = await fetch('/api/face/enroll', {
+        const response = await fetch(
+            tenantQrToken
+                ? '/api/checkin/tenant/biometrics/enroll'
+                : '/api/face/enroll',
+            {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ nome, descritor, consentimento: faceConsent.checked }),
-        });
+            body: JSON.stringify(tenantQrToken
+                ? { token: tenantQrToken, nome, descritor, consentimento: faceConsent.checked }
+                : { nome, descritor, consentimento: faceConsent.checked }),
+            },
+        );
         const data = await response.json();
         if (!response.ok || !data.sucesso) throw new Error(data.mensagem || 'Não foi possível cadastrar o rosto.');
 
-        localStorage.setItem(faceStorageKey, JSON.stringify({
+        localStorage.setItem(obterChaveArmazenamentoFacial(), JSON.stringify({
             id: data.perfilId,
             token: data.tokenExclusao,
         }));
@@ -191,7 +236,8 @@ faceEnrollBtn.addEventListener('click', async () => {
 });
 
 faceDeleteBtn.addEventListener('click', async () => {
-    const perfil = JSON.parse(localStorage.getItem(faceStorageKey) || 'null');
+    const storageKey = obterChaveArmazenamentoFacial();
+    const perfil = JSON.parse(localStorage.getItem(storageKey) || 'null');
     if (!perfil?.id || !perfil?.token) {
         faceStatus.textContent = 'Credencial de exclusão não encontrada neste dispositivo.';
         return;
@@ -199,13 +245,20 @@ faceDeleteBtn.addEventListener('click', async () => {
 
     faceDeleteBtn.disabled = true;
     try {
-        const response = await fetch(`/api/face/profile/${encodeURIComponent(perfil.id)}`, {
-            method: 'DELETE',
-            headers: { 'x-face-delete-token': perfil.token },
-        });
+        const response = await fetch(
+            tenantQrToken
+                ? `/api/checkin/tenant/biometrics/profiles/${encodeURIComponent(perfil.id)}`
+                : `/api/face/profile/${encodeURIComponent(perfil.id)}`,
+            {
+                method: 'DELETE',
+                headers: tenantQrToken
+                    ? { 'Content-Type': 'application/json', 'x-biometric-delete-token': perfil.token }
+                    : { 'x-face-delete-token': perfil.token },
+            },
+        );
         const data = await response.json();
         if (!response.ok || !data.sucesso) throw new Error(data.mensagem || 'Não foi possível excluir o cadastro.');
-        localStorage.removeItem(faceStorageKey);
+        localStorage.removeItem(storageKey);
         atualizarBotaoExclusao();
         faceStatus.textContent = data.mensagem;
     } catch (error) {
@@ -216,7 +269,7 @@ faceDeleteBtn.addEventListener('click', async () => {
 });
 
 async function confirmar() {
-    const storageKey = `checkin_realizado_${salaAtual}_${getTodayString()}`;
+    const storageKey = `checkin_realizado_${checkinRoomKey}_${getTodayString()}`;
     // Verifica se este dispositivo já salvou um check-in na data de hoje
     if (localStorage.getItem(storageKey)) {
         alert("Você já confirmou presença neste dispositivo hoje!");
@@ -238,10 +291,14 @@ async function confirmar() {
     btn.disabled = true; btn.innerText = 'Registrando...';
     
     try {
-        const res = await fetch('/add', { 
+        const res = await fetch(tenantQrToken ? '/api/checkin/tenant/attendance' : '/add', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(salaIdAtual ? { nome, salaId: Number(salaIdAtual) } : { nome, sala: salaLegada })
+            body: JSON.stringify(tenantQrToken
+                ? { nome, token: tenantQrToken }
+                : salaIdAtual
+                    ? { nome, salaId: Number(salaIdAtual) }
+                    : { nome, sala: salaLegada }),
         });
         const data = await res.json();
         if(data.sucesso) { 

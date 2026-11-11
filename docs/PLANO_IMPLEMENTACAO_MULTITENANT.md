@@ -13,6 +13,19 @@ O primeiro usuário que criar uma organização também cria o tenant e recebe o
 
 O papel deve ficar em `Membership`, não diretamente em `User`, para permitir que uma conta pertença a mais de uma organização com papéis diferentes.
 
+## Estado da implementação
+
+- ~~Fundação: modelos `Tenant`, `User`, `Membership` e `BiometricProfile`, serviço transacional para criar tenant + primeiro owner e utilitário bcrypt com custo 10.~~
+- ~~Etapa 1: schemas das entidades principais e índices compostos declarados nos modelos.~~
+- Etapa 1: índices declarados nos modelos e cobertos por testes de schema.
+- Etapa 3: serviço, endpoints e telas de cadastro/login tenant; seleção e troca de tenant revalidam o Membership antes de atualizar a sessão.
+- Etapa 4 (parcial): matriz central de permissões e middleware que verifica Membership, usuário e tenant ativos em cada autorização.
+- Etapa 5 (parcial): Membership ativo é resolvido novamente no servidor, e `loadActiveTenant` popula `req.tenant` com dados validados pela sessão e banco.
+- Etapa 6 (em andamento): salas em `/api/tenant/rooms` e QR Codes em `/api/tenant/qrcodes` usam o tenant validado, permissões e documentos separados.
+- ~~A escolha do tenant ainda não tem fluxo de tela/rota.~~ Login e seleção/troca do tenant estão disponíveis na tela de autenticação e na API.
+- Cadastro tenant agora está ligado à tela e à rota e inicia `tenantAuth`; a tela permite selecionar uma organização e a API também permite trocar a ativa. As rotas globais legadas continuam separadas e não aceitam essa sessão.
+- O painel administrativo já existe; não criar um painel duplicado.
+
 ## Princípios que devem valer em todas as etapas
 
 1. Toda leitura ou alteração de dados de organização deve ser limitada por `tenantId`.
@@ -20,202 +33,214 @@ O papel deve ficar em `Membership`, não diretamente em `User`, para permitir qu
 3. Toda referência entre documentos deve ser validada para garantir que os registros pertençam ao mesmo tenant.
 4. Senhas nunca são armazenadas em texto puro. Usar bcrypt com fator de custo 10, conforme requisito.
 5. Biometria é opcional, separada da autenticação por senha e protegida como dado sensível.
-6. Manter a aplicação antiga operacional até validar a migração e o rollback.
+6. Não migrar os dados antigos; reinicializar o banco antes de começar a operação com dados multi-tenant.
 
 
 ## Etapa 1 — Definir os modelos e índices
 
 ### Trabalho
 
-Criar os modelos Mongoose planejados:
+Schemas Mongoose criados:
 
-- `Tenant`: nome, `slug` único e estado.
-- `User`: nome, e-mail normalizado único globalmente, `passwordHash` e estado.
-- `Membership`: `tenantId`, `userId`, papel e estado.
-- `Person`: cadastro opcional do participante, incluindo nome e e-mail quando necessário.
-- `BiometricProfile`: `tenantId`, referência à pessoa, descritor, versão do descritor e consentimento.
-- `Room`: sala vinculada a `tenantId`.
-- `QrCode`: QR vinculado a `tenantId` e, quando associado, a uma sala.
-- `Attendance`: presença vinculada a `tenantId` e sala, com snapshot do nome registrado.
+- ~~`Tenant`: nome, `slug` único e estado.~~
+- ~~`User`: nome, e-mail normalizado (campo `email`) único globalmente, `passwordHash` e estado.~~
+- ~~`Membership`: `tenantId`, `userId`, papel e estado.~~
+- ~~`Person`: cadastro opcional do participante, incluindo nome e e-mail quando necessário.~~
+- ~~`BiometricProfile`: `tenantId`, referência à pessoa, descritor, versão do descritor e consentimento.~~
+- ~~`Room`: sala vinculada a `tenantId`.~~
+- ~~`QrCode`: QR vinculado a `tenantId` e, quando associado, a uma sala.~~
+- ~~`Attendance`: presença vinculada a `tenantId` e sala, com snapshot do nome registrado.~~
 
-Criar índices, incluindo:
+Índices declarados nos modelos:
 
-- `Tenant.slug` único.
-- `User.emailNormalized` único.
-- `Membership(tenantId, userId)` único.
-- `BiometricProfile(tenantId, personId)` único, se a regra for um perfil por pessoa.
-- Índices de leitura para consultas de salas e relatórios sempre prefixados por `tenantId`.
+- ~~`Tenant.slug` único.~~
+- ~~`User.email` único, normalizado para lowercase.~~
+- ~~`Membership(tenantId, userId)` único.~~
+- ~~`Person(tenantId, email)` único quando o e-mail está presente.~~
+- ~~`BiometricProfile(tenantId, personId)` único.~~
+- ~~Índices de leitura para consultas de salas, QR Codes e relatórios prefixados por `tenantId`.~~
 
 ### Critério de conclusão
 
-- Modelos validam campos obrigatórios e estados permitidos.
-- Índices são criados e verificados em banco de desenvolvimento.
-- Nenhum endpoint ou fluxo atual foi alterado ainda.
+- ~~Modelos validam campos obrigatórios e estados permitidos.~~
+- Índices são declarados e cobertos por testes de schema.
+- ~~Nenhum endpoint ou fluxo atual foi alterado nesta etapa.~~
 
 ## Etapa 2 — Criar a conta e o tenant inicial juntos
 
 ### Trabalho
 
-Criar o fluxo de cadastro inicial de organização:
+O serviço `createTenantOwner` e a rota `POST /api/tenant/auth/register` estão implementados:
 
-1. Receber nome da organização, nome do usuário, e-mail e senha.
-2. Validar e normalizar os dados no servidor.
-3. Calcular o hash com bcrypt usando fator de custo 10.
-4. Criar Tenant, User e Membership com papel `owner`.
-5. Concluir as três gravações como uma única operação lógica.
-6. Se qualquer gravação falhar, não deixar tenant ou usuário parcialmente criado.
-7. Após a criação, iniciar uma sessão autenticada e associada ao usuário e ao tenant.
+1. ~~Receber nome da organização, nome do usuário, e-mail e senha.~~
+2. ~~Validar os dados e normalizar o e-mail no servidor.~~
+3. ~~Calcular o hash com bcrypt usando fator de custo 10.~~
+4. ~~Criar Tenant, User e Membership com papel `owner`.~~
+5. ~~Concluir as três gravações em transação MongoDB.~~
+6. ~~Deixar a transação abortar se qualquer gravação falhar.~~
+7. ~~Após a criação, iniciar uma sessão autenticada e associada ao usuário e ao tenant.~~
 
-Preferir transação MongoDB quando disponível. Se o ambiente não suportar transações, implementar uma estratégia explícita de rollback e cobri-la com testes.
+O banco usado para executar o serviço precisa suportar transações MongoDB (replica set ou cluster).
 
 O formulário público não deve receber ou definir o papel. O servidor sempre atribui `owner` apenas ao primeiro usuário criado junto com o tenant.
 
 ### Critério de conclusão
 
-- Um cadastro cria exatamente um Tenant, um User e um Membership `owner`.
-- Falhas parciais não deixam registros órfãos.
-- E-mail duplicado retorna erro compreensível sem revelar informação indevida.
-- Senha em texto puro não é persistida nem registrada.
+- ~~O serviço cria exatamente um Tenant, um User e um Membership `owner`.~~
+- ~~Falhas dentro da transação abortam a operação.~~
+- ~~E-mail duplicado é mapeado para conflito.~~
+- ~~Senha em texto puro não é persistida.~~
+- ~~Cadastro via rota, resposta HTTP e sessão.~~
 
 ## Etapa 3 — Implementar autenticação com bcrypt e sessões
 
 ### Trabalho
 
-- Alterar o login para buscar a conta pelo e-mail normalizado.
-- Comparar a senha enviada com `passwordHash` usando bcrypt.
-- Usar o fator de custo 10 na geração dos hashes.
-- Não recalcular o hash da senha fornecida para fazer comparação.
-- Regenerar a sessão após login bem-sucedido.
-- Guardar na sessão o identificador do usuário e o tenant ativo validado, não a senha ou hash.
-- Configurar cookies de sessão para produção (`httpOnly`, `secure` e `sameSite`) e armazenamento de sessão persistente apropriado ao ambiente.
-- Manter uma migração controlada da conta administrativa antiga; remover `ADMIN_USER` e `ADMIN_PASS` somente após validar a conta migrada.
+- ~~Criar serviço de autenticação que busca a conta pelo e-mail normalizado.~~
+- ~~Comparar a senha enviada com `passwordHash` usando bcrypt.~~
+- ~~Usar fator de custo 10 na geração de hashes.~~
+- ~~Não recalcular o hash da senha fornecida para comparar.~~
+- ~~Criar helper que regenera a sessão e guarda somente usuário, tenant, membership e papel em `tenantAuth`.~~
+- ~~Rotas HTTP de login/logout tenant; seleção e troca de tenant com revalidação do Membership.~~
+- A sessão `tenantAuth` não concede acesso às rotas administrativas legadas; o painel precisa ser integrado às APIs tenant-scoped.
+- ~~Configurar cookies de sessão (`httpOnly`, `secure` e `sameSite`).~~ Armazenamento de sessão persistente apropriado ao ambiente continua pendente.
+- Não migrar a conta administrativa antiga. Após limpar o banco, criar a primeira conta pelo fluxo de cadastro multi-tenant; remover `ADMIN_USER` e `ADMIN_PASS` quando o novo fluxo estiver validado.
 
 ### Critério de conclusão
 
-- Login válido e inválido são testados.
-- Senhas antigas não são aceitas depois da conclusão da migração.
-- Sessão nova é emitida após autenticação e invalidada no logout.
+- ~~Autenticação válida/inválida e memberships ativos/suspensos são testados no serviço.~~
+- ~~Login HTTP com conta tenant, seleção de tenant, confirmação da sessão e logout.~~
+- A conta administrativa antiga não é reutilizada; a nova conta owner é criada no tenant inicial.
+- ~~Helper de sessão regenera a sessão e não define a propriedade legacy `session.user`.~~
 - Nenhum hash ou segredo aparece em respostas ou logs.
 
 ## Etapa 4 — Adicionar autorização por papel
 
 ### Trabalho
 
-Definir papéis iniciais:
+Papéis definidos:
 
-- `owner`: gerencia organização e membros.
-- `admin`: gerencia salas, QR Codes, presenças e relatórios.
-- `operator`: executa operações de presença permitidas.
-- `viewer`: consulta dados sem alterá-los.
+- ~~`owner`: todas as permissões do tenant.~~
+- ~~`admin`: gerencia salas, QR Codes, presenças, relatórios e biometria, sem gerenciar organização ou memberships.~~
+- ~~`operator`: consulta salas e QRs e cria presenças.~~
+- ~~`viewer`: consulta salas, presenças e relatórios, sem alterar dados.~~
 
-Criar middleware de autorização por ação. Aplicar permissões por rota/ação, evitando verificações duplicadas e condicionais espalhadas.
+Criar middleware de autorização por ação. O middleware está em `src/middleware/authorizeTenant.js`; ele consulta o Membership atual, valida o status do usuário e do tenant, não confia no papel guardado na sessão e disponibiliza o tenant validado em `req.tenant`.
+
+Permissões disponíveis: `tenant:manage`, `members:manage`, `rooms:read`, `rooms:manage`, `qrcodes:read`, `qrcodes:manage`, `attendance:create`, `attendance:read`, `attendance:manage`, `reports:read` e `biometrics:manage`.
+
+Aplicar o middleware em cada rota multi-tenant permanece pendente até as consultas dessas rotas incluírem `tenantId`; aplicar só a autorização sem isolamento não é suficiente e pode expor dados compartilhados.
 
 Para usuários adicionais, usar convite ou criação administrativa dentro de um tenant existente. O papel é definido pelo servidor após autorização; nunca aceitar um papel privilegiado escolhido pelo próprio usuário.
 
 ### Critério de conclusão
 
-- Cada operação administrativa tem uma permissão definida.
-- Usuário sem membership ativo não acessa o tenant.
-- `viewer` não consegue alterar ou excluir dados.
-- Usuário não consegue elevar o próprio papel.
+- ~~Matriz de permissões por papel definida e testada.~~
+- ~~Middleware nega usuário, tenant ou Membership inativo e papel sem permissão.~~
+- ~~Alteração de papel no banco tem efeito imediato: o middleware não confia no papel antigo da sessão.~~
+- Proteger rotas com a permissão correta e o escopo `tenantId` continua pendente.
+- Usuário `viewer` deve ser testado contra as rotas quando essas forem conectadas.
 
 ## Etapa 5 — Resolver e aplicar o tenant ativo
 
 ### Trabalho
 
-- Definir como usuários que pertencem a vários tenants selecionam ou recebem seu tenant ativo.
-- Validar que o usuário autenticado possui Membership ativo para esse tenant.
-- Criar middleware que disponibilize o tenant validado para serviços e handlers.
-- Nas APIs públicas, resolver o tenant pelo token do QR Code, nunca por um `tenantId` arbitrário informado pelo cliente.
-- Validar o tenant das referências associadas, por exemplo, pessoa, sala e QR Code.
+- ~~Definir seleção de tenant a partir de um Membership retornado no login, exibir a escolha e revalidá-lo pelo usuário autenticado.~~
+- ~~Validar que o usuário autenticado possui Membership ativo para o tenant escolhido e que a própria conta e o tenant também estão ativos.~~
+- ~~Criar middleware `loadActiveTenant` que disponibiliza o tenant validado em `req.tenant`, sem ler `tenantId` do query/body.~~
+- ~~Nas APIs públicas, resolver o tenant pelo token do QR Code, nunca por um `tenantId` arbitrário informado pelo cliente.~~
+- Validar o tenant das referências associadas, por exemplo, pessoa, sala e QR Code; QR Code e sala estão validados no fluxo público.
 
 ### Critério de conclusão
 
-- Sessão sem tenant válido não acessa endpoints de dados.
-- Trocar o identificador do tenant na requisição não permite acessar outra organização.
-- Check-in por QR resolve tenant e sala usando somente um QR ativo e válido.
+- ~~Sessão sem tenant válido é negada pelo middleware de resolução; não há ainda endpoints de dados conectados a esse middleware.~~
+- ~~IDs de tenant enviados no query/body não alteram o tenant resolvido da sessão.~~
+- ~~Check-in por QR resolve tenant e sala usando somente um QR ativo e válido.~~ O token nunca substitui a validação do estado do tenant e da sala.
 
 ## Etapa 6 — Isolar os serviços e rotas por tenant
 
 ### Trabalho
 
-Migrar os serviços e endpoints para incluir tenant em toda consulta e escrita:
+Módulos migrados até agora: salas em `src/services/tenantRoomService.js` e `src/routes/tenantRoomRoutes.js`; QR Codes em `src/services/tenantQrCodeService.js` e `src/routes/tenantQrCodeRoutes.js`; resolução pública do token e registro de presença QR em `src/services/tenantCheckinService.js` e `src/routes/tenantCheckinRoutes.js`; consulta/remoção de presenças e relatório agregado em `src/services/tenantAttendanceService.js` e `src/routes/tenantAttendanceRoutes.js`; biometria tenant-scoped em `src/services/tenantBiometricService.js` e nas rotas públicas de check-in por QR.
 
-- Salas e estado de abertura.
-- QR Codes e associação à sala.
-- Presenças e relatórios.
-- Perfis e reconhecimento biométrico.
+- ~~Salas: listar, criar, alterar estado e arquivar com filtros por `tenantId`.~~
+- Salas usam índice único tenant-scoped para nome ativo; arquivar remove a chave ativa sem apagar a sala/histórico.
+- ~~QR Codes: listar, criar com token secreto exibido uma única vez, associar/liberar sala do mesmo tenant e revogar.~~
+- ~~Check-in público pelo token: resolve QR ativo, valida tenant e sala no servidor, e registra a presença em `attendances`.~~
+- ~~Presenças: consulta paginada, filtro por sala do tenant e remoção tenant-scoped. Relatório agregado por sala.~~
+- ~~Biometria: cadastro com consentimento explícito, comparação limitada ao tenant do QR, check-in e exclusão com credencial de retirada.~~
 - Cadastro e gestão de usuários e memberships.
 
-Extrair dados dos arrays atuais de `lotacaoSala` para documentos separados. Preservar os contratos de API necessários ao frontend durante a migração; quando um contrato precisar mudar, atualizar frontend, documentação e coleção Postman juntos.
+As rotas administrativas novas exigem permissões específicas e obtêm o tenant via middleware, sem aceitar `tenantId` do corpo. A associação de QR valida que sala e QR pertencem ao tenant ativo; a revogação mantém o documento e limpa sua associação. O check-in público por QR está integrado à tela. O painel administrativo já existente não deve ser duplicado. A aplicação deverá iniciar sem os dados antigos após a limpeza.
 
 ### Critério de conclusão
 
-- Nenhuma consulta administrativa busca dados sem filtrar pelo tenant.
-- Nenhum update/delete usa somente o ID do documento sem escopo do tenant.
-- Referências cruzadas entre tenants são rejeitadas.
-- Testes automatizados confirmam isolamento entre dois tenants para todos os módulos.
+- ~~As operações do novo serviço de salas filtram por `tenantId`; alterações também combinam ID da sala e tenant.~~
+- ~~As rotas novas requerem a permissão correta e ignoram `tenantId` vindo do cliente.~~
+- ~~QR Codes e salas relacionados são consultados no escopo do mesmo tenant; o hash secreto nunca é serializado.~~
+- Check-in público usa o token bearer do QR, valida estado do tenant/sala e não confia em IDs de tenant ou sala enviados pelo navegador.
+- Presenças e relatórios filtram por tenant; a remoção combina ID da presença e tenant.
+- Outros módulos/rotas ainda não foram migrados.
+- Referências cruzadas entre tenants devem ser validadas nos módulos restantes.
+- Testes automatizados de salas e QR Codes passam; cobertura de isolamento dos demais módulos está pendente.
 
-## Etapa 7 — Migrar dados antigos para o tenant padrão
+## Etapa 7 — Reinicializar o banco sem migrar dados antigos
 
 ### Trabalho
 
-1. Criar um tenant padrão para os dados atuais.
-2. Criar o usuário que representa a administração atual e seu Membership `owner`.
-3. Migrar salas de `lotacaoSala.salas[]` para `rooms`.
-4. Migrar QR Codes de `lotacaoSala.qrcodes[]` para `qrCodes`.
-5. Migrar presenças de `lotacaoSala.historico[]` para `attendances`.
-6. Associar perfis de `faceProfiles` a pessoas e ao tenant padrão.
-7. Preservar datas, estados, IDs de referência necessários e histórico.
-8. Tornar o script repetível: uma segunda execução não deve duplicar dados.
-9. Comparar contagens e amostras entre origem e destino.
-10. Manter coleções antigas intactas até aprovação da validação e do período de rollback.
+Não haverá migração dos dados antigos. O script `scripts/resetDatabase.js` remove os documentos de todas as coleções de dados do banco indicado por `MONGO_URI`, incluindo as coleções legadas e as novas coleções multi-tenant. Ele preserva as coleções e seus índices, e não deve ser executado automaticamente pela aplicação.
 
-Para perfis biométricos sem consentimento comprovável ou sem vínculo confiável com uma pessoa, interromper a migração daquele registro e definir uma política explícita; não atribuir dados biométricos por aproximação de nomes.
+Para executar em desenvolvimento, informe exatamente o nome do banco que aparece na `MONGO_URI`:
+
+```text
+npm run db:reset -- --confirm-reset <nome-do-banco>
+```
+
+O script recusa `NODE_ENV=production`, exige nome de banco explícito e bloqueia hosts remotos por padrão. Para um banco remoto, a confirmação adicional é explícita:
+
+```text
+npm run db:reset -- --confirm-reset <nome-do-banco> --allow-remote
+```
+
+Antes de executar, confirme host e nome do banco e faça backup se houver qualquer possibilidade de precisar dos dados. A exclusão é irreversível e inclui cadastros, presenças, salas, QR Codes, contas, memberships e dados biométricos. O script não cria tenant nem usuário owner; esses registros deverão ser criados pelo fluxo de cadastro após sua integração.
 
 ### Critério de conclusão
 
-- Contagens e referências reconciliadas.
-- Reexecução do script não cria duplicidades.
-- Check-in e relatório funcionam com os dados migrados.
-- Plano de rollback testado antes de remover qualquer dado antigo.
+- ~~Decisão registrada de não migrar os dados antigos.~~
+- Script de limpeza exige confirmação do banco alvo e bloqueia produção por `NODE_ENV`.
+- A limpeza não é executada como parte dos testes ou da inicialização normal do servidor.
+- O check-in por QR tenant-scoped usa token no fragmento da URL e envia o token no corpo da API; o fluxo legado continua disponível separadamente.
+- A biometria tenant-scoped exige consentimento a cada uso.
 
 ## Etapa 8 — Tratar biometria como dado sensível
 
 ### Trabalho
 
-- Separar a biometria do modelo de autenticação.
-- Exigir consentimento explícito antes de criar um perfil biométrico.
-- Validar tenant e pessoa relacionados no cadastro, verificação, check-in e exclusão.
-- Limitar leitura do descritor e impedir sua inclusão em listagens, logs e respostas.
-- Planejar criptografia em repouso e gerenciamento/rotação de chaves.
-- Implementar retirada de consentimento e exclusão do perfil.
-- Definir retenção e exportação aplicáveis.
-
+- ~~Separar a biometria do modelo de autenticação.~~
+- ~~Exigir consentimento explícito antes de criar um perfil biométrico e a cada check-in facial.~~
+- ~~Validar tenant e pessoa relacionados no cadastro e check-in; a exclusão exige credencial de alta entropia vinculada ao perfil.~~
+- ~~Limitar leitura do descritor e impedir sua inclusão em listagens, logs e respostas.~~
 ### Critério de conclusão
 
-- Perfil de um tenant não participa de comparação facial em outro tenant.
-- Sem consentimento, o cadastro não persiste.
-- Exclusão e retirada de consentimento têm efeito verificável.
-- Logs e respostas não contêm o descritor.
+- ~~Perfil de um tenant não participa de comparação facial em outro tenant.~~
+- ~~Sem consentimento, o cadastro não persiste.~~
+- ~~Exclusão remove o perfil e interrompe comparação e retirada de consentimento.~~
+- ~~Descritores não são retornados pelas APIs.~~ Não há logging de descritor no fluxo novo.
 
-## Etapa 9 — Validar, liberar e remover compatibilidade antiga
+## Etapa 9 — Validar e liberar
 
 ### Trabalho
 
-- Rodar testes unitários, integração, migração e regressão.
-- Testar manualmente cadastro inicial, login, troca de tenant, permissões, QR, presença, relatório e biometria.
-- Implantar primeiro em ambiente de homologação com cópia restaurável dos dados.
-- Liberar gradualmente e monitorar erros de autorização e migração.
-- Remover caminhos de login e dados antigos somente depois do período de validação acordado.
+- Rodar testes unitários, integração, reset seguro do banco e regressão.
+- Liberar gradualmente e monitorar erros de autorização e persistência.
 - Atualizar `docs/ROTAS.md`, `docs/DOCUMENTACAO.md` e exemplos Postman.
 
 ### Critério de conclusão
 
 - Testes de isolamento entre tenants passam para cada módulo.
 - Não há endpoint administrativo acessível sem autenticação e autorização.
-- Dados antigos e novos reconciliados.
-- Rollback documentado e testado.
+- Banco sem documentos antigos e tenant inicial criado pelo novo fluxo.
+- Backup dos dados antigos feito antes do reset, caso seja necessário preservar uma cópia externa.
 - Documentação reflete o comportamento publicado.
 
 ## Matriz mínima de testes
@@ -231,7 +256,7 @@ Para perfis biométricos sem consentimento comprovável ou sem vínculo confiáv
 | Tenant A consulta ID de sala do tenant B | Nenhum dado de B é retornado ou alterado |
 | QR de A tenta resolver sala de B | Check-in rejeitado |
 | Perfil biométrico de A é comparado no tenant B | Perfil não é consultado |
-| Script de migração executado duas vezes | Nenhuma duplicidade é criada |
+| Script de reset executado novamente | Nenhum documento antigo permanece; a segunda execução não falha por banco vazio |
 
 ## Sequência recomendada de entrega
 
@@ -243,9 +268,9 @@ Para perfis biométricos sem consentimento comprovável ou sem vínculo confiáv
 4. Aplicar roles e memberships
 5. Resolver tenant ativo
 6. Isolar serviços e rotas
-7. Migrar os dados antigos
+7. Limpar os dados antigos com confirmação explícita; não migrar
 8. Reforçar proteção biométrica
-9. Validar em homologação e liberar
+9. Executar testes automatizados e preparar a liberação
 ```
 
-As etapas 1 a 5 devem ser revisadas antes de iniciar a migração de dados. A etapa de isolamento não deve ser considerada concluída até que testes negativos provem que um tenant não consegue ler ou modificar registros de outro.
+As etapas 1 a 5 devem ser revisadas antes de iniciar o uso do banco limpo. A limpeza destrói os dados atuais e não é executada pela aplicação ou pela suíte de testes. A etapa de isolamento não deve ser considerada concluída até que testes negativos provem que um tenant não consegue ler ou modificar registros de outro.

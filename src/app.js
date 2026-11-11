@@ -4,6 +4,11 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 import routes from './routes/routes.js'
 import adminRoutes from './routes/adminRoutes.js'
+import tenantRoomRoutes from './routes/tenantRoomRoutes.js'
+import tenantQrCodeRoutes from './routes/tenantQrCodeRoutes.js'
+import tenantCheckinRoutes from './routes/tenantCheckinRoutes.js'
+import tenantAttendanceRoutes from './routes/tenantAttendanceRoutes.js'
+import tenantAuthRoutes from './routes/tenantAuthRoutes.js'
 
 const app = express()
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -26,7 +31,11 @@ app.use(
         secret: sessionSecret,
         resave: false,
         saveUninitialized: false,
-        cookie: { secure: process.env.NODE_ENV === 'production' }
+        cookie: {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
+        }
     })
 )
 
@@ -51,6 +60,11 @@ app.use((req, res, next) => {
 app.use(express.static(path.resolve(__dirname, '..', 'public')))
 
 app.use('/adm', adminRoutes)
+app.use('/api/tenant', tenantRoomRoutes)
+app.use('/api/tenant', tenantQrCodeRoutes)
+app.use('/api/checkin/tenant', tenantCheckinRoutes)
+app.use('/api/tenant', tenantAttendanceRoutes)
+app.use('/api/tenant/auth', tenantAuthRoutes)
 app.use(routes)
 
 export default app

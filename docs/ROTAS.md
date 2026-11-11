@@ -9,7 +9,7 @@ Os caminhos das rotas são os mesmos em desenvolvimento e no Render; muda apenas
 
 Por exemplo, a rota de login local é `http://localhost:3000/login`; no Render é `https://checkinqrcode.onrender.com/login`. Não use `localhost` para acessar o serviço publicado. Para testar em um celular na rede local, use o IPv4 do PC no lugar de `localhost`.
 
-As rotas marcadas como administrativas exigem uma sessão iniciada por `POST /login`. Sem sessão, o servidor redireciona para `/login`. No Postman, mantenha o cookie recebido no login.
+As rotas administrativas legadas exigem uma sessão iniciada por `POST /login`. O login tenant é feito pela tela usando `/api/tenant/auth/login` e não concede acesso às rotas globais. Sem sessão administrativa, o painel legado redireciona para `/login`. No Postman, mantenha o cookie recebido no login correspondente.
 
 ## Páginas e Autenticação
 
@@ -40,6 +40,44 @@ As rotas marcadas como administrativas exigem uma sessão iniciada por `POST /lo
 | `POST` | `/api/face/checkin` | JSON: `descritor` (128 números), `salaId`; legado: `sala` | Localiza o perfil facial correspondente e registra presença na sala. |
 | `POST` | `/api/face/verify` | JSON: `descritor` (128 números), `nome` opcional | Informa se o rosto está cadastrado e, quando enviado, se corresponde ao nome. Não retorna o nome associado ao rosto. |
 | `DELETE` | `/api/face/profile/:id` | Header `x-face-delete-token` | Exclui o perfil facial quando o token de exclusão correspondente é informado. |
+
+## API Multi-tenant (em implantação)
+
+As rotas administrativas abaixo são uma nova superfície isolada por tenant e ainda não estão conectadas ao painel legado. Elas exigem uma sessão `tenantAuth` com Membership ativo. O tenant é obtido e validado no servidor; `tenantId` enviado pelo cliente não define o escopo. As rotas públicas de resolução/check-in são exceção: recebem o token do QR e resolvem o tenant no banco.
+
+### Cadastro e autenticação tenant
+
+| Método | Rota | Parâmetros/Corpo | Descrição |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/api/tenant/auth/register` | JSON: `tenantName`, `name`, `email`, `password` | Cria tenant, conta e Membership `owner` em transação e inicia uma sessão tenant. Retorna `409` para e-mail já cadastrado e `400` para dados inválidos. |
+| `POST` | `/api/tenant/auth/login` | JSON: `email`, `password` | Autentica com bcrypt. Se houver uma organização ativa, inicia a sessão; se houver várias, retorna os vínculos para seleção. |
+| `POST` | `/api/tenant/auth/select` | JSON: `membershipId` | Seleciona uma das organizações retornadas no login e revalida o vínculo antes de iniciar a sessão tenant. |
+| `POST` | `/api/tenant/auth/switch` | JSON: `tenantId`, `membershipId` | Troca a organização ativa após validar que o Membership pertence ao usuário autenticado. |
+| `GET` | `/api/tenant/auth/session` | Nenhum | Confirma a sessão tenant e revalida usuário, tenant e Membership ativos. |
+| `POST` | `/api/tenant/auth/logout` | Nenhum | Encerra a sessão atual. |
+
+Essas rotas usam o cookie de sessão HTTP-only. O login administrativo antigo em `POST /login` continua separado. Por segurança, uma sessão `tenantAuth` não autentica o painel nem as APIs globais legadas; o painel existente ainda precisa ser conectado às APIs tenant-scoped antes que uma conta tenant possa usá-lo.
+
+| Método | Rota | Parâmetros/Corpo | Descrição |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/api/tenant/rooms` | Nenhum | Lista salas não arquivadas do tenant ativo; exige `rooms:read`. |
+| `POST` | `/api/tenant/rooms` | JSON: `name` | Cria sala no tenant ativo; exige `rooms:manage`. |
+| `PATCH` | `/api/tenant/rooms/:id` | JSON: `{"status":"open"}` ou `{"status":"closed"}` | Altera estado de sala pertencente ao tenant ativo; exige `rooms:manage`. |
+| `DELETE` | `/api/tenant/rooms/:id` | ID da sala | Arquiva a sala do tenant ativo sem apagar seu histórico; exige `rooms:manage`. |
+| `GET` | `/api/tenant/qrcodes` | Nenhum | Lista QR Codes do tenant ativo sem expor o hash nem o token; exige `qrcodes:read`. |
+| `POST` | `/api/tenant/qrcodes` | Nenhum | Cria QR Code disponível e retorna o token secreto uma única vez para gerar sua imagem; exige `qrcodes:manage`. |
+| `PATCH` | `/api/tenant/qrcodes/:id` | JSON: `{"roomId":"ID"}` ou `{"roomId":null}` | Associa a uma sala não arquivada do mesmo tenant ou libera a associação; exige `qrcodes:manage`. |
+| `DELETE` | `/api/tenant/qrcodes/:id` | ID do QR Code | Revoga o QR Code sem apagar seu registro; exige `qrcodes:manage`. |
+| `POST` | `/api/checkin/tenant/resolve` | JSON: `{"token":"TOKEN"}` | Resolve um token QR ativo para uma sala aberta; não recebe `tenantId`. |
+| `POST` | `/api/checkin/tenant/attendance` | JSON: `{"token":"TOKEN","nome":"Nome"}` | Registra presença na sala associada ao token, limitada ao tenant do QR; impede nome duplicado por sala. |
+| `POST` | `/api/checkin/tenant/biometrics/enroll` | JSON: `token`, `nome`, `descritor` (128 números), `consentimento:true` | Cadastra perfil no tenant do QR, após consentimento explícito; retorna uma credencial de exclusão uma única vez. |
+| `POST` | `/api/checkin/tenant/biometrics/checkin` | JSON: `token`, `descritor` (128 números), `consentimento:true` | Compara somente perfis consentidos do tenant do QR e registra presença sem revelar a identidade da correspondência na resposta. |
+| `DELETE` | `/api/checkin/tenant/biometrics/profiles/:id` | Header `x-biometric-delete-token` | Exclui o perfil biométrico e retira o consentimento após validar a credencial individual emitida no cadastro; não depende do QR permanecer ativo. |
+| `GET` | `/api/tenant/attendances?page=1&roomId=ID` | `roomId` e `page` opcionais | Lista presenças do tenant ativo, 100 por página; permite filtrar por sala do mesmo tenant. Exige `attendance:read`. |
+| `GET` | `/api/tenant/reports/attendance` | Nenhum | Retorna total de presenças agrupadas por sala do tenant ativo; exige `reports:read`. |
+| `DELETE` | `/api/tenant/attendances/:id` | ID da presença | Exclui presença pertencente ao tenant ativo; exige `attendance:manage`. |
+
+Para criar uma imagem QR, use como destino `https://<dominio>/add#<TOKEN>` com o token retornado uma única vez pela criação. O token fica no fragmento da URL e é enviado ao servidor somente no corpo das requisições de resolução e check-in. O uso da biometria nesse fluxo exige consentimento para cada operação; descritores nunca são incluídos em respostas. Os QR Codes legados continuam usando o fluxo anterior.
 
 ## API Administrativa
 

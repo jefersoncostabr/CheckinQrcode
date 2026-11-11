@@ -28,12 +28,32 @@
         </form>
 
         <p class="auth-footer">Ainda não tem uma conta? <a class="auth-link" href="/criar-conta.html">Criar conta</a></p>
-        <p class="auth-note">A autenticação continua usando o acesso atual do sistema.</p>
+        <p class="auth-note">Você também pode entrar com uma conta de organização. O acesso administrativo legado permanece separado.</p>
     </main>
 
     <script>
         const params = new URLSearchParams(window.location.search);
         const messageEl = document.getElementById('message');
+        const form = document.querySelector('.auth-form');
+        const submitButton = form.querySelector('button[type="submit"]');
+
+        function showMessage(message, isError = false) {
+            messageEl.textContent = message;
+            messageEl.classList.toggle('error', isError);
+            messageEl.classList.toggle('success', !isError);
+            messageEl.hidden = false;
+        }
+
+        async function selectTenant(membershipId) {
+            const response = await fetch('/api/tenant/auth/select', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ membershipId }),
+            });
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.mensagem || 'Não foi possível selecionar a organização.');
+            showMessage('Sessão da organização iniciada. O painel legado continua separado.');
+        }
 
         if (params.has('error')) {
             messageEl.textContent = 'Usuário ou senha incorretos.';
@@ -44,6 +64,62 @@
             messageEl.classList.add('success');
             messageEl.hidden = false;
         }
+
+        form.addEventListener('submit', async event => {
+            event.preventDefault();
+            submitButton.disabled = true;
+            try {
+                const response = await fetch('/api/tenant/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email: form.elements.user.value,
+                        password: form.elements.pass.value,
+                    }),
+                });
+                const result = await response.json();
+
+                if (response.status === 401) {
+                    form.submit();
+                    return;
+                }
+                if (!response.ok) throw new Error(result.mensagem || 'Não foi possível entrar.');
+
+                if (result.selecaoNecessaria) {
+                    messageEl.replaceChildren();
+                    messageEl.classList.remove('error', 'success');
+                    const prompt = document.createElement('p');
+                    prompt.textContent = 'Selecione a organização:';
+                    const choices = document.createElement('div');
+                    choices.className = 'auth-form';
+                    result.memberships.forEach(membership => {
+                        const button = document.createElement('button');
+                        button.className = 'auth-button';
+                        button.type = 'button';
+                        button.textContent = `${membership.tenantName} (${membership.role})`;
+                        button.addEventListener('click', async () => {
+                            button.disabled = true;
+                            try {
+                                await selectTenant(membership.membershipId);
+                            } catch (error) {
+                                showMessage(error.message, true);
+                                button.disabled = false;
+                            }
+                        });
+                        choices.append(button);
+                    });
+                    messageEl.append(prompt, choices);
+                    messageEl.hidden = false;
+                    return;
+                }
+
+                showMessage('Sessão da organização iniciada. O painel legado continua separado.');
+            } catch (error) {
+                showMessage(error.message, true);
+            } finally {
+                submitButton.disabled = false;
+            }
+        });
     </script>
 </body>
 </html>
