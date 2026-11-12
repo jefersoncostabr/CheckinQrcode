@@ -19,6 +19,7 @@ describe('modelos da fundação multi-tenant', () => {
             'admin',
             'operator',
             'viewer',
+            'user',
         ])
         expect(Membership.schema.indexes()).toContainEqual([
             { tenantId: 1, userId: 1 },

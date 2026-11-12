@@ -42,6 +42,10 @@ describe('autorização por papel e tenant', () => {
         expect(roleHasTenantPermission('operator', 'attendance:manage')).toBe(false)
         expect(roleHasTenantPermission('viewer', 'reports:read')).toBe(true)
         expect(roleHasTenantPermission('viewer', 'attendance:create')).toBe(false)
+        expect(TENANT_ROLE_PERMISSIONS.user).toEqual(['attendance:create'])
+        expect(roleHasTenantPermission('user', 'attendance:create')).toBe(true)
+        expect(roleHasTenantPermission('user', 'rooms:read')).toBe(false)
+        expect(roleHasTenantPermission('user', 'attendance:read')).toBe(false)
         expect(roleHasTenantPermission('unknown', 'rooms:read')).toBe(false)
     })
 

@@ -5,7 +5,7 @@ const membershipSchema = new mongoose.Schema({
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     role: {
         type: String,
-        enum: ['owner', 'admin', 'operator', 'viewer'],
+        enum: ['owner', 'admin', 'operator', 'viewer', 'user'],
         required: true,
     },
     status: { type: String, enum: ['active', 'invited', 'disabled'], default: 'active' },

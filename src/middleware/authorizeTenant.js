@@ -38,6 +38,9 @@ export const TENANT_ROLE_PERMISSIONS = Object.freeze({
         'attendance:read',
         'reports:read',
     ]),
+    user: Object.freeze([
+        'attendance:create',
+    ]),
 })
 
 export function roleHasTenantPermission(role, permission) {

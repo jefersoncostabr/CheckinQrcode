@@ -39,7 +39,7 @@ O painel mantém suas funções, mas opera nos endpoints tenant-scoped:
 - Relatórios: consultar registros e filtrar por sala.
 - Biometria: cadastrar e excluir perfis; testar reconhecimento e usar monitor facial.
 
-As permissões variam conforme o papel da conta. `owner` e `admin` gerenciam salas, QR Codes e biometria; `operator` pode consultar salas/QRs e registrar presenças; `viewer` consulta salas, presenças e relatórios.
+As permissões variam conforme o papel da conta. Consulte a matriz completa em [PAPEIS.md](./PAPEIS.md). O papel `user`, por exemplo, pode criar presenças, mas não consultar salas ou presenças.
 
 `/resetls` limpa apenas o `localStorage` do navegador. Não limpa presenças, salas ou qualquer coleção do MongoDB.
 
