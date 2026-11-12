@@ -1,0 +1,174 @@
+GUIA: MENU HAMBURGUER DO PROJETO GUS
+====================================
+
+Este guia explica como o menu de navegacao do GUS funciona e como reutilizar
+o mesmo padrao em outro projeto.
+
+
+RESPOSTA RAPIDA: O MENU E REPETIDO EM CADA HTML?
+------------------------------------------------
+
+Nao. A estrutura do menu e criada uma vez em:
+
+  frontend/js/navbar.js
+
+O visual e as regras para desktop e celular ficam em:
+
+  frontend/assets/css/navbar.css
+
+Cada pagina HTML que deve exibir a navegacao inclui esses dois arquivos. Assim,
+os itens e o comportamento ficam centralizados: para alterar o menu, edite o
+JavaScript/CSS, e nao copie o menu inteiro em todas as paginas.
+
+
+COMO O MENU FUNCIONA NO GUS
+---------------------------
+
+1. Cada pagina carrega navbar.css e navbar.js.
+2. navbar.js espera o DOM estar pronto.
+3. O script remove uma navegacao antiga com a classe "wraperNavegacao", se
+   houver, e cria o elemento <nav> dinamicamente no inicio do <body>.
+4. Os links sao gerados a partir do objeto "menuItems", no proprio navbar.js.
+5. Em telas maiores que 768 px, os links aparecem em linha.
+6. Em telas de ate 768 px, os links ficam escondidos e o icone de tres linhas
+   aparece. Ao clicar nele, o JavaScript alterna a classe
+   "ulMenuClicado" na lista. O CSS usa essa classe para mostrar ou esconder
+   os links.
+
+Em resumo:
+
+  clique no icone
+      -> JavaScript alterna uma classe no menu
+      -> CSS muda a exibicao do menu
+
+O JavaScript cuida da interacao; o CSS cuida da apresentacao responsiva.
+
+
+ARQUIVOS ENVOLVIDOS
+-------------------
+
+frontend/js/navbar.js
+  Monta o HTML da navegacao, gera os links, trata o clique do hamburguer e
+  atualiza o nome/funcao do usuario e o texto Login/Sair.
+
+frontend/assets/css/navbar.css
+  Define o visual da barra, dos links e do menu para desktop e celular.
+  O ponto de quebra usado atualmente e 768 px.
+
+frontend/js/resetarNavbar.js
+  Exporta resetarNavbar(), que restaura o nome "Visitante", limpa a funcao
+  e remove o estilo visual de usuario conectado.
+
+
+COMO E INCLUIDO NAS PAGINAS DO GUS
+----------------------------------
+
+As paginas que usam a navegacao incluem estas linhas:
+
+  <link rel="stylesheet" href="./assets/css/navbar.css">
+  <script type="module" src="./js/navbar.js"></script>
+
+No GUS, essas linhas aparecem no HTML de cada pagina atendida pelo frontend.
+O menu nao precisa ser escrito de novo dentro do <body>: o modulo navbar.js o
+insere automaticamente.
+
+O caminho relativo acima funciona quando os arquivos estao organizados como
+no GUS. Se a sua pagina estiver em outra pasta, ajuste os caminhos.
+
+
+COMO REUTILIZAR EM OUTRO PROJETO
+--------------------------------
+
+1. Crie uma estrutura semelhante:
+
+     projeto/
+       pagina.html
+       assets/
+         css/
+           navbar.css
+       js/
+         navbar.js
+
+2. No navbar.css, copie ou adapte os estilos da navegacao e a media query.
+   No padrao do GUS, a media query e:
+
+     @media (max-width: 768px) { ... }
+
+3. No navbar.js, crie a estrutura do <nav>, o botao do menu e a lista de links.
+   Monte essa estrutura uma unica vez no script. Gere os links a partir de uma
+   lista/objeto centralizado, em vez de repeti-los nos HTMLs.
+
+4. Registre o evento de clique para alternar uma classe no elemento da lista:
+
+     menu.classList.toggle('ulMenuClicado');
+
+5. No CSS mobile, esconda a lista por padrao e mostre-a quando essa classe
+   estiver presente:
+
+     .ulMenu { display: none; }
+     .ulMenu.ulMenuClicado { display: flex; }
+
+   As classes e o layout devem coincidir com os seletores realmente usados
+   pelo seu JavaScript.
+
+6. Em cada pagina HTML que deve mostrar a navegacao, inclua:
+
+     <link rel="stylesheet" href="./assets/css/navbar.css">
+     <script type="module" src="./js/navbar.js"></script>
+
+   Se usar import/export, como no GUS, mantenha type="module" e sirva os
+   arquivos por um servidor HTTP local ou de producao. Evite abrir a pagina
+   diretamente como arquivo file://, pois modulos podem nao carregar assim.
+
+7. Teste a pagina em uma largura acima e abaixo de 768 px. No computador os
+   links devem aparecer; no celular, o icone deve abrir e fechar a lista.
+
+
+O QUE ADAPTAR NO SCRIPT ANTES DE COPIAR
+---------------------------------------
+
+O navbar.js do GUS faz mais do que abrir o menu. Ele tambem tem regras
+especificas do projeto:
+
+  - URLs do site local e do ambiente onrender.com;
+  - consulta ao endpoint /usuario-logado;
+  - exibicao do nome e da funcao do usuario;
+  - troca do texto Login para Sair;
+  - importacao de resetarNavbar.js.
+
+Se o outro projeto nao tiver o mesmo servidor, endpoint, sessao ou sistema de
+login, adapte ou remova essas partes. Para um menu simples, mantenha somente
+a criacao do <nav>, a lista de links, o evento de clique e a inicializacao
+quando o DOM estiver pronto.
+
+Os caminhos e nomes de classes do projeto tambem sao especificos. No GUS, os
+principais sao:
+
+  wraperNavegacao  - barra <nav>
+  menuHamburger    - icone/botao de tres linhas
+  ulMenu           - lista de links
+  ulMenuClicado    - classe que abre a lista no celular
+  listMenu         - item individual da lista
+  linkMenu         - link individual
+
+O objeto menuItems em navbar.js e o lugar central para adicionar, remover ou
+renomear os links.
+
+
+LIMITES DO COMPORTAMENTO ATUAL
+------------------------------
+
+O menu atual abre/fecha ao clicar no icone. Ele nao implementa fechamento ao
+clicar fora da lista nem suporte completo de teclado/estado acessivel com
+aria-expanded. Se quiser esses comportamentos no outro projeto, implemente-os
+explicitamente no JavaScript e valide tambem a navegacao por teclado.
+
+
+REFERENCIAS NO PROJETO
+----------------------
+
+  frontend/js/navbar.js
+  frontend/js/resetarNavbar.js
+  frontend/assets/css/navbar.css
+  frontend/painelGeral.html
+  frontend/login.html

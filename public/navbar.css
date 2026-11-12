@@ -1,0 +1,177 @@
+.wraperNavegacao {
+    align-self: stretch;
+    box-sizing: border-box;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px 24px;
+    width: 100%;
+    margin: 0 0 24px;
+    padding: 12px 20px;
+    border-radius: 8px;
+    background: #23384d;
+    color: #fff;
+    font-family: Arial, sans-serif;
+}
+
+.navbarHeader {
+    display: flex;
+    flex: 1 1 auto;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.navbarBrand,
+.linkMenu {
+    color: inherit;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.navbarBrand {
+    font-size: 1.15rem;
+    white-space: nowrap;
+}
+
+.navbarTenant {
+    overflow: hidden;
+    color: #d7e2eb;
+    font-size: 0.9rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ulMenu {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.listMenu {
+    display: block;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+}
+
+.linkMenu {
+    display: inline-flex;
+    min-height: 42px;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 12px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    font: inherit;
+    cursor: pointer;
+}
+
+.linkMenu:hover,
+.linkMenu:focus-visible,
+.navbarBrand:focus-visible {
+    outline: 2px solid #fff;
+    outline-offset: 2px;
+    background: #36536f;
+}
+
+.navbarLogout {
+    color: #fff;
+}
+
+.navbarLogout:disabled {
+    cursor: wait;
+    opacity: 0.7;
+}
+
+.menuHamburger {
+    display: none;
+    width: 44px;
+    height: 44px;
+    flex: 0 0 44px;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    padding: 0;
+    border: 1px solid #7f94a8;
+    border-radius: 6px;
+    background: transparent;
+    cursor: pointer;
+}
+
+.menuHamburger span {
+    width: 20px;
+    height: 2px;
+    border-radius: 2px;
+    background: #fff;
+}
+
+.menuHamburger:focus-visible {
+    outline: 3px solid #fff;
+    outline-offset: 3px;
+}
+
+.navbarStatus {
+    flex-basis: 100%;
+    margin: 0;
+    color: #ffe0e0;
+    font-size: 0.9rem;
+}
+
+.navbarLoadError {
+    padding: 12px;
+    border-radius: 6px;
+    background: #7f1d1d;
+}
+
+@media (max-width: 768px) {
+    .wraperNavegacao {
+        gap: 0;
+        padding: 10px 14px;
+    }
+
+    .navbarHeader {
+        min-width: 0;
+    }
+
+    .navbarTenant {
+        margin-left: auto;
+        max-width: 45%;
+        text-align: right;
+    }
+
+    .menuHamburger {
+        display: flex;
+    }
+
+    .ulMenu {
+        display: none;
+        flex-basis: 100%;
+        align-items: stretch;
+        flex-direction: column;
+        gap: 2px;
+        padding-top: 10px;
+    }
+
+    .ulMenu.ulMenuClicado {
+        display: flex;
+    }
+
+    .listMenu,
+    .linkMenu {
+        width: 100%;
+    }
+
+    .linkMenu {
+        box-sizing: border-box;
+        justify-content: flex-start;
+        padding: 10px 12px;
+    }
+}

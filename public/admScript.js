@@ -4,7 +4,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const listaCheckinsEl = document.getElementById('listaCheckins');
     const checkinsVazioEl = document.getElementById('checkinsVazio');
     const statusEl = document.getElementById('status');
-    const salaFiltro = document.getElementById('salaFiltro');
     const salaSelect = document.getElementById('salaSelect');
     const salaQrSelect = document.getElementById('salaQrSelect');
     const listaSalasEl = document.getElementById('listaSalas');
@@ -16,14 +15,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Botões
     const btnAtualizarQtd = document.getElementById('btnAtualizarQtd');
-    const btnReduzir = document.getElementById('btnReduzir');
     const btnAddPresenca = document.getElementById('btnAddPresenca');
     const btnCadastrarUsuario = document.getElementById('btnCadastrarUsuario');
-    const btnLimpar = document.getElementById('btnLimpar');
     const btnGerarQRCode = document.getElementById('btnGerarQRCode');
     const btnAddSala = document.getElementById('btnAddSala');
     const btnCriarQr = document.getElementById('btnCriarQr');
-    const btnTenantLogout = document.getElementById('btnTenantLogout');
     const cadastroUsuarioDialog = document.getElementById('cadastroUsuarioDialog');
     const cadastroUsuarioForm = document.getElementById('cadastroUsuarioForm');
     const nomeUsuarioInput = document.getElementById('nomeUsuarioInput');
@@ -141,8 +137,6 @@ document.addEventListener('DOMContentLoaded', () => {
         btnCriarQr.disabled = !manage;
         btnGerarQRCode.disabled = !manage;
         btnCadastrarUsuario.disabled = !manage;
-        btnReduzir.disabled = !manage;
-        btnLimpar.disabled = !manage;
         document.querySelector('a[href="/relatorio"]').hidden =
             !['owner', 'admin', 'viewer'].includes(tenant.role);
         document.querySelector('a[href="/teste-rosto"]').hidden = !manage;
@@ -154,8 +148,6 @@ document.addEventListener('DOMContentLoaded', () => {
         await apiRequest('/api/tenant/rooms', { method: 'GET' }, (data) => {
             const salas = Array.isArray(data.salas) ? data.salas : [];
 
-            // Preenche o filtro e o select para QR Code
-            salaFiltro.innerHTML = '<option value="">Todas as Salas</option>';
             salaSelect.innerHTML = '<option value="">Selecione uma sala</option>';
             listaSalasEl.innerHTML = '';
 
@@ -165,10 +157,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 opt.value = sala.id;
                 opt.textContent = `${sala.nome}${salaAberta ? '' : ' (fechada)'}`;
                 opt.dataset.nome = sala.nome;
-                salaFiltro.appendChild(opt);
-
-                const opt2 = opt.cloneNode(true);
-                salaSelect.appendChild(opt2);
+                salaSelect.appendChild(opt);
 
                 const li = document.createElement('li');
                 li.style.display = 'flex';
@@ -376,16 +365,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     btnAtualizarQtd.addEventListener('click', atualizarCheckins);
     btnCriarQr.addEventListener('click', criarQr);
-    btnTenantLogout.addEventListener('click', async () => {
-        try {
-            const response = await fetch('/api/tenant/auth/logout', { method: 'POST' });
-            if (!response.ok) throw new Error('Não foi possível encerrar a sessão.')
-            window.location.replace('/login?loggedout=1')
-        } catch (error) {
-            updateStatus(error.message, 'error')
-        }
-    })
-
     btnAddPresenca.addEventListener('click', () => {
         window.location.href = '/adm/adicionar-manual';
     });
@@ -472,40 +451,6 @@ document.addEventListener('DOMContentLoaded', () => {
             btnConfirmarCadastro.disabled = false;
             btnCancelarCadastro.disabled = false;
         }
-    });
-
-    btnReduzir.addEventListener('click', async () => {
-        const sala = salaFiltro.value;
-        if (!sala) {
-            updateStatus('Selecione a sala para reduzir o último check-in.', 'error');
-            return;
-        }
-
-        if (!confirm('Tem certeza que deseja remover o último check-in desta sala? Esta ação não pode ser desfeita.')) {
-            return;
-        }
-
-        await apiRequest(`/api/tenant/attendances/latest?roomId=${encodeURIComponent(sala)}`, { method: 'DELETE' }, (data) => {
-            atualizarCheckins();
-            updateStatus(data.mensagem, 'success');
-        });
-    });
-
-    btnLimpar.addEventListener('click', async () => {
-        const sala = salaFiltro.value;
-        if (!sala) {
-            updateStatus('Selecione a sala para limpar o histórico.', 'error');
-            return;
-        }
-
-        if (!confirm('ATENÇÃO: Tem certeza que deseja zerar a lista de presença desta sala? Esta ação não pode ser desfeita.')) {
-            return;
-        }
-
-        await apiRequest(`/api/tenant/attendances?roomId=${encodeURIComponent(sala)}`, { method: 'DELETE' }, (data) => {
-            atualizarCheckins();
-            updateStatus(data.mensagem, 'success');
-        });
     });
 
     btnGerarQRCode.addEventListener('click', async () => {

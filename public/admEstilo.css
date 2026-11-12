@@ -151,6 +151,14 @@ button:hover,
     background-color: #2980b9;
 }
 
+#btnCadastrarUsuario {
+    background-color: #23384d;
+}
+
+#btnCadastrarUsuario:hover:not(:disabled) {
+    background-color: #172a3b;
+}
+
 .btn-danger {
     background-color: #e74c3c;
 }

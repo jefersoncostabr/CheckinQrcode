@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Painel de Administração</title>
     <link rel="stylesheet" href="admEstilo.css">
+    <link rel="stylesheet" href="/navbar.css">
     <style>
         #cadastroUsuarioDialog {
             width: min(92vw, 520px);
@@ -133,6 +134,44 @@
             gap: 12px;
         }
 
+        #cadastroUsuarioForm .capture-actions button {
+            min-height: 48px;
+            border: 1px solid #53677a;
+            background: #fff;
+            color: #23384d;
+            font-weight: 600;
+        }
+
+        #cadastroUsuarioForm .capture-actions button:hover:not(:disabled) {
+            background: #edf1f4;
+        }
+
+        #cadastroUsuarioForm .capture-actions button:focus-visible {
+            outline: 3px solid #557fa1;
+            outline-offset: 3px;
+        }
+
+        #cadastroUsuarioForm .capture-actions #btnConfirmarCadastro:not(:disabled) {
+            border-color: #23384d;
+            background: #23384d;
+            color: #fff;
+        }
+
+        #cadastroUsuarioForm .capture-actions #btnConfirmarCadastro:hover:not(:disabled) {
+            background: #172a3b;
+        }
+
+        #cadastroUsuarioForm .capture-actions button:disabled {
+            border-color: #b7c1ca;
+            background: #e5e9ed;
+            color: #4d5b68;
+            cursor: not-allowed;
+        }
+
+        #cadastroUsuarioDialog.capture-active .capture-actions button:focus-visible {
+            outline-color: #fff;
+        }
+
         #cadastroUsuarioDialog.capture-active .capture-actions button {
             min-width: 150px;
             min-height: 48px;
@@ -161,7 +200,6 @@
     <div class="container">
         <h1>Checkin QRCode</h1>
         <p>Painel da organização: <strong id="tenantNameDisplay">Carregando...</strong></p>
-        <button id="btnTenantLogout" class="btn-secondary" type="button">Sair</button>
 
         <div class="card" id="attendanceDashboardCard">
             <h2>Check-ins</h2>
@@ -178,19 +216,9 @@
 
         <div class="card" id="attendanceActionsCard">
             <h2>Ações de presença</h2>
-            <div class="info-display">
-                <p>
-                    <strong>Sala para as ações:</strong>
-                    <select id="salaFiltro" style="min-width: 220px;">
-                        <option value="">Todas as Salas</option>
-                    </select>
-                </p>
-            </div>
             <div class="actions">
-                <button id="btnAddPresenca" class="btn-primary">Adicionar Presença</button>
-                <button id="btnCadastrarUsuario" class="btn-primary" type="button">Cadastrar usuário</button>
-                <button id="btnReduzir" class="btn-danger">Remover Último Check-in</button>
-                <button id="btnLimpar" class="btn-danger">Zerar Contagem</button>
+                <button id="btnAddPresenca" class="btn-primary">+Presença</button>
+                <button id="btnCadastrarUsuario" class="btn-primary" type="button">+Usuário</button>
             </div>
         </div>
 
@@ -272,5 +300,6 @@
     <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
     <script defer src="/faceRecognition.js"></script>
     <script defer src="/admScript.js"></script>
+    <script defer src="/navbar.js"></script>
 </body>
 </html>
