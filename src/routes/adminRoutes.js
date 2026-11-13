@@ -25,14 +25,4 @@ router.get('/relatorio', authorizeTenantPermission('reports:read'), (req, res) =
     res.sendFile(path.join(publicDir, 'relatorio.html'))
 })
 
-router.get('/resetls', (req, res) => {
-    res.send(`<!doctype html>
-        <html lang="pt-BR"><meta charset="utf-8"><title>Limpar dados locais</title>
-        <body><script>
-            localStorage.clear();
-            alert('Dados locais deste site foram limpos.');
-            window.location.href = '/adm';
-        </script></body></html>`)
-})
-
 export default router

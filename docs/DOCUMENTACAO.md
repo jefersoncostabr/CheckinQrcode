@@ -41,8 +41,6 @@ O painel mantém suas funções, mas opera nos endpoints tenant-scoped:
 
 As permissões variam conforme o papel da conta. Consulte a matriz completa em [PAPEIS.md](./PAPEIS.md). O papel `user`, por exemplo, pode criar presenças, mas não consultar salas ou presenças.
 
-`/resetls` limpa apenas o `localStorage` do navegador. Não limpa presenças, salas ou qualquer coleção do MongoDB.
-
 ## Check-in com QR Code
 
 O QR aponta para uma URL no formato:

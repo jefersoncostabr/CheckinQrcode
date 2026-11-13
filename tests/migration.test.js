@@ -54,7 +54,7 @@ describe('regressão da reorganização de arquivos', () => {
         expect(LotacaoSala.modelName).toBe('LotacaoSala')
     })
 
-    it('mantém todas as rotas que existiam antes da reorganização', () => {
+    it('mantém todas as rotas que existiam antes da reorganização (menos o reset de localStorage removido)', () => {
         const rotasOriginais = [
             'GET /',
             'GET /api/rotas',
@@ -78,7 +78,6 @@ describe('regressão da reorganização de arquivos', () => {
             'DELETE /api/face/profile/:id',
             'DELETE /reduce',
             'DELETE /clean',
-            'GET /resetls',
             'GET /api/relatorio',
             'GET /api/salas',
             'POST /api/salas',
@@ -96,7 +95,6 @@ describe('regressão da reorganização de arquivos', () => {
             'GET /adm/monitor-facial',
             'GET /adm/monitor-facial',
             'GET /adm/relatorio',
-            'GET /adm/resetls',
             'GET /api/tenant/rooms',
             'POST /api/tenant/auth/register',
             'POST /api/tenant/auth/login',

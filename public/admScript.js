@@ -122,8 +122,9 @@ document.addEventListener('DOMContentLoaded', () => {
         podeConsultarQrs = ['owner', 'admin', 'operator'].includes(tenant.role);
         document.getElementById('attendanceDashboardCard').hidden =
             !['owner', 'admin', 'operator', 'viewer'].includes(tenant.role);
-        document.getElementById('attendanceActionsCard').hidden =
-            !['owner', 'admin', 'operator'].includes(tenant.role);
+        const podeVerAcoesPresenca = ['owner', 'admin', 'operator'].includes(tenant.role);
+        btnAddPresenca.hidden = !podeVerAcoesPresenca;
+        btnCadastrarUsuario.hidden = !podeVerAcoesPresenca;
         document.getElementById('roomManagementCard').hidden = !manage;
         document.getElementById('biometricManagementCard').hidden = !manage;
         btnAddSala.disabled = !manage;
@@ -491,10 +492,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Carregar a contagem inicial e as salas ao carregar a página
     configurarSessaoTenant().then(() => {
+        atualizarCheckins();
         carregarSalas();
         carregarPerfisFaciais();
         window.setInterval(atualizarCheckins, 60 * 1000);
     }).catch(error => {
-        updateStatus(`Erro ao verificar sessão: ${error.message}`, 'error')
+        console.error('[adm] Erro ao inicializar o painel:', error);
+        updateStatus(`Erro ao verificar sessão: ${error.message}`, 'error');
     })
 });

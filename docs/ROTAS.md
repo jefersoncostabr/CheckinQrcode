@@ -18,7 +18,6 @@ O nome e a porta local podem variar conforme a configuração. Para acessar pelo
 | `GET` | `/adm/adicionar-manual` | Sessão tenant | Tela de lançamento manual de presença. |
 | `GET` | `/adm/monitor-facial` | Sessão tenant | Monitor facial para uma sala do tenant. |
 | `GET` | `/adm/relatorio` ou `/relatorio` | `reports:read` + sessão tenant | Relatório e lista de presenças da organização ativa. |
-| `GET` | `/adm/resetls` ou `/resetls` | Sessão tenant | Limpa o armazenamento local do navegador; não altera o banco. |
 | `GET` | `/add#TOKEN` | Público | Check-in por nome ou biometria usando um QR ativo. |
 | `GET` | `/teste-rosto` | Sessão tenant | Página administrativa de teste facial. |
 

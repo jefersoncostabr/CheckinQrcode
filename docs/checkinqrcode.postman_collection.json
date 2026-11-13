@@ -61,14 +61,6 @@
           }
         },
         {
-          "name": "Resetar memória local do navegador",
-          "request": {
-            "method": "GET",
-            "url": "{{baseUrl}}/resetls",
-            "description": "Rota administrativa. Limpa o localStorage do navegador que fizer a requisição."
-          }
-        },
-        {
           "name": "Gerar QR Code",
           "request": {
             "method": "GET",

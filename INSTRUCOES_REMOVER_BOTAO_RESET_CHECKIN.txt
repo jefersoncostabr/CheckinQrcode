@@ -1,0 +1,150 @@
+INSTRUCOES PARA REMOVER O BOTAO DE RESETAR MEMORIA DE CHECK-IN
+================================================================
+
+OBJETIVO
+--------
+Remova do painel o botao "Resetar Memoria de Check-in (para um dispositivo)"
+e elimine a rota e a logica que apagam o localStorage do navegador.
+
+Nao altere outras funcoes de check-in, biometria, cadastro ou armazenamento.
+Em particular, nao remova o uso normal de localStorage em public/checkin.js.
+
+
+ARQUIVOS A ALTERAR
+------------------
+1. public/adm.html
+2. src/routes/routes.js
+3. src/routes/adminRoutes.js
+4. tests/migration.test.js
+5. docs/ROTAS.md
+6. docs/DOCUMENTACAO.md
+7. docs/checkinqrcode.postman_collection.json
+
+Nao crie arquivos ou pastas.
+
+
+1. public/adm.html - REMOVER O BOTAO
+-----------------------------------
+Localizacao: linha 240, dentro do bloco "Gestao do Sistema".
+
+Remova somente esta linha:
+
+                <a href="/resetls" class="btn-secondary" target="_blank">Resetar Memoria de Check-in (para um dispositivo)</a>
+
+Preserve os outros botoes e links desse bloco.
+
+
+2. src/routes/routes.js - REMOVER A ROTA E SUAS REFERENCIAS
+----------------------------------------------------------
+
+2.1. Na lista rotasDisponiveis, localize as entradas das linhas aproximadas
+141 e 155 e remova somente estes objetos:
+
+        { metodo: 'GET', caminho: '/resetls', acesso: 'sessão tenant' },
+
+        { metodo: 'GET', caminho: '/adm/resetls', acesso: 'sessão tenant' },
+
+Mantenha a virgula das entradas vizinhas conforme a sintaxe do array.
+
+2.2. Localize a rota GET /resetls, aproximadamente linhas 429-438, e remova
+o bloco inteiro abaixo:
+
+// Rota para resetar o localStorage do navegador (interface)
+router.get('/resetls', requireTenantAuth, (req, res) => {
+    res.send(`
+        <script>
+            // Limpa todo o armazenamento local do navegador para este site
+            localStorage.clear();
+            alert('Memória do dispositivo limpa! Você pode realizar o check-in novamente.');
+            // Redireciona de volta para a página de check-in
+            window.location.href = '/add';
+        </script>
+    `)
+})
+
+Nao remova nem altere as rotas que aparecem antes ou depois desse bloco.
+
+
+3. src/routes/adminRoutes.js - REMOVER A ROTA ALTERNATIVA
+--------------------------------------------------------
+Localizacao: aproximadamente linhas 28-36.
+
+Remova o bloco inteiro:
+
+router.get('/resetls', (req, res) => {
+    res.send(`<!doctype html>
+        <html lang="pt-BR"><meta charset="utf-8"><title>Limpar dados locais</title>
+        <body><script>
+            localStorage.clear();
+            alert('Dados locais deste site foram limpos.');
+            window.location.href = '/adm';
+        </script></body></html>`)
+})
+
+Preserve as outras rotas administrativas.
+
+
+4. tests/migration.test.js - ATUALIZAR O TESTE DE ROTAS
+-------------------------------------------------------
+Localizacao: aproximadamente linhas 81 e 99, dentro do array rotasOriginais.
+
+Remova somente estas duas entradas:
+
+            'GET /resetls',
+
+            'GET /adm/resetls',
+
+O teste atualmente verifica as rotas preservadas apos uma reorganizacao.
+Atualize o nome/descricao desse teste para deixar claro que ele verifica as
+rotas mantidas apos a remocao do reset local. Nao remova as demais entradas.
+
+
+5. docs/ROTAS.md - ATUALIZAR A LISTA DE ROTAS
+--------------------------------------------
+Localizacao: aproximadamente linha 21, na tabela "Paginas".
+
+Remova somente a linha da tabela que documenta:
+
+| `GET` | `/adm/resetls` ou `/resetls` | `Sessão tenant` | Limpa o armazenamento local do navegador; não altera o banco. |
+
+
+6. docs/DOCUMENTACAO.md - REMOVER A DESCRICAO DA FUNCAO
+------------------------------------------------------
+Localizacao: aproximadamente linha 44.
+
+Remova somente esta frase:
+
+`/resetls` limpa apenas o `localStorage` do navegador. Não limpa presenças, salas ou qualquer coleção do MongoDB.
+
+Preserve o restante da documentacao.
+
+
+7. docs/checkinqrcode.postman_collection.json - REMOVER A REQUISICAO
+--------------------------------------------------------------------
+Localize o item chamado "Resetar memoria local do navegador", aproximadamente
+linhas 64-71, e remova somente o objeto inteiro:
+
+        {
+          "name": "Resetar memória local do navegador",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/resetls",
+            "description": "Rota administrativa. Limpa o localStorage do navegador que fizer a requisição."
+          }
+        },
+
+Ajuste a virgula do item anterior ou seguinte para manter o JSON valido.
+Preserve as outras requisicoes da colecao.
+
+
+VALIDACAO
+---------
+1. Execute o teste relacionado:
+
+   npm test -- --runTestsByPath tests/migration.test.js
+
+2. Confirme que o painel nao mostra mais o botao de reset.
+3. Confirme que /resetls e /adm/resetls nao estao mais registradas como rotas.
+4. Confirme que a colecao Postman continua sendo um JSON valido.
+5. Confirme que o uso normal de localStorage no check-in e na biometria continua
+   intacto. A remocao deve afetar somente a limpeza total disparada pela rota.

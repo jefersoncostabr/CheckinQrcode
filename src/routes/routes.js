@@ -138,7 +138,6 @@ router.get('/api/rotas', requireTenantAuth, (req, res) => {
         { metodo: 'DELETE', caminho: '/api/face/profile/:id', acesso: 'desativada; use /api/checkin/tenant/biometrics/profiles/:id' },
         { metodo: 'DELETE', caminho: '/reduce', acesso: 'desativada; use /api/tenant/attendances/latest' },
         { metodo: 'DELETE', caminho: '/clean', acesso: 'desativada; use /api/tenant/attendances' },
-        { metodo: 'GET', caminho: '/resetls', acesso: 'sessão tenant' },
         { metodo: 'GET', caminho: '/api/relatorio', acesso: 'desativada; use /api/tenant/attendances' },
         { metodo: 'GET', caminho: '/api/salas', acesso: 'desativada; use /api/tenant/rooms' },
         { metodo: 'POST', caminho: '/api/salas', acesso: 'desativada; use /api/tenant/rooms' },
@@ -152,7 +151,6 @@ router.get('/api/rotas', requireTenantAuth, (req, res) => {
         { metodo: 'GET', caminho: '/adm/adicionar-manual', acesso: 'attendance:create + tenant ativo' },
         { metodo: 'GET', caminho: '/adm/monitor-facial', acesso: 'biometrics:manage + tenant ativo' },
         { metodo: 'GET', caminho: '/adm/relatorio', acesso: 'reports:read + tenant ativo' },
-        { metodo: 'GET', caminho: '/adm/resetls', acesso: 'sessão tenant' },
         { metodo: 'POST', caminho: '/adm/adicionar-manual', acesso: 'desativada; use /api/tenant/attendances/manual' },
         { metodo: 'GET', caminho: '/adm/gerar-qrcode', acesso: 'desativada; use /api/tenant/qrcodes' },
         { metodo: 'POST', caminho: '/adm/cadastrar-usuario', acesso: 'desativada; use /api/tenant/auth/register' },
@@ -423,19 +421,6 @@ router.delete('/clean', requireAuth, async (req, res) => {
         console.error('Erro ao limpar histórico:', error)
         res.status(500).json({ sucesso: false, mensagem: 'Erro ao limpar o histórico.' })
     }
-})
-
-// Rota para resetar o localStorage do navegador (interface)
-router.get('/resetls', requireTenantAuth, (req, res) => {
-    res.send(`
-        <script>
-            // Limpa todo o armazenamento local do navegador para este site
-            localStorage.clear();
-            alert('Memória do dispositivo limpa! Você pode realizar o check-in novamente.');
-            // Redireciona de volta para a página de check-in
-            window.location.href = '/add';
-        </script>
-    `)
 })
 
 // Nova rota de API para fornecer os dados do relatório em JSON
