@@ -120,10 +120,8 @@
                 navigator.clipboard.writeText(textoParaCopiar).then(() => {
                     const originalText = btnCopiar.innerText;
                     btnCopiar.innerText = 'Copiado!';
-                    btnCopiar.style.backgroundColor = '#007bff';
                     setTimeout(() => {
                         btnCopiar.innerText = originalText;
-                        btnCopiar.style.backgroundColor = '#28a745';
                     }, 2000);
                 }).catch(err => {
                     console.error('Erro ao copiar nomes para a área de transferência: ', err);

@@ -13,12 +13,12 @@
         .monitor-fields select { min-height: 42px; }
         .monitor-consent { display: flex; gap: 8px; align-items: flex-start; line-height: 1.5; }
         .monitor-fields .actions { justify-content: flex-start; gap: 10px; }
-        .monitor-panel button { min-height: 48px; padding: 11px 18px; border: 1px solid #53677a; border-radius: 6px; background: #fff; color: #23384d; font-weight: 600; line-height: 1.4; transition: background-color 0.2s, border-color 0.2s; }
-        .monitor-panel button:hover:not(:disabled) { background: #edf1f4; transform: none; }
+        .monitor-panel button { min-height: 48px; padding: 11px 18px; border: 1px solid #53677a; border-radius: 6px; font-weight: 600; line-height: 1.4; transition: background-color 0.2s, border-color 0.2s; }
+        .monitor-panel button:hover:not(:disabled) { transform: none; }
         .monitor-panel button:focus-visible { outline: 3px solid #557fa1; outline-offset: 3px; }
-        .monitor-panel button:disabled { border-color: #b7c1ca; background: #e5e9ed; color: #4d5b68; cursor: not-allowed; }
-        .monitor-panel #monitorStart:not(:disabled) { border-color: #23384d; background: #23384d; color: #fff; }
-        .monitor-panel #monitorStart:hover:not(:disabled) { background: #172a3b; }
+        .monitor-panel button:disabled { border-color: #b7c1ca; cursor: not-allowed; }
+        .monitor-panel #monitorStart:not(:disabled) { border-color: #23384d; }
+        .monitor-panel #monitorStart:hover:not(:disabled) { transform: none; }
         .face-camera-stage, .qr-camera { position: relative; display: grid; width: min(100%, 760px); aspect-ratio: 4 / 3; margin: 20px auto; overflow: hidden; background: #101820; border-radius: 18px; }
         .face-camera-stage video, .qr-camera video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
         .face-guide { position: absolute; top: 50%; left: 50%; width: 48%; height: 72%; border: 4px solid #f4b740; border-radius: 50%; box-shadow: 0 0 0 999px rgba(4, 12, 20, 0.42), 0 0 20px rgba(244, 183, 64, 0.45); transform: translate(-50%, -50%); pointer-events: none; transition: border-color 180ms ease, box-shadow 180ms ease; }
@@ -34,11 +34,12 @@
         .monitor-panel.capture-active .face-camera-stage video { position: absolute; inset: 0; width: 100%; height: 100%; }
         .monitor-panel.capture-active .face-guide { width: min(62vw, 45vh); height: min(62vh, 85vw); }
         .monitor-panel.capture-active #monitorStatus { position: absolute; z-index: 1; top: max(16px, env(safe-area-inset-top)); left: 50%; width: min(90%, 760px); min-height: 0; box-sizing: border-box; padding: 12px 16px; border-radius: 8px; background: rgba(4, 12, 20, 0.8); transform: translateX(-50%); }
-        .monitor-panel.capture-active #monitorStop { position: absolute; z-index: 1; bottom: max(16px, env(safe-area-inset-bottom)); left: 50%; border-color: #d3dce4; background: #23384d; color: #fff; transform: translateX(-50%); }
-        .monitor-panel.capture-active #monitorStop:hover:not(:disabled) { background: #172a3b; transform: translateX(-50%); }
+        .monitor-panel.capture-active #monitorStop { position: absolute; z-index: 1; bottom: max(16px, env(safe-area-inset-bottom)); left: 50%; border-color: #d3dce4; transform: translateX(-50%); }
+        .monitor-panel.capture-active #monitorStop:hover:not(:disabled) { transform: translateX(-50%); }
         .monitor-panel.capture-active #monitorStop:focus-visible { outline-color: #fff; }
         [hidden] { display: none !important; }
     </style>
+    <link rel="stylesheet" href="/botoes.css">
 </head>
 <body class="com-navbar">
     <main id="monitorPanel" class="monitor-panel monitor-card">

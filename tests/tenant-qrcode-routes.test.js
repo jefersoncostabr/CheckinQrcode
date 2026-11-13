@@ -13,6 +13,7 @@ const criarQrCodeDoTenant = jest.fn()
 const associarQrCodeASalaDoTenant = jest.fn()
 const rotacionarQrCodeDoTenant = jest.fn()
 const revogarQrCodeDoTenant = jest.fn()
+const recuperarVisualQrCode = jest.fn()
 const TENANT_QR_CODE_LIMIT = 10
 class TenantQrCodeError extends Error {
     constructor(message, statusCode) {
@@ -30,6 +31,7 @@ jest.unstable_mockModule('../src/services/tenantQrCodeService.js', () => ({
     associarQrCodeASalaDoTenant,
     rotacionarQrCodeDoTenant,
     revogarQrCodeDoTenant,
+    recuperarVisualQrCode,
     TenantQrCodeError,
     TENANT_QR_CODE_LIMIT,
 }))
@@ -88,7 +90,10 @@ describe('rotas de QR Codes multi-tenant', () => {
             .send({ tenantId: 'tenant-attacker' })
             .expect(201)
 
-        expect(criarQrCodeDoTenant).toHaveBeenCalledWith('65f1a0000000000000000001')
+        expect(criarQrCodeDoTenant).toHaveBeenCalledWith(
+            '65f1a0000000000000000001',
+            'https://example.test',
+        )
         expect(response.body.qrcode.token).toBe('secret-token')
     })
 
@@ -123,11 +128,56 @@ describe('rotas de QR Codes multi-tenant', () => {
         expect(rotacionarQrCodeDoTenant).toHaveBeenCalledWith(
             '65f1a0000000000000000001',
             'qr-id',
+            'https://example.test',
         )
         expect(response.body.qrcode).toMatchObject({
             token: 'new-token',
             url: 'https://example.test/add#new-token',
             qrCodeDataUri: 'data:image/png;base64,cG5n',
         })
+    })
+
+    it('reexibe visual de QR ativo sem rotacionar e com cache no-store', async () => {
+        recuperarVisualQrCode.mockResolvedValue({
+            id: 'qr-id',
+            baseUrl: 'https://example.test',
+            status: 'active',
+            roomId: 'room-id',
+            roomName: 'Sala Azul',
+            qrCodeDataUri: 'data:image/png;base64,cG5n',
+            url: 'https://example.test/add#token-recuperado',
+        })
+
+        const response = await request(app)
+            .get('/api/tenant/qrcodes/qr-id/visual')
+            .expect(200)
+
+        expect(recuperarVisualQrCode).toHaveBeenCalledWith(
+            '65f1a0000000000000000001',
+            'qr-id',
+        )
+        expect(response.headers['cache-control']).toBe('no-store')
+        expect(response.body.qrcode.qrCodeDataUri).toBe('data:image/png;base64,cG5n')
+        expect(response.body.qrcode.token).toBeUndefined()
+    })
+
+    it('retorna 409 para QR antigo sem dados recuperáveis', async () => {
+        const erro = new TenantQrCodeError('QR antigo não pode ser reexibido.', 409)
+        recuperarVisualQrCode.mockRejectedValue(erro)
+
+        const response = await request(app)
+            .get('/api/tenant/qrcodes/qr-id/visual')
+            .expect(409)
+
+        expect(response.body).toEqual({ sucesso: false, mensagem: 'QR antigo não pode ser reexibido.' })
+    })
+
+    it('retorna 404 para QR inexistente na reexibição', async () => {
+        const erro = new TenantQrCodeError('QR Code ativo não encontrado para esta organização.', 404)
+        recuperarVisualQrCode.mockRejectedValue(erro)
+
+        await request(app)
+            .get('/api/tenant/qrcodes/qr-id/visual')
+            .expect(404)
     })
 })

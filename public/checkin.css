@@ -12,8 +12,6 @@ body {
 }
 
 button { 
-    background-color: #000; 
-    color: #fff; 
     border: none; 
     padding: 20px 40px; 
     font-size: 1.2rem; 
@@ -86,7 +84,6 @@ button:disabled {
 }
 
 .face-panel .secondary {
-    background: #555;
 }
 
 #faceVideo {

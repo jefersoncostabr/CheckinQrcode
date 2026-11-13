@@ -20,7 +20,7 @@ body.com-navbar {
     width: 100cqw;
     margin: 0 0 24px;
     padding: 6px 20px;
-    background: #23384d;
+    background: var(--cor-navbar, #23384d);
     color: #fff;
     font-family: Arial, sans-serif;
     transform: translateX(-50%);

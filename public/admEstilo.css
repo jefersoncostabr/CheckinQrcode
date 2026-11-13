@@ -144,47 +144,32 @@ button:hover,
     transform: translateY(-2px);
 }
 
-#btnAtualizarQtd,
-#btnGerarQRCode,
-#btnTestarBiometria {
-    background-color: #3498db;
-}
-#btnAtualizarQtd:hover,
-#btnGerarQRCode:hover,
-#btnTestarBiometria:hover {
-    background-color: #2980b9;
-}
 
 #btnCadastrarUsuario {
-    background-color: #23384d;
-}
 
-#btnCadastrarUsuario:hover:not(:disabled) {
-    background-color: #172a3b;
 }
 
 .btn-danger {
-    background-color: #e74c3c;
+
 }
 .btn-danger:hover {
-    background-color: #c0392b;
+
 }
 
 .btn-success {
-    background-color: #218838;
+
 }
 
 .btn-success:hover {
-    background-color: #176b2b;
+
 }
 
 .btn-warning {
-    background-color: #ffc107;
-    color: #111;
+
 }
 
 .btn-warning:hover {
-    background-color: #e0a800;
+
 }
 
 .action-button {
@@ -211,10 +196,8 @@ button:hover,
 }
 
 .btn-secondary {
-    background-color: #7f8c8d;
 }
 .btn-secondary:hover {
-    background-color: #6c7a7b;
 }
 
 .status-message {

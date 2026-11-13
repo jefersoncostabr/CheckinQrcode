@@ -2,6 +2,7 @@ import { createHash, randomBytes } from 'node:crypto'
 import mongoose from 'mongoose'
 import QrCode from '../models/qrCodeModel.js'
 import Room from '../models/roomModel.js'
+import { generateQRCodeBuffer } from '../services/qrCodeService.js'
 
 export const TENANT_QR_CODE_LIMIT = 10
 
@@ -49,7 +50,7 @@ export async function listarQrCodesDoTenant(tenantId) {
     )
 }
 
-export async function criarQrCodeDoTenant(tenantId) {
+export async function criarQrCodeDoTenant(tenantId, baseUrl) {
     validarId(tenantId, 'Organização')
     const activeCount = await QrCode.countDocuments({
         tenantId,
@@ -64,6 +65,8 @@ export async function criarQrCodeDoTenant(tenantId) {
     const qrCode = await QrCode.create({
         tenantId,
         tokenHash,
+        tokenRecuperavel: token,
+        qrBaseUrl: baseUrl,
         status: 'available',
     })
     return {
@@ -72,14 +75,14 @@ export async function criarQrCodeDoTenant(tenantId) {
     }
 }
 
-export async function rotacionarQrCodeDoTenant(tenantId, qrCodeId) {
+export async function rotacionarQrCodeDoTenant(tenantId, qrCodeId, baseUrl) {
     validarId(tenantId, 'Organização')
     validarId(qrCodeId, 'QR Code')
     const token = randomBytes(32).toString('base64url')
     const tokenHash = createHash('sha256').update(token).digest('hex')
     const qrCode = await QrCode.findOneAndUpdate(
         { _id: qrCodeId, tenantId, status: 'active', roomId: { $exists: true } },
-        { $set: { tokenHash } },
+        { $set: { tokenHash, tokenRecuperavel: token, qrBaseUrl: baseUrl } },
         { new: true, runValidators: true },
     ).lean()
     return qrCode ? { ...serializarQrCode(qrCode), token } : null
@@ -107,12 +110,76 @@ export async function associarQrCodeASalaDoTenant(tenantId, qrCodeId, roomId) {
     const update = room
         ? { $set: { roomId, status: 'active' } }
         : { $set: { status: 'available' }, $unset: { roomId: 1 } }
-    const qrCode = await QrCode.findOneAndUpdate(
-        { _id: qrCodeId, tenantId, status: { $ne: 'revoked' } },
-        update,
-        { new: true, runValidators: true },
-    ).lean()
-    return qrCode ? serializarQrCode(qrCode, room?.name || null) : null
+
+    try {
+        const qrCode = await QrCode.findOneAndUpdate(
+            { _id: qrCodeId, tenantId, status: { $ne: 'revoked' } },
+            update,
+            { new: true, runValidators: true },
+        ).lean()
+        return qrCode ? serializarQrCode(qrCode, room?.name || null) : null
+    } catch (error) {
+        if (
+            error?.code === 11000 &&
+            error.keyPattern?.tenantId === 1 &&
+            error.keyPattern?.roomId === 1
+        ) {
+            throw new TenantQrCodeError(
+                'Esta sala já possui um QR Code ativo associado.',
+                409,
+            )
+        }
+        throw error
+    }
+}
+
+export async function recuperarVisualQrCode(tenantId, qrCodeId) {
+    validarId(tenantId, 'Organização')
+    validarId(qrCodeId, 'QR Code')
+
+    const qrCode = await QrCode.findOne({
+        _id: qrCodeId,
+        tenantId,
+        status: 'active',
+    })
+        .select('+tokenRecuperavel +qrBaseUrl')
+        .lean()
+
+    if (!qrCode) {
+        throw new TenantQrCodeError(
+            'QR Code ativo não encontrado para esta organização.',
+            404,
+        )
+    }
+
+    if (!qrCode.tokenRecuperavel || !qrCode.qrBaseUrl) {
+        throw new TenantQrCodeError(
+            'Este QR Code não possui dados recuperáveis para reexibição.',
+            409,
+        )
+    }
+
+    const room = await Room.findOne({
+        _id: qrCode.roomId,
+        tenantId,
+        status: { $ne: 'archived' },
+    }).lean()
+    if (!room) {
+        throw new TenantQrCodeError(
+            'Sala associada ao QR Code não encontrada ou foi arquivada.',
+            404,
+        )
+    }
+
+    const url = `${qrCode.qrBaseUrl}/add#${qrCode.tokenRecuperavel}`
+    const buffer = await generateQRCodeBuffer(url)
+    const qrCodeDataUri = `data:image/png;base64,${buffer.toString('base64')}`
+
+    return {
+        ...serializarQrCode(qrCode, room.name),
+        qrCodeDataUri,
+        url,
+    }
 }
 
 export async function revogarQrCodeDoTenant(tenantId, qrCodeId) {

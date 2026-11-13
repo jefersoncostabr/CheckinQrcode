@@ -46,18 +46,12 @@ li:nth-child(even) {
 }
 
 .btn-copiar {
-    background-color: #28a745;
-    color: white;
     border: none;
     padding: 8px 12px;
     border-radius: 5px;
     cursor: pointer;
     font-size: 0.9em;
     transition: background-color 0.2s;
-}
-
-.btn-copiar:hover {
-    background-color: #218838;
 }
 
 .loading {
@@ -83,7 +77,5 @@ li:nth-child(even) {
     padding: 8px 12px;
     border: 0;
     border-radius: 4px;
-    background: #287a58;
-    color: white;
     cursor: pointer;
 }

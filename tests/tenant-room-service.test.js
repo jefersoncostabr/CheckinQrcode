@@ -129,6 +129,27 @@ describe('serviço de salas isoladas por tenant', () => {
         expect(session.endSession).toHaveBeenCalled()
     })
 
+    it('converte duplicidade de QR ativo para a mesma sala em conflito', async () => {
+        const session = {
+            withTransaction: jest.fn(async operation => operation()),
+            endSession: jest.fn(),
+        }
+        jest.spyOn(mongoose, 'startSession').mockResolvedValue(session)
+        Room.create.mockResolvedValue([{
+            _id: roomId,
+            name: 'Sala Azul',
+            status: 'open',
+        }])
+        QrCode.findOneAndUpdate.mockRejectedValue(Object.assign(new Error('dup'), {
+            code: 11000,
+            keyPattern: { tenantId: 1, roomId: 1 },
+        }))
+
+        await expect(criarSalaComQrDoTenant(tenantId, 'Sala Azul', '65f1a0000000000000000004'))
+            .rejects.toMatchObject({ statusCode: 409 })
+        expect(session.endSession).toHaveBeenCalled()
+    })
+
     it('altera estado com filtro simultâneo por sala e tenant', async () => {
         updateQuery.lean.mockResolvedValue({
             _id: roomId,

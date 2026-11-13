@@ -124,6 +124,7 @@ describe('regressão da reorganização de arquivos', () => {
             'POST /api/tenant/biometrics/verify',
             'POST /api/tenant/biometrics/checkin',
             'POST /api/tenant/qrcodes/:id/rotate',
+            'GET /api/tenant/qrcodes/:id/visual',
         ].sort()
 
         const rotasAtuais = [

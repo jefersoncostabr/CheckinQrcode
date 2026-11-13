@@ -1,6 +1,7 @@
 import 'dotenv/config' // Carrega variáveis do arquivo .env
 import app from './app.js'
 import mongoose from 'mongoose'
+import QrCode from './models/qrCodeModel.js'
 
 const PORT = process.env.PORT || 3000
 
@@ -8,11 +9,15 @@ const PORT = process.env.PORT || 3000
 try {
     await mongoose.connect(process.env.MONGO_URI)
     console.log('Conectado ao MongoDB com sucesso!')
-} catch (err) {
-    console.error('Erro ao conectar ao MongoDB:', err)
-}
 
-app.listen(PORT, () => {
-    console.log(`Servidor rodando em http://localhost:${PORT}`)
-    console.log(`Gerenciendo as salas em http://localhost:${PORT}/adm`)
-})
+    await QrCode.createIndexes()
+
+    app.listen(PORT, () => {
+        console.log(`Servidor rodando em http://localhost:${PORT}`)
+        console.log(`Gerenciendo as salas em http://localhost:${PORT}/adm`)
+    })
+} catch (err) {
+    console.error('Erro ao conectar ao MongoDB ou preparar os índices:', err)
+    await mongoose.disconnect()
+    process.exitCode = 1
+}

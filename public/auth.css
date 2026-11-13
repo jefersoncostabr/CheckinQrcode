@@ -109,8 +109,6 @@ body {
     margin-top: 18px;
     border: 0;
     border-radius: 10px;
-    background: #087f82;
-    color: #fff;
     font: inherit;
     font-weight: 700;
     cursor: pointer;
@@ -118,7 +116,7 @@ body {
 }
 
 .auth-button:hover:not(:disabled) {
-    background: #06696c;
+
 }
 
 .auth-button:active:not(:disabled) {
@@ -132,7 +130,6 @@ body {
 }
 
 .auth-button:disabled {
-    background: #9aabad;
     cursor: not-allowed;
 }
 

@@ -1,0 +1,20 @@
+:root {
+    --cor-navbar: #23384d;
+    --cor-botao-hover-padrao: #36536f;
+}
+
+button:not(.menuHamburger):not(.navbarLogout),
+a.btn-secondary {
+    background-color: var(--cor-botao, var(--cor-navbar));
+    color: var(--cor-texto-botao, #fff);
+}
+
+button:not(.menuHamburger):not(.navbarLogout):hover:not(:disabled),
+a.btn-secondary:hover {
+    background-color: var(--cor-botao-hover, var(--cor-botao-hover-padrao));
+}
+
+button:not(.menuHamburger):not(.navbarLogout):disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}

@@ -50,7 +50,8 @@ Todas as rotas abaixo exigem sessão tenant e a permissão indicada. O serviço 
 | `PATCH` | `/api/tenant/rooms/:id` | `status: "open" \| "closed"` | `rooms:manage`; altera estado. |
 | `DELETE` | `/api/tenant/rooms/:id` | — | `rooms:manage`; arquiva sem apagar o histórico. |
 | `GET` | `/api/tenant/qrcodes` | — | `qrcodes:read`; lista QR sem revelar tokens ou hashes e retorna limite/quantidade ativa. |
-| `POST` | `/api/tenant/qrcodes` | — | `qrcodes:manage`; cria QR e retorna token/imagem uma única vez (limite de 10 por tenant). Configure `PUBLIC_BASE_URL` quando o endereço público não puder ser detectado. |
+| `POST` | `/api/tenant/qrcodes` | — | `qrcodes:manage`; cria um QR disponível e retorna token/imagem (limite de 10 por tenant). O token recuperável é guardado sem criptografia no banco, permitindo reexibição posterior por administrador autorizado. Configure `PUBLIC_BASE_URL` quando o endereço público não puder ser detectado. |
+| `GET` | `/api/tenant/qrcodes/:id/visual` | — | `qrcodes:manage`; reexibe a imagem de um QR Code ativo associado a uma sala, sem gerar outro token nem invalidar cópias existentes. Retorna `Cache-Control: no-store`. QR Codes sem dados recuperáveis retornam `409`. |
 | `PATCH` | `/api/tenant/qrcodes/:id` | `roomId` ou `null` | `qrcodes:manage`; associa a uma sala da mesma organização ou libera a associação. |
 | `POST` | `/api/tenant/qrcodes/:id/rotate` | — | `qrcodes:manage`; gera token/imagem novos e invalida cópias anteriores. |
 | `DELETE` | `/api/tenant/qrcodes/:id` | — | `qrcodes:manage`; revoga o QR. |
@@ -85,3 +86,9 @@ O QR aponta para `/add#TOKEN`. A página envia o token no corpo da API; o servid
 O login de credenciais administrativas em `POST /login` retorna `410 Gone`; use o login tenant na tela `/login`. Os endpoints antigos de check-in global (`POST /add`, `/api/checkin/sala`, `/api/face/*`, `/reduce`, `/clean`, `/api/salas`, `/api/qrcodes` e `/api/relatorio`) também retornam `410 Gone` ou, no caso de `/qtd`, exigem sessão tenant e consultam somente o tenant ativo. As páginas administrativas antigas foram redirecionadas/conectadas ao painel tenant.
 
 O endpoint `GET /api/rotas` requer sessão tenant e lista as rotas registradas, incluindo o nível de acesso.
+
+## Configuração de recuperação de QR Codes
+
+Os QR Codes associados a uma sala armazenam o token e a URL base sem criptografia no banco, permitindo reexibição posterior por administrador autorizado. Não é necessário configurar `QR_TOKEN_ENCRYPTION_KEY`.
+
+Atenção: acesso ao banco de dados pode expor os tokens recuperáveis dos QR Codes. Não registre tokens nem URLs base em logs. A URL base original precisa continuar acessível para que o QR Code funcione após a reexibição.

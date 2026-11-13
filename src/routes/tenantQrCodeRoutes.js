@@ -5,6 +5,7 @@ import {
     associarQrCodeASalaDoTenant,
     criarQrCodeDoTenant,
     listarQrCodesDoTenant,
+    recuperarVisualQrCode,
     rotacionarQrCodeDoTenant,
     revogarQrCodeDoTenant,
     TenantQrCodeError,
@@ -23,14 +24,7 @@ function responderErro(error, res, next) {
     return next(error)
 }
 
-async function montarQrCodeVisual(req, token) {
-    const baseUrl = getQrBaseUrl(req)
-    if (!baseUrl) {
-        throw new TenantQrCodeError(
-            'Não foi possível determinar o endereço público. Configure PUBLIC_BASE_URL.',
-            503,
-        )
-    }
+async function montarQrCodeVisual(baseUrl, token) {
     const url = `${baseUrl}/add#${token}`
     const buffer = await generateQRCodeBuffer(url)
     return {
@@ -62,8 +56,8 @@ router.post('/qrcodes', authorizeTenantPermission('qrcodes:manage'), async (req,
                 mensagem: 'Não foi possível determinar o endereço público. Configure PUBLIC_BASE_URL.',
             })
         }
-        const qrcode = await criarQrCodeDoTenant(req.tenant.id)
-        const visual = await montarQrCodeVisual(req, qrcode.token)
+        const qrcode = await criarQrCodeDoTenant(req.tenant.id, baseUrl)
+        const visual = await montarQrCodeVisual(baseUrl, qrcode.token)
         return res.status(201).json({
             sucesso: true,
             qrcode: { ...qrcode, ...visual },
@@ -75,15 +69,33 @@ router.post('/qrcodes', authorizeTenantPermission('qrcodes:manage'), async (req,
 
 router.post('/qrcodes/:id/rotate', authorizeTenantPermission('qrcodes:manage'), async (req, res, next) => {
     try {
-        const qrcode = await rotacionarQrCodeDoTenant(req.tenant.id, req.params.id)
+        const baseUrl = getQrBaseUrl(req)
+        if (!baseUrl) {
+            return res.status(503).json({
+                sucesso: false,
+                mensagem: 'Não foi possível determinar o endereço público. Configure PUBLIC_BASE_URL.',
+            })
+        }
+        const qrcode = await rotacionarQrCodeDoTenant(req.tenant.id, req.params.id, baseUrl)
         if (!qrcode) {
             return res.status(404).json({
                 sucesso: false,
                 mensagem: 'QR Code ativo associado a uma sala não encontrado.',
             })
         }
-        const visual = await montarQrCodeVisual(req, qrcode.token)
+        const visual = await montarQrCodeVisual(baseUrl, qrcode.token)
         return res.json({ sucesso: true, qrcode: { ...qrcode, ...visual } })
+    } catch (error) {
+        return responderErro(error, res, next)
+    }
+})
+
+router.get('/qrcodes/:id/visual', authorizeTenantPermission('qrcodes:manage'), async (req, res, next) => {
+    try {
+        const visual = await recuperarVisualQrCode(req.tenant.id, req.params.id)
+        return res
+            .set('Cache-Control', 'no-store')
+            .json({ sucesso: true, qrcode: visual })
     } catch (error) {
         return responderErro(error, res, next)
     }

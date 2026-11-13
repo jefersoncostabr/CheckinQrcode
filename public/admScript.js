@@ -31,7 +31,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // Estilização dos botões de Adicionar (Verde - Igual ao Relatório)
     [btnAddPresenca, btnAddSala].forEach(btn => {
         if (btn) {
-            btn.style.backgroundColor = '#28a745'; // Verde sucesso
             btn.style.color = '#ffffff';
             btn.style.border = 'none';
             btn.style.padding = '8px 16px';
@@ -105,7 +104,7 @@ document.addEventListener('DOMContentLoaded', () => {
         download.style.margin = '10px';
 
         const warning = document.createElement('p');
-        warning.textContent = 'Guarde esta imagem. O token não pode ser recuperado depois; gerar outro invalida este QR.';
+        warning.textContent = 'Guarde esta imagem. Este QR pode ser exibido novamente enquanto estiver disponível para a sala.';
         statusEl.append(img, download, warning);
     }
 
@@ -167,6 +166,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 const divBotoes = document.createElement('div');
                 divBotoes.className = 'room-actions';
 
+                const btnQrCode = document.createElement('button');
+                btnQrCode.type = 'button';
+                btnQrCode.textContent = 'QR Code';
+                btnQrCode.className = 'action-button';
+                btnQrCode.setAttribute('aria-label', `QR Code da sala ${sala.nome}`);
+                btnQrCode.addEventListener('click', () => exibirQrDaSala(sala.id));
+                divBotoes.appendChild(btnQrCode);
+
                 const btnZerar = document.createElement('button');
                 btnZerar.textContent = 'Zerar';
                 btnZerar.className = 'action-button btn-warning';
@@ -213,10 +220,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function carregarQrs() {
-        if (!podeConsultarQrs) return;
+        if (!podeConsultarQrs) return false;
+        let sucesso = false;
         await apiRequest('/api/tenant/qrcodes', { method: 'GET' }, (data) => {
             qrCodesTenant = Array.isArray(data.qrcodes) ? data.qrcodes : [];
+            sucesso = true;
         });
+        return sucesso;
     }
 
     async function alterarEstadoSala(sala) {
@@ -398,35 +408,51 @@ document.addEventListener('DOMContentLoaded', () => {
             updateStatus('Selecione uma sala para gerar o QR Code.', 'error');
             return;
         }
+        await exibirQrDaSala(sala);
+    });
 
-        const associado = qrCodesTenant.find(qr =>
-            qr.roomId === sala && qr.status === 'active',
-        )
-        if (associado) {
-            if (!confirm('Gerar uma nova imagem rotacionando o token? Cópias anteriores deste QR deixarão de funcionar.')) return
-            await apiRequest(`/api/tenant/qrcodes/${associado.id}/rotate`, {
-                method: 'POST',
-            }, data => mostrarQrCode(data.qrcode, `qrcode_sala_${sala}.png`))
-            return
-        }
+    let exibindoQrPorSala = new Map();
 
-        await apiRequest('/api/tenant/qrcodes', { method: 'POST' }, async data => {
-            const association = await apiRequest(`/api/tenant/qrcodes/${data.qrcode.id}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ roomId: sala }),
-            })
-            mostrarQrCode(data.qrcode, `qrcode_sala_${sala}.png`)
-            if (!association) {
-                const erro = document.createElement('p');
-                erro.textContent = 'O QR foi criado, mas não pôde ser associado à sala. Guarde a imagem; a associação deste QR existente só está disponível pela API.';
-                statusEl.prepend(erro);
-                statusEl.className = 'status-message error';
+    async function exibirQrDaSala(salaId) {
+        if (exibindoQrPorSala.get(salaId)) return;
+        exibindoQrPorSala.set(salaId, true);
+        try {
+            const ok = await carregarQrs()
+            if (!ok) return
+
+            const associado = qrCodesTenant.find(qr =>
+                qr.roomId === salaId && qr.status === 'active',
+            )
+            if (associado) {
+                await apiRequest(`/api/tenant/qrcodes/${associado.id}/visual`, {
+                    method: 'GET',
+                }, data => {
+                    mostrarQrCode(data.qrcode, `qrcode_sala_${salaId}.png`)
+                    statusEl.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                })
+                return
             }
 
-            await carregarQrs()
-        })
-    });
+            await apiRequest('/api/tenant/qrcodes', { method: 'POST' }, async data => {
+                const association = await apiRequest(`/api/tenant/qrcodes/${data.qrcode.id}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ roomId: salaId }),
+                })
+                mostrarQrCode(data.qrcode, `qrcode_sala_${salaId}.png`)
+                statusEl.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                if (!association) {
+                    const erro = document.createElement('p');
+                    erro.textContent = 'O QR foi criado, mas não pôde ser associado à sala. Guarde a imagem; a associação deste QR existente só está disponível pela API.';
+                    statusEl.prepend(erro);
+                    statusEl.className = 'status-message error';
+                }
+                await carregarQrs()
+            })
+        } finally {
+            exibindoQrPorSala.delete(salaId)
+        }
+    }
 
     async function carregarPerfisFaciais() {
         if (!listaPerfisFaciaisEl || document.getElementById('biometricManagementCard').hidden) return

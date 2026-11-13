@@ -13,6 +13,7 @@ const criarQrCodeDoTenant = jest.fn()
 const associarQrCodeASalaDoTenant = jest.fn()
 const rotacionarQrCodeDoTenant = jest.fn()
 const revogarQrCodeDoTenant = jest.fn()
+const recuperarVisualQrCode = jest.fn()
 const TENANT_QR_CODE_LIMIT = 10
 class TenantQrCodeError extends Error {
     constructor(message, statusCode) {
@@ -42,6 +43,7 @@ jest.unstable_mockModule('../src/services/tenantQrCodeService.js', () => ({
     associarQrCodeASalaDoTenant,
     rotacionarQrCodeDoTenant,
     revogarQrCodeDoTenant,
+    recuperarVisualQrCode,
     TenantQrCodeError,
     TENANT_QR_CODE_LIMIT,
 }))

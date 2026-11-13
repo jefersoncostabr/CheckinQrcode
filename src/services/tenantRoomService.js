@@ -42,6 +42,16 @@ function capturarDuplicidade(error) {
     ) {
         throw new TenantRoomError('Já existe uma sala com este nome nesta organização.', 409)
     }
+    if (
+        error?.code === 11000 &&
+        error.keyPattern?.tenantId === 1 &&
+        error.keyPattern?.roomId === 1
+    ) {
+        throw new TenantRoomError(
+            'Esta sala já possui um QR Code ativo associado.',
+            409,
+        )
+    }
     throw error
 }
 
