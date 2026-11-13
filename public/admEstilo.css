@@ -134,6 +134,11 @@ button,
     text-align: center;
 }
 
+.container button,
+.container .btn-secondary {
+    font-weight: 700;
+}
+
 button:hover,
 .btn-secondary:hover {
     transform: translateY(-2px);
@@ -141,13 +146,11 @@ button:hover,
 
 #btnAtualizarQtd,
 #btnGerarQRCode,
-#btnCriarQr,
 #btnTestarBiometria {
     background-color: #3498db;
 }
 #btnAtualizarQtd:hover,
 #btnGerarQRCode:hover,
-#btnCriarQr:hover,
 #btnTestarBiometria:hover {
     background-color: #2980b9;
 }
