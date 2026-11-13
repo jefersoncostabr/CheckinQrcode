@@ -1,18 +1,29 @@
+html {
+    container-type: inline-size;
+}
+
+body.com-navbar {
+    padding-top: 0;
+}
+
 .wraperNavegacao {
-    align-self: stretch;
+    position: relative;
+    left: 50%;
+    align-self: flex-start;
     box-sizing: border-box;
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
     gap: 12px 24px;
-    width: 100%;
+    width: 100vw;
+    width: 100cqw;
     margin: 0 0 24px;
-    padding: 12px 20px;
-    border-radius: 8px;
+    padding: 6px 20px;
     background: #23384d;
     color: #fff;
     font-family: Arial, sans-serif;
+    transform: translateX(-50%);
 }
 
 .navbarHeader {
@@ -61,24 +72,35 @@
 }
 
 .linkMenu {
+    box-sizing: border-box;
     display: inline-flex;
-    min-height: 42px;
+    min-height: 36px;
     align-items: center;
     justify-content: center;
     padding: 8px 12px;
     border: 0;
-    border-radius: 6px;
+    border-radius: 5px;
     background: transparent;
     font: inherit;
     cursor: pointer;
+    box-shadow: none;
+    transition: background-color 0.2s;
 }
 
 .linkMenu:hover,
+.menuHamburger:hover {
+    background: #36536f;
+}
+
 .linkMenu:focus-visible,
 .navbarBrand:focus-visible {
-    outline: 2px solid #fff;
+    outline: 2px solid #b9d8f1;
     outline-offset: 2px;
-    background: #36536f;
+}
+
+.wraperNavegacao button:hover,
+.wraperNavegacao button:active {
+    transform: none;
 }
 
 .navbarLogout {
@@ -100,10 +122,12 @@
     justify-content: center;
     gap: 5px;
     padding: 0;
-    border: 1px solid #7f94a8;
+    border: 0;
     border-radius: 6px;
     background: transparent;
     cursor: pointer;
+    box-shadow: none;
+    transition: background-color 0.2s;
 }
 
 .menuHamburger span {
@@ -114,8 +138,8 @@
 }
 
 .menuHamburger:focus-visible {
-    outline: 3px solid #fff;
-    outline-offset: 3px;
+    outline: 2px solid #b9d8f1;
+    outline-offset: 2px;
 }
 
 .navbarStatus {
@@ -134,7 +158,7 @@
 @media (max-width: 768px) {
     .wraperNavegacao {
         gap: 0;
-        padding: 10px 14px;
+        padding: 4px 14px;
     }
 
     .navbarHeader {
@@ -171,6 +195,7 @@
 
     .linkMenu {
         box-sizing: border-box;
+        min-height: 44px;
         justify-content: flex-start;
         padding: 10px 12px;
     }
