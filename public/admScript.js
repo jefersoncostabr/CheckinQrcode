@@ -4,7 +4,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const listaCheckinsEl = document.getElementById('listaCheckins');
     const checkinsVazioEl = document.getElementById('checkinsVazio');
     const statusEl = document.getElementById('status');
-    const salaSelect = document.getElementById('salaSelect');
     const listaSalasEl = document.getElementById('listaSalas');
     const listaPerfisFaciaisEl = document.getElementById('listaPerfisFaciais');
     let qrCodesTenant = [];
@@ -14,7 +13,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnAtualizarQtd = document.getElementById('btnAtualizarQtd');
     const btnAddPresenca = document.getElementById('btnAddPresenca');
     const btnCadastrarUsuario = document.getElementById('btnCadastrarUsuario');
-    const btnGerarQRCode = document.getElementById('btnGerarQRCode');
     const btnAddSala = document.getElementById('btnAddSala');
     const cadastroUsuarioDialog = document.getElementById('cadastroUsuarioDialog');
     const cadastroUsuarioForm = document.getElementById('cadastroUsuarioForm');
@@ -128,7 +126,6 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('roomManagementCard').hidden = !manage;
         document.getElementById('biometricManagementCard').hidden = !manage;
         btnAddSala.disabled = !manage;
-        btnGerarQRCode.disabled = !manage;
         btnCadastrarUsuario.disabled = !manage;
         document.querySelector('a[href="/relatorio"]').hidden =
             !['owner', 'admin', 'viewer'].includes(tenant.role);
@@ -141,16 +138,9 @@ document.addEventListener('DOMContentLoaded', () => {
         await apiRequest('/api/tenant/rooms', { method: 'GET' }, (data) => {
             const salas = Array.isArray(data.salas) ? data.salas : [];
 
-            salaSelect.innerHTML = '<option value="">Selecione uma sala</option>';
             listaSalasEl.innerHTML = '';
 
             salas.forEach(sala => {
-                const salaAberta = sala.status === 'open';
-                const opt = document.createElement('option');
-                opt.value = sala.id;
-                opt.textContent = `${sala.nome}${salaAberta ? '' : ' (fechada)'}`;
-                opt.dataset.nome = sala.nome;
-                salaSelect.appendChild(opt);
 
                 const li = document.createElement('li');
                 li.style.display = 'flex';
@@ -174,6 +164,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 btnQrCode.setAttribute('aria-label', `QR Code da sala ${sala.nome}`);
                 btnQrCode.addEventListener('click', () => exibirQrDaSala(sala.id));
                 divBotoes.appendChild(btnQrCode);
+
+                const btnMonitorar = document.createElement('a');
+                const parametrosMonitor = new URLSearchParams({ roomId: String(sala.id) });
+                btnMonitorar.href = `/adm/monitor-facial?${parametrosMonitor}`;
+                btnMonitorar.className = 'action-button btn-secondary';
+                btnMonitorar.textContent = 'Monitorar';
+                btnMonitorar.target = '_blank';
+                btnMonitorar.rel = 'noopener';
+                btnMonitorar.setAttribute('aria-label', `Monitorar presença da sala ${sala.nome}`);
+                divBotoes.appendChild(btnMonitorar);
 
                 const btnZerar = document.createElement('button');
                 btnZerar.textContent = 'Zerar';
@@ -403,13 +403,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    btnGerarQRCode.addEventListener('click', async () => {
-        const sala = salaSelect.value;
-        if (!sala) {
-            updateStatus('Selecione uma sala para gerar o QR Code.', 'error');
-            return;
-        }
-        await exibirQrDaSala(sala);
     });
 
     let exibindoQrPorSala = new Map();
@@ -500,4 +493,3 @@ document.addEventListener('DOMContentLoaded', () => {
         console.error('[adm] Erro ao inicializar o painel:', error);
         updateStatus(`Erro ao verificar sessão: ${error.message}`, 'error');
     })
-});

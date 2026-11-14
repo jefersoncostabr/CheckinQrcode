@@ -1,5 +1,6 @@
 import express from 'express'
 import session from 'express-session'
+import MongoStore from 'connect-mongo'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import routes from './routes/routes.js'
@@ -30,12 +31,19 @@ if (!process.env.SESSION_SECRET) {
 app.use(
     session({
         secret: sessionSecret,
+        store: MongoStore.create({
+            mongoUrl: process.env.MONGO_URI,
+            collectionName: 'sessions',
+            ttl: 7 * 24 * 60 * 60,
+            autoRemove: 'native',
+        }),
         resave: false,
         saveUninitialized: false,
         cookie: {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
             sameSite: 'lax',
+            maxAge: 7 * 24 * 60 * 60 * 1000,
         }
     })
 )

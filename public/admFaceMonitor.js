@@ -48,6 +48,23 @@ async function carregarSalasAbertas() {
             return;
         }
 
+        const salaSolicitada = new URLSearchParams(window.location.search).get('roomId');
+
+        if (salaSolicitada !== null) {
+            const salaAberta = salasAbertas.find(sala => String(sala.id) === salaSolicitada);
+
+            if (!salaAberta) {
+                statusMonitor.textContent = 'A sala solicitada não está aberta ou não está disponível. Selecione outra sala aberta.';
+                botaoIniciar.disabled = false;
+                return;
+            }
+
+            salaSelect.value = String(salaAberta.id);
+            statusMonitor.textContent = 'Sala selecionada. Confirme que as pessoas foram informadas.';
+            botaoIniciar.disabled = false;
+            return;
+        }
+
         statusMonitor.textContent = 'Selecione uma sala e confirme que as pessoas foram informadas.';
         botaoIniciar.disabled = false;
     } catch (error) {

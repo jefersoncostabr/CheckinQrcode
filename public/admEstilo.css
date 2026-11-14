@@ -41,14 +41,7 @@ h2 {
     margin-bottom: 25px;
 }
 
-.info-display {
-    text-align: center;
-    font-size: 1.5em;
-    margin-bottom: 20px;
-    background-color: #e8f4f8;
-    padding: 15px;
-    border-radius: 5px;
-}
+
 
 .checkins-header,
 .checkins-refresh {
@@ -139,6 +132,11 @@ button,
     font-weight: 700;
 }
 
+#btnTestarBiometria[hidden],
+#btnRelatorio[hidden] {
+    display: none;
+}
+
 button:hover,
 .btn-secondary:hover {
     transform: translateY(-2px);
@@ -187,7 +185,17 @@ button:hover,
 }
 
 .room-actions .action-button {
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 118px;
     min-width: 118px;
+    min-height: 42px;
+    padding: 8px 10px;
+    border: 0;
+    box-shadow: none;
+    font-family: inherit;
 }
 
 .action-button:focus-visible {
@@ -202,6 +210,7 @@ button:hover,
 
 .status-message {
     margin-top: 20px;
+    margin-bottom: 25px;
     padding: 15px;
     border-radius: 5px;
     text-align: center;
@@ -222,6 +231,38 @@ button:hover,
     background-color: #f2dede;
     border-color: #ebccd1;
     color: #a94442;
+}
+
+@media (min-width: 1200px) {
+    .container {
+        display: grid;
+        grid-template-columns:
+            minmax(0, 1fr)
+            minmax(0, min(900px, calc(100% - 500px)))
+            minmax(0, 1fr);
+        column-gap: 25px;
+        max-width: none;
+    }
+
+    .container > * {
+        grid-column: 2;
+        min-width: 0;
+    }
+
+    .container > #status {
+        grid-column: 1;
+        grid-row: 3;
+        align-self: start;
+        justify-self: end;
+        box-sizing: border-box;
+        width: min(300px, 100%);
+        margin-top: 0;
+    }
+
+    #status img {
+        width: 100%;
+        height: auto;
+    }
 }
 
 @media (max-width: 520px) {

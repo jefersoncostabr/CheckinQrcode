@@ -72,6 +72,8 @@ No celular, `localhost` aponta para o próprio telefone. Para testes locais, con
 - Configure `MONGO_URI` para o banco correto (incluindo `Checkin_de_sala` no caminho da URI) e use valores seguros fora do repositório.
 - Configure um `SESSION_SECRET` forte e `NODE_ENV=production`.
 - Configure `PUBLIC_BASE_URL` com o endereço HTTPS público para criar QR Codes válidos fora da máquina local.
-- A sessão usa o armazenamento padrão em memória do `express-session`; sessões se perdem ao reiniciar o processo. Para múltiplas instâncias ou persistência entre reinícios, configure um armazenamento de sessão persistente antes da produção.
+- As sessões são armazenadas na coleção "sessions" do MongoDB por meio do `connect-mongo`, usando a variável `MONGO_URI`.
+- As sessões persistem após reinícios do processo do servidor.
+- O cookie e as sessões expiram após 7 dias.
 
 Para a lista completa de rotas e permissões, consulte [ROTAS.md](./ROTAS.md).
