@@ -1,16 +1,34 @@
 import express from 'express'
 import path from 'path'
+import { readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'url'
 import { requireTenantAuth } from '../middleware/auth.js'
-import { authorizeTenantPermission } from '../middleware/authorizeTenant.js'
+import { authorizeTenantPermission, loadActiveTenant, roleHasTenantPermission } from '../middleware/authorizeTenant.js'
 
 const router = express.Router()
 const publicDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'public')
 
 router.use(requireTenantAuth)
 
-router.get('/', (req, res) => {
-    res.sendFile(path.join(publicDir, 'adm.html'))
+router.get('/', loadActiveTenant, async (req, res, next) => {
+    try {
+        let html = await readFile(path.join(publicDir, 'adm.html'), 'utf8')
+        if (roleHasTenantPermission(req.tenant.role, 'biometrics:manage')) {
+            html = html.replace('id="btnTestarBiometria" hidden', 'id="btnTestarBiometria"')
+        }
+        if (roleHasTenantPermission(req.tenant.role, 'reports:read')) {
+            html = html.replace('id="btnRelatorio" hidden', 'id="btnRelatorio"')
+        }
+        res.set('Cache-Control', 'private, no-store')
+        res.type('html').send(html)
+    } catch (error) {
+        next(error)
+    }
+})
+
+router.get('/avancado', loadActiveTenant, (req, res) => {
+    res.set('Cache-Control', 'private, no-store')
+    res.sendFile(path.join(publicDir, '..', 'src', 'views', 'admAvancado.html'))
 })
 
 router.get('/adicionar-manual', authorizeTenantPermission('attendance:create'), (req, res) => {

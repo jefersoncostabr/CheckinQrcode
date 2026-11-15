@@ -8,8 +8,12 @@ import Tenant from '../src/models/tenantModel.js'
 import User from '../src/models/userModel.js'
 
 describe('modelos da fundação multi-tenant', () => {
-    it('mantém o e-mail único e não seleciona hash de senha por padrão', () => {
-        expect(User.schema.path('email').options.unique).toBe(true)
+    it('mantém o e-mail opcional e índice parcial único para e-mails preenchidos', () => {
+        expect(User.schema.path('email').options.required).toBeUndefined()
+        const indiceEmail = User.schema.indexes().find(idx => idx[0] && idx[0].email === 1)
+        expect(indiceEmail).toBeDefined()
+        expect(indiceEmail[1].unique).toBe(true)
+        expect(indiceEmail[1].partialFilterExpression).toEqual({ email: { $type: 'string' } })
         expect(User.schema.path('passwordHash').options.select).toBe(false)
     })
 
@@ -52,6 +56,10 @@ describe('modelos da fundação multi-tenant', () => {
             { tenantId: 1, nameKey: 1 },
             { unique: true },
         ])
+        const indiceUserId = Person.schema.indexes().find(idx => idx[0] && idx[0].userId === 1)
+        expect(indiceUserId).toBeDefined()
+        expect(indiceUserId[1].unique).toBe(true)
+        expect(indiceUserId[1].partialFilterExpression).toEqual({ userId: { $type: 'objectId' } })
         expect(Room.schema.indexes()).toContainEqual([
             { tenantId: 1, activeName: 1 },
             expect.objectContaining({

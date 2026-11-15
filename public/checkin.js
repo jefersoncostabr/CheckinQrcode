@@ -20,7 +20,12 @@ let checkinRoomKey = salaAtual;
 const tituloEl = document.querySelector('h1');
 const salaStatus = document.getElementById('salaStatus');
 const nomeInput = document.getElementById('nomeInput');
-const btn = document.getElementById('btn');
+const senhaInput = document.getElementById('senhaInput');
+const btnCriarConta = document.getElementById('btnCriarConta');
+const btnEntrar = document.getElementById('btnEntrar');
+const btnConfirmar = document.getElementById('btnConfirmar');
+const btnSair = document.getElementById('btnSair');
+const statusConta = document.getElementById('statusConta');
 const facePanel = document.getElementById('facePanel');
 const faceConsent = document.getElementById('faceConsent');
 const faceName = document.getElementById('faceName');
@@ -73,36 +78,6 @@ function atualizarFeedbackCaptura(state, message) {
 
 faceCaptureCancel.addEventListener('click', () => faceCaptureController?.abort());
 
-async function validarSala() {
-    if (!salaAtual) {
-        salaStatus.textContent = 'QR Code inválido. Solicite à administração um QR Code novo desta organização.';
-        return;
-    }
-    try {
-        const response = await fetch('/api/checkin/tenant/resolve', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ token: tenantQrToken }),
-        });
-        const data = await response.json();
-        if (!response.ok) {
-            salaStatus.textContent = data.mensagem || 'Sala não cadastrada. Fale com a administração.';
-            habilitarExclusaoSemQrAtivo()
-            return;
-        }
-        tituloEl.textContent = `Check-in - ${data.sala.nome}`;
-        salaStatus.textContent = 'Confirme sua presença.';
-        nomeInput.disabled = false;
-        btn.disabled = false;
-        checkinRoomKey = data.sala.id;
-        facePanel.hidden = false;
-        faceDeleteBtn.textContent = 'Excluir meu perfil biométrico';
-        atualizarBotaoExclusao();
-    } catch {
-        salaStatus.textContent = 'Não foi possível verificar a sala. Tente novamente.';
-    }
-}
-
 function atualizarBotaoExclusao() {
     faceDeleteBtn.hidden = !localStorage.getItem(obterChaveArmazenamentoFacial());
 }
@@ -131,7 +106,10 @@ async function enviarCheckinFacial(descritor) {
 
     localStorage.setItem(storageKey, 'true');
     nomeInput.disabled = true;
-    btn.disabled = true;
+    senhaInput.disabled = true;
+    btnCriarConta.disabled = true;
+    btnEntrar.disabled = true;
+    btnConfirmar.disabled = true;
     faceCheckinBtn.disabled = true;
     faceEnrollBtn.disabled = true;
     faceStatus.textContent = data.nome
@@ -240,47 +218,279 @@ faceDeleteBtn.addEventListener('click', async () => {
     }
 });
 
-async function confirmar() {
-    const storageKey = `checkin_realizado_${checkinRoomKey}_${getTodayString()}`;
-    // Verifica se este dispositivo já salvou um check-in na data de hoje
-    if (localStorage.getItem(storageKey)) {
-        alert("Você já confirmou presença neste dispositivo hoje!");
-        return;
-    }
-
-    const nome = nomeInput.value.trim();
-
-    if (!nome) {
-        alert("Por favor, digite seu nome antes de confirmar.");
-        return;
-    }
-
-    if (!tenantQrToken) {
-        alert('QR Code inválido. Solicite à administração um QR Code novo desta organização.');
-        return;
-    }
-
-    btn.disabled = true; btn.innerText = 'Registrando...';
-    
+btnSair.addEventListener('click', async () => {
     try {
-        const res = await fetch('/api/checkin/tenant/attendance', {
+        const response = await fetch('/api/checkin/tenant/logout', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ nome, token: tenantQrToken }),
         });
-        const data = await res.json();
-        if(data.sucesso) { 
-            localStorage.setItem(storageKey, 'true'); // Marca neste celular que já foi feito hoje
-            nomeInput.disabled = true;
-            btn.innerText = 'Presença Confirmada! ✅';
-        } else { 
-            alert(data.mensagem); 
-            btn.disabled = false; btn.innerText = 'Tentar Novamente'; 
+        if (!response.ok) {
+            const data = await response.json();
+            throw new Error(data.mensagem || 'Não foi possível sair da conta.');
         }
-    } catch (e) { 
-        alert('Erro de conexão'); 
-        btn.disabled = false; btn.innerText = 'Tentar Novamente'; 
+    } catch (error) {
+        statusConta.textContent = error.message;
+        return;
+    }
+    sairConta();
+});
+
+function sairConta() {
+    nomeInput.value = '';
+    senhaInput.value = '';
+    mostrarModoNaoAutenticado();
+}
+
+function mostrarModoAutenticado(pessoa, sala) {
+    nomeInput.disabled = true;
+    senhaInput.disabled = true;
+    btnCriarConta.disabled = true;
+    btnEntrar.disabled = true;
+    btnCriarConta.hidden = true;
+    btnEntrar.hidden = true;
+
+    btnConfirmar.hidden = false;
+    btnConfirmar.disabled = false;
+    btnConfirmar.textContent = 'Confirmar presença';
+    btnSair.hidden = false;
+    btnSair.disabled = false;
+
+    statusConta.textContent = `Conectado como ${pessoa.nome}.`;
+    salaStatus.textContent = `Presença para ${sala.nome}.`;
+}
+
+function mostrarModoNaoAutenticado() {
+    nomeInput.disabled = false;
+    senhaInput.disabled = false;
+    atualizarBotoesConta();
+    btnCriarConta.hidden = false;
+    btnEntrar.hidden = false;
+
+    btnConfirmar.hidden = true;
+    btnConfirmar.disabled = true;
+    btnConfirmar.textContent = 'Confirmar presença';
+    btnSair.hidden = true;
+    btnSair.disabled = true;
+
+    statusConta.textContent = '';
+    salaStatus.textContent = 'Confirme sua presença.';
+}
+
+async function consultarSessao() {
+    if (!tenantQrToken) return;
+
+    try {
+        const response = await fetch('/api/checkin/tenant/sessao', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token: tenantQrToken }),
+        });
+
+        if (response.status === 401) {
+            mostrarModoNaoAutenticado();
+            return;
+        }
+
+        if (!response.ok) {
+            const data = await response.json();
+            if (response.status === 403) mostrarModoNaoAutenticado();
+            statusConta.textContent = data.mensagem || 'Erro ao verificar sessão.';
+            return;
+        }
+
+        const data = await response.json();
+        if (data.sucesso && data.pessoa) {
+            mostrarModoAutenticado(data.pessoa, data.sala);
+        } else {
+            statusConta.textContent = 'Resposta inválida ao verificar a sessão. Atualize a página.';
+        }
+    } catch {
+        statusConta.textContent = 'Não foi possível verificar a sessão. Atualize a página e tente novamente.';
     }
 }
+
+async function validarSala() {
+    if (!salaAtual) {
+        salaStatus.textContent = 'QR Code inválido. Solicite à administração um QR Code novo desta organização.';
+        return;
+    }
+    try {
+        const response = await fetch('/api/checkin/tenant/resolve', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token: tenantQrToken }),
+        });
+        const data = await response.json();
+        if (!response.ok) {
+            salaStatus.textContent = data.mensagem || 'Sala não cadastrada. Fale com a administração.';
+            habilitarExclusaoSemQrAtivo()
+            return;
+        }
+        tituloEl.textContent = `Check-in - ${data.sala.nome}`;
+        salaStatus.textContent = 'Verificando sua sessão...';
+        checkinRoomKey = data.sala.id;
+        facePanel.hidden = false;
+        faceDeleteBtn.textContent = 'Excluir meu perfil biométrico';
+        atualizarBotaoExclusao();
+
+        await consultarSessao();
+    } catch {
+        salaStatus.textContent = 'Não foi possível verificar a sala. Tente novamente.';
+    }
+}
+
+async function criarConta() {
+    const nome = nomeInput.value.trim();
+    const senha = senhaInput.value;
+
+    if (!nome) {
+        statusConta.textContent = 'Informe seu nome completo.';
+        return;
+    }
+    if (!senha) {
+        statusConta.textContent = 'Informe uma senha.';
+        return;
+    }
+    if (!tenantQrToken) {
+        salaStatus.textContent = 'QR Code inválido. Solicite à administração um QR Code novo desta organização.';
+        return;
+    }
+
+    btnCriarConta.disabled = true;
+    btnEntrar.disabled = true;
+    btnCriarConta.textContent = 'Criando conta...';
+
+    try {
+        const response = await fetch('/api/checkin/tenant/criar-conta', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ nome, senha, token: tenantQrToken }),
+        });
+        const data = await response.json();
+        if (!response.ok || !data.sucesso) {
+            statusConta.textContent = data.mensagem || 'Não foi possível criar a conta.';
+            btnCriarConta.disabled = false;
+            btnEntrar.disabled = false;
+            btnCriarConta.textContent = 'Criar conta e confirmar presença';
+            if (data.presencaRegistrada) senhaInput.value = '';
+            return;
+        }
+
+        senhaInput.value = '';
+        btnCriarConta.textContent = 'Criar conta e confirmar presença';
+        mostrarModoAutenticado(data.pessoa, data.sala);
+        btnConfirmar.disabled = true;
+        btnConfirmar.textContent = 'Presença Confirmada! ✅';
+        statusConta.textContent = `Conta criada e presença confirmada para ${data.pessoa.nome}.`;
+    } catch {
+        statusConta.textContent = 'Erro de conexão. Tente novamente.';
+        btnCriarConta.disabled = false;
+        btnEntrar.disabled = false;
+        btnCriarConta.textContent = 'Criar conta e confirmar presença';
+    }
+}
+
+async function entrar() {
+    const nome = nomeInput.value.trim();
+    const senha = senhaInput.value;
+
+    if (!nome) {
+        statusConta.textContent = 'Informe seu nome completo.';
+        return;
+    }
+    if (!senha) {
+        statusConta.textContent = 'Informe sua senha.';
+        return;
+    }
+    if (!tenantQrToken) {
+        salaStatus.textContent = 'QR Code inválido. Solicite à administração um QR Code novo desta organização.';
+        return;
+    }
+
+    btnEntrar.disabled = true;
+    btnCriarConta.disabled = true;
+    btnEntrar.textContent = 'Entrando...';
+
+    try {
+        const response = await fetch('/api/checkin/tenant/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ nome, senha, token: tenantQrToken }),
+        });
+        const data = await response.json();
+        if (!response.ok || !data.sucesso) {
+            statusConta.textContent = data.mensagem || 'Nome ou senha incorretos.';
+            btnEntrar.disabled = false;
+            btnCriarConta.disabled = false;
+            btnEntrar.textContent = 'Entrar';
+            return;
+        }
+
+        senhaInput.value = '';
+        btnEntrar.textContent = 'Entrar';
+        mostrarModoAutenticado(data.pessoa, data.sala);
+        await confirmarPresenca();
+    } catch {
+        statusConta.textContent = 'Erro de conexão. Tente novamente.';
+        btnEntrar.disabled = false;
+        btnCriarConta.disabled = false;
+        btnEntrar.textContent = 'Entrar';
+    }
+}
+
+async function confirmarPresenca() {
+    if (!tenantQrToken) {
+        salaStatus.textContent = 'QR Code inválido. Solicite à administração um QR Code novo desta organização.';
+        return;
+    }
+
+    btnConfirmar.disabled = true;
+    btnConfirmar.textContent = 'Registrando...';
+
+    try {
+        const response = await fetch('/api/checkin/tenant/attendance', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token: tenantQrToken }),
+        });
+        const data = await response.json();
+        if (!response.ok || !data.sucesso) {
+            if (response.status === 401) {
+                mostrarModoNaoAutenticado();
+                statusConta.textContent = data.mensagem || 'Faça login novamente.';
+                return;
+            }
+            statusConta.textContent = data.mensagem || 'Não foi possível confirmar a presença.';
+            btnConfirmar.disabled = false;
+            btnConfirmar.textContent = 'Confirmar presença';
+            return;
+        }
+
+        nomeInput.disabled = true;
+        senhaInput.disabled = true;
+        btnCriarConta.disabled = true;
+        btnEntrar.disabled = true;
+        btnConfirmar.disabled = true;
+        btnConfirmar.textContent = 'Presença Confirmada! ✅';
+        statusConta.textContent = data.mensagem || 'Presença confirmada.';
+    } catch {
+        statusConta.textContent = 'Erro de conexão. Tente novamente.';
+        btnConfirmar.disabled = false;
+        btnConfirmar.textContent = 'Confirmar presença';
+    }
+}
+
+btnCriarConta.addEventListener('click', criarConta);
+btnEntrar.addEventListener('click', entrar);
+btnConfirmar.addEventListener('click', confirmarPresenca);
+
+function atualizarBotoesConta() {
+    const incompleto = !nomeInput.value.trim() || !senhaInput.value;
+    btnCriarConta.disabled = incompleto;
+    btnEntrar.disabled = incompleto;
+}
+
+nomeInput.addEventListener('input', atualizarBotoesConta);
+senhaInput.addEventListener('input', atualizarBotoesConta);
 
 validarSala();

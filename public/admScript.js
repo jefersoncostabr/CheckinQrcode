@@ -141,6 +141,7 @@ document.addEventListener('DOMContentLoaded', () => {
             listaSalasEl.innerHTML = '';
 
             salas.forEach(sala => {
+                const salaAberta = sala.status === 'open';
 
                 const li = document.createElement('li');
                 li.style.display = 'flex';
@@ -403,8 +404,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    });
-
     let exibindoQrPorSala = new Map();
 
     async function exibirQrDaSala(salaId) {
@@ -492,4 +491,5 @@ document.addEventListener('DOMContentLoaded', () => {
     }).catch(error => {
         console.error('[adm] Erro ao inicializar o painel:', error);
         updateStatus(`Erro ao verificar sessão: ${error.message}`, 'error');
-    })
+    });
+});

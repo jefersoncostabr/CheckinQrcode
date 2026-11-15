@@ -132,6 +132,8 @@ button,
     font-weight: 700;
 }
 
+#btnAddPresenca[hidden],
+#btnCadastrarUsuario[hidden],
 #btnTestarBiometria[hidden],
 #btnRelatorio[hidden] {
     display: none;

@@ -23,30 +23,59 @@ if (process.env.NODE_ENV === 'production') {
 app.use(express.urlencoded({ extended: true }))
 app.use(express.json())
 
-// Sessões usadas pela autenticação tenant
 const sessionSecret = process.env.SESSION_SECRET || 'mudar-para-uma-senha-aleatoria'
 if (!process.env.SESSION_SECRET) {
     console.warn('A variável de ambiente SESSION_SECRET não está definida. Use um valor forte em produção.')
 }
-app.use(
-    session({
-        secret: sessionSecret,
-        store: MongoStore.create({
-            mongoUrl: process.env.MONGO_URI,
-            collectionName: 'sessions',
-            ttl: 7 * 24 * 60 * 60,
-            autoRemove: 'native',
-        }),
-        resave: false,
-        saveUninitialized: false,
-        cookie: {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'lax',
-            maxAge: 7 * 24 * 60 * 60 * 1000,
-        }
+
+function criarStoreMongo(collectionName, ttl) {
+    if (!process.env.MONGO_URI) {
+        return undefined
+    }
+    return MongoStore.create({
+        mongoUrl: process.env.MONGO_URI,
+        collectionName,
+        ttl,
+        autoRemove: 'native',
     })
-)
+}
+
+// --- Sessão do participante (check-in via QR): 30 dias, cookie próprio ---
+const participanteSession = session({
+    secret: sessionSecret,
+    name: 'checkin.sid',
+    store: criarStoreMongo('sessions_checkin', 30 * 24 * 60 * 60),
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/api/checkin/tenant',
+        maxAge: 30 * 24 * 60 * 60 * 1000,
+    },
+})
+
+// --- Sessão administrativa (7 dias) ---
+const adminSession = session({
+    secret: sessionSecret,
+    name: 'connect.sid',
+    store: criarStoreMongo('sessions', 7 * 24 * 60 * 60),
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+    },
+})
+
+// Monta as rotas de check-in ANTES da sessão administrativa, com a sessão do participante
+app.use('/api/checkin/tenant', participanteSession, tenantCheckinRoutes)
+
+// Sessão administrativa para as demais rotas
+app.use(adminSession)
 
 // Protege endpoints/arquivos administrativos que estão expostos via `public`
 app.use((req, res, next) => {
@@ -70,6 +99,10 @@ app.use((req, res, next) => {
         return res.redirect('/login')
     }
 
+    if (req.path === '/adm.html') {
+        return res.redirect('/adm')
+    }
+
     next()
 })
 
@@ -79,7 +112,6 @@ app.use(express.static(path.resolve(__dirname, '..', 'public')))
 app.use('/adm', adminRoutes)
 app.use('/api/tenant', tenantRoomRoutes)
 app.use('/api/tenant', tenantQrCodeRoutes)
-app.use('/api/checkin/tenant', tenantCheckinRoutes)
 app.use('/api/tenant', tenantAttendanceRoutes)
 app.use('/api/tenant', tenantBiometricRoutes)
 app.use('/api/tenant/auth', tenantAuthRoutes)

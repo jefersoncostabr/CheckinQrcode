@@ -15,6 +15,7 @@ O nome e a porta local podem variar conforme a configuração. Para acessar pelo
 | `GET` | `/login` | Público | Login com e-mail e senha de uma conta tenant. |
 | `GET` | `/criar-conta.html` | Público | Cria uma organização e sua primeira conta `owner`. |
 | `GET` | `/adm` | Sessão tenant | Painel administrativo da organização ativa. |
+| `GET` | `/adm/avancado` | Sessão tenant | Página avançada com bloco de teste. |
 | `GET` | `/adm/adicionar-manual` | Sessão tenant | Tela de lançamento manual de presença. |
 | `GET` | `/adm/monitor-facial` | Sessão tenant | Monitor facial para uma sala do tenant. |
 | `GET` | `/adm/relatorio` ou `/relatorio` | `reports:read` + sessão tenant | Relatório e lista de presenças da organização ativa. |
@@ -72,13 +73,44 @@ Todas as rotas abaixo exigem sessão tenant e a permissão indicada. O serviço 
 
 O QR aponta para `/add#TOKEN`. A página envia o token no corpo da API; o servidor resolve a organização, a sala e seus estados. Não envie `tenantId` nem `roomId` para selecionar a organização.
 
+### Sessão de participante
+
+O participante usa uma sessão separada (cookie `checkin.sid`, HttpOnly, SameSite=Lax, Secure em produção), com duração fixa de 30 dias, válida apenas para `/api/checkin/tenant`. A sessão não é renovada a cada requisição e expira 30 dias após o login/cadastro.
+
 | Método | Rota | Corpo/header | Descrição |
 |---|---|---|---|
 | `POST` | `/api/checkin/tenant/resolve` | `token` | Valida o QR e retorna a sala. |
-| `POST` | `/api/checkin/tenant/attendance` | `token`, `nome` | Registra presença pelo nome. |
+| `POST` | `/api/checkin/tenant/criar-conta` | `token`, `nome`, `senha` | Cria conta de participante (sem e-mail), registra a primeira presença e inicia a sessão de 30 dias. |
+| `POST` | `/api/checkin/tenant/login` | `token`, `nome`, `senha` | Autentica o participante pelo nome e senha e inicia a sessão de 30 dias. |
+| `POST` | `/api/checkin/tenant/sessao` | `token` | Consulta a sessão do participante para a organização do QR. Revalida usuário, pessoa, vínculo e tenant. |
+| `POST` | `/api/checkin/tenant/attendance` | `token` | Registra presença vinculada à pessoa da sessão. Requer sessão válida. |
+| `POST` | `/api/checkin/tenant/logout` | — | Encerra somente a sessão de participante e limpa o cookie `checkin.sid`. |
 | `POST` | `/api/checkin/tenant/biometrics/enroll` | `token`, `nome`, `descritor`, `consentimento: true` | Cadastra perfil no tenant do QR e devolve uma credencial de exclusão. |
 | `POST` | `/api/checkin/tenant/biometrics/checkin` | `token`, `descritor`, `consentimento: true` | Compara apenas perfis consentidos daquele tenant e registra presença. |
 | `DELETE` | `/api/checkin/tenant/biometrics/profiles/:id` | `x-biometric-delete-token` | Exclui o perfil com a credencial individual emitida no cadastro. |
+
+### Regras do cadastro de participante
+
+- O nome é único por organização (normalizado). Não é permitido cadastrar duas pessoas com o mesmo nome normalizado na mesma organização.
+- O e-mail não é exigido nem coletado no cadastro de participante.
+- Uma conta criada em uma organização não dá acesso automático a outra organização.
+- Não há recuperação automática de senha nesta etapa; em caso de senha esquecida ou conflito com pessoa antiga sem conta, procure a administração.
+- Uma pessoa antiga sem conta com o mesmo nome não é vinculada automaticamente a uma nova conta.
+- O check-in facial continua funcionando sem exigir conta ou senha.
+
+As respostas de autenticação e consulta de sessão enviam `Cache-Control: no-store`.
+
+O login limita a cinco tentativas malsucedidas por organização e endereço IP em uma janela de 15 minutos. Tentativas simultâneas também ocupam vagas enquanto são verificadas. O contador é compartilhado no MongoDB.
+
+### Migração do índice de e-mail
+
+Antes de atualizar uma instalação com o índice único antigo de `users.email`, faça backup, interrompa as escritas na coleção `users` e confirme o banco apontado por `MONGO_URI`. Execute manualmente:
+
+```powershell
+node scripts\migrateUserEmailIndex.js --confirm-database NOME_DO_BANCO
+```
+
+O script cria e verifica um índice único de proteção antes de remover o índice antigo; se a criação falhar, ele não remove o índice antigo. Se uma etapa posterior falhar, o índice de proteção permanece e o script pode ser executado novamente. O servidor só deve ser iniciado após a migração bem-sucedida. A criação do índice de proteção requer que o MongoDB aceite índices únicos esparso e não esparso com a mesma chave; caso não aceite, interrompa e planeje a migração durante manutenção, sem desproteger a unicidade.
 
 ## Rotas antigas desativadas
 

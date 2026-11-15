@@ -15,10 +15,32 @@
     <p id="salaStatus" role="status">Verificando sala...</p>
 
     <div class="checkin-manual">
-        <label for="nomeInput">Check-in pelo nome</label>
-        <input type="text" id="nomeInput" placeholder="Digite seu nome completo" required disabled>
+        <label for="nomeInput">Nome completo</label>
+        <input id="nomeInput" type="text" maxlength="120"
+            autocomplete="name" disabled>
+
+        <label for="senhaInput">Senha</label>
+        <input id="senhaInput" type="password"
+            autocomplete="current-password" disabled>
+
+        <button id="btnCriarConta" type="button" disabled>
+            Criar conta e confirmar presença
+        </button>
+
+        <button id="btnEntrar" type="button" disabled>
+            Entrar
+        </button>
+
+        <button id="btnConfirmar" type="button" disabled hidden>
+            Confirmar presença
+        </button>
+
+        <button id="btnSair" type="button" hidden>
+            Sair da conta
+        </button>
+
+        <p id="statusConta" role="status" aria-live="polite"></p>
     </div>
-    <button id="btn" onclick="confirmar()" disabled>Confirmar Presença</button>
 
     <section id="facePanel" class="face-panel" hidden>
         <h2>Ou use reconhecimento facial</h2>

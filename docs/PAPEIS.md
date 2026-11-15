@@ -22,6 +22,18 @@ Cada vínculo de uma conta com uma organização possui um papel. Os papéis sã
 | `user` | Criar presenças. Não pode consultar salas ou presenças, nem gerenciar dados. |
 
 
-O papel `user` recebe exclusivamente `attendance:create`. Portanto, ele não tem acesso de leitura ao histórico ou à lista de salas. Essa restrição também se aplica à interface: uma operação que precise listar salas para escolher uma delas exige a permissão `rooms:read`.
+## Participante do check-in via QR
 
-As permissões efetivas são carregadas do vínculo ativo no banco; o papel informado pelo navegador ou pela sessão não substitui essa verificação.
+O participante que se cadastra pelo check-in por nome recebe o papel `user` na organização
+em que se cadastrou. Esse papel concede exclusivamente `attendance:create`, permitindo
+registrar presença na sala identificada pelo QR Code.
+
+O participante usa uma **sessão separada** da sessão administrativa (cookie `checkin.sid`),
+com duração fixa de 30 dias, válida apenas para o caminho `/api/checkin/tenant`. A sessão
+não substitui, renova nem encerra uma sessão administrativa aberta no mesmo navegador.
+
+O papel e a sessão são revalidadas no servidor a cada operação autenticada; o papel
+informado pelo navegador não substitui essa verificação.
+
+No painel, os links Teste Facial e Relatório são exibidos desde o carregamento inicial
+somente para os papéis com as respectivas permissões.
