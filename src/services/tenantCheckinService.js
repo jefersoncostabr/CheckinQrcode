@@ -171,6 +171,7 @@ export async function cadastrarContaEPrimeiroCheckin({ token, nome, senha, sourc
                 name: nomeLimpo,
                 passwordHash,
                 status: 'active',
+                tipo_cliente: 'cliente',
             }], { session })
 
             const [membership] = await Membership.create([{

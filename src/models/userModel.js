@@ -9,6 +9,7 @@ const userSchema = new mongoose.Schema({
         maxlength: 254,
     },
     passwordHash: { type: String, required: true, select: false },
+    tipo_cliente: { type: String, enum: ['cliente', 'equipe'], required: true },
     status: { type: String, enum: ['active', 'disabled'], default: 'active' },
 }, { timestamps: true })
 

@@ -81,6 +81,7 @@ export async function createTenantOwner(input) {
                 name,
                 email,
                 passwordHash,
+                tipo_cliente: 'equipe',
             }], { session })
 
             const [membership] = await Membership.create([{

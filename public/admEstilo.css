@@ -135,7 +135,8 @@ button,
 #btnAddPresenca[hidden],
 #btnCadastrarUsuario[hidden],
 #btnTestarBiometria[hidden],
-#btnRelatorio[hidden] {
+#btnRelatorio[hidden],
+#btnAvancado[hidden] {
     display: none;
 }
 

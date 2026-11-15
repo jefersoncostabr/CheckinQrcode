@@ -152,7 +152,7 @@ router.get('/api/rotas', requireTenantAuth, (req, res) => {
         { metodo: 'DELETE', caminho: '/api/qrcodes/:id', acesso: 'desativada; use /api/tenant/qrcodes/:id' },
         { metodo: 'GET', caminho: '/relatorio', acesso: 'reports:read + tenant ativo' },
         { metodo: 'GET', caminho: '/adm', acesso: 'sessão tenant' },
-        { metodo: 'GET', caminho: '/adm/avancado', acesso: 'sessão tenant' },
+        { metodo: 'GET', caminho: '/adm/avancado', acesso: 'advanced:read + tenant ativo' },
         { metodo: 'GET', caminho: '/adm/adicionar-manual', acesso: 'attendance:create + tenant ativo' },
         { metodo: 'GET', caminho: '/adm/monitor-facial', acesso: 'biometrics:manage + tenant ativo' },
         { metodo: 'GET', caminho: '/adm/relatorio', acesso: 'reports:read + tenant ativo' },

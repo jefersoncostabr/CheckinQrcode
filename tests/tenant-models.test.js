@@ -31,6 +31,15 @@ describe('modelos da fundação multi-tenant', () => {
         ])
     })
 
+    it('exige um tipo de cliente válido', () => {
+        const dados = { name: 'Pessoa', passwordHash: 'hash' }
+
+        expect(new User({ ...dados, tipo_cliente: 'cliente' }).validateSync()).toBeUndefined()
+        expect(new User({ ...dados, tipo_cliente: 'equipe' }).validateSync()).toBeUndefined()
+        expect(new User({ ...dados, tipo_cliente: 'outro' }).validateSync()).toBeDefined()
+        expect(new User(dados).validateSync()).toBeDefined()
+    })
+
     it('mantém slug único e protege o descritor biométrico de consultas comuns', () => {
         expect(Tenant.schema.path('slug').options.unique).toBe(true)
         expect(BiometricProfile.schema.path('descriptor').options.select).toBe(false)

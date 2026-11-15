@@ -49,7 +49,10 @@ describe('fundação de cadastro multi-tenant', () => {
     })
 
     it('cria tenant, conta e vínculo owner dentro de uma transação', async () => {
-        const result = await createTenantOwner(validInput)
+        const result = await createTenantOwner({
+            ...validInput,
+            tipo_cliente: 'cliente',
+        })
 
         expect(result).toEqual({
             tenantId: 'tenant-id',
@@ -66,6 +69,7 @@ describe('fundação de cadastro multi-tenant', () => {
                 name: 'Pessoa Administradora',
                 email: 'admin@exemplo.com',
                 passwordHash: expect.any(String),
+                tipo_cliente: 'equipe',
             })],
             { session },
         )

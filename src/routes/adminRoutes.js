@@ -19,6 +19,9 @@ router.get('/', loadActiveTenant, async (req, res, next) => {
         if (roleHasTenantPermission(req.tenant.role, 'reports:read')) {
             html = html.replace('id="btnRelatorio" hidden', 'id="btnRelatorio"')
         }
+        if (roleHasTenantPermission(req.tenant.role, 'advanced:read')) {
+            html = html.replace('id="btnAvancado" hidden', 'id="btnAvancado"')
+        }
         res.set('Cache-Control', 'private, no-store')
         res.type('html').send(html)
     } catch (error) {
@@ -26,7 +29,7 @@ router.get('/', loadActiveTenant, async (req, res, next) => {
     }
 })
 
-router.get('/avancado', loadActiveTenant, (req, res) => {
+router.get('/avancado', authorizeTenantPermission('advanced:read'), (req, res) => {
     res.set('Cache-Control', 'private, no-store')
     res.sendFile(path.join(publicDir, '..', 'src', 'views', 'admAvancado.html'))
 })

@@ -19,12 +19,12 @@ app.use((req, res, next) => {
 app.use('/adm', adminRoutes)
 
 test.each([
-    ['owner', true, true],
-    ['admin', true, true],
-    ['viewer', false, true],
-    ['operator', false, false],
-    ['user', false, false],
-])('renderiza links iniciais conforme o vínculo ativo de %s', async (role, facial, relatorio) => {
+    ['owner', true, true, true],
+    ['admin', true, true, true],
+    ['viewer', false, true, false],
+    ['operator', false, false, false],
+    ['user', false, false, false],
+])('renderiza links iniciais conforme o vínculo ativo de %s', async (role, facial, relatorio, avancado) => {
     findActiveMembership.mockResolvedValue({ tenantId: 'tenant', membershipId: 'membership', role })
 
     const response = await request(app).get('/adm').expect(200)
@@ -32,7 +32,7 @@ test.each([
     expect(response.headers['cache-control']).toBe('private, no-store')
     expect(response.text).toContain(`id="btnTestarBiometria"${facial ? '' : ' hidden'} href=`)
     expect(response.text).toContain(`id="btnRelatorio"${relatorio ? '' : ' hidden'} href=`)
-    expect(response.text).toContain('<a href="/adm/avancado" class="btn-secondary">Avançado</a>')
+    expect(response.text).toContain(`id="btnAvancado"${avancado ? '' : ' hidden'} href="/adm/avancado"`)
     expect(findActiveMembership).toHaveBeenCalledWith('user', 'tenant', 'membership')
 })
 

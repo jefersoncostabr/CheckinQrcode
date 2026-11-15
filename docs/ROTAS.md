@@ -15,7 +15,7 @@ O nome e a porta local podem variar conforme a configuração. Para acessar pelo
 | `GET` | `/login` | Público | Login com e-mail e senha de uma conta tenant. |
 | `GET` | `/criar-conta.html` | Público | Cria uma organização e sua primeira conta `owner`. |
 | `GET` | `/adm` | Sessão tenant | Painel administrativo da organização ativa. |
-| `GET` | `/adm/avancado` | Sessão tenant | Página avançada com bloco de teste. |
+| `GET` | `/adm/avancado` | `advanced:read` + sessão tenant | Página avançada; acesso para `owner` e `admin`. |
 | `GET` | `/adm/adicionar-manual` | Sessão tenant | Tela de lançamento manual de presença. |
 | `GET` | `/adm/monitor-facial` | Sessão tenant | Monitor facial para uma sala do tenant. |
 | `GET` | `/adm/relatorio` ou `/relatorio` | `reports:read` + sessão tenant | Relatório e lista de presenças da organização ativa. |

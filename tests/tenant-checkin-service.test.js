@@ -206,6 +206,7 @@ describe('serviço de check-in por QR tenant-scoped', () => {
             nome: '  Ána   Silva  ',
             senha: 'senha1234',
             sourceIp: '127.0.0.1',
+            tipo_cliente: 'equipe',
         })
 
         expect(result.sala).toEqual({ id: roomId, nome: 'Sala Azul' })
@@ -216,6 +217,7 @@ describe('serviço de check-in por QR tenant-scoped', () => {
                 name: 'Ána   Silva',
                 passwordHash: 'hash:senha1234',
                 status: 'active',
+                tipo_cliente: 'cliente',
             })],
             { session: expect.anything() },
         )
