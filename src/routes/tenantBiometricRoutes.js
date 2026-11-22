@@ -1,5 +1,6 @@
 import express from 'express'
 import { authorizeTenantPermission } from '../middleware/authorizeTenant.js'
+import { CheckinPeriodError } from '../services/checkinPeriodService.js'
 import {
     cadastrarBiometriaAdminDoTenant,
     excluirBiometriaAdministrativaDoTenant,
@@ -12,7 +13,7 @@ import {
 const router = express.Router()
 
 function responderErro(error, res, next) {
-    if (error instanceof TenantBiometricError) {
+    if (error instanceof TenantBiometricError || error instanceof CheckinPeriodError) {
         return res.status(error.statusCode).json({
             sucesso: false,
             mensagem: error.message,

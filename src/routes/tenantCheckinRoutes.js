@@ -1,4 +1,5 @@
 import express from 'express'
+import { CheckinPeriodError } from '../services/checkinPeriodService.js'
 import {
     cadastrarContaEPrimeiroCheckin,
     autenticarParticipante,
@@ -23,7 +24,7 @@ router.use((req, res, next) => {
 })
 
 function responderErro(error, res, next) {
-    if (error instanceof TenantCheckinError || error instanceof TenantBiometricError) {
+    if (error instanceof TenantCheckinError || error instanceof TenantBiometricError || error instanceof CheckinPeriodError) {
         return res.status(error.statusCode).json({
             sucesso: false,
             mensagem: error.message,

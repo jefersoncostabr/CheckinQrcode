@@ -13,6 +13,7 @@ export const TENANT_PERMISSIONS = Object.freeze([
     'reports:read',
     'biometrics:manage',
     'advanced:read',
+    'checkinPeriods:read',
 ])
 
 export const TENANT_ROLE_PERMISSIONS = Object.freeze({
@@ -28,6 +29,7 @@ export const TENANT_ROLE_PERMISSIONS = Object.freeze({
         'reports:read',
         'biometrics:manage',
         'advanced:read',
+        'checkinPeriods:read',
     ]),
     operator: Object.freeze([
         'rooms:read',

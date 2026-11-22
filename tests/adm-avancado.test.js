@@ -55,8 +55,8 @@ describe('página administrativa avançada', () => {
 
         expect(response.status).toBe(200)
         expect(response.headers['cache-control']).toBe('private, no-store')
-        expect(response.text).toContain('Bloco de teste')
-        expect(response.text).toContain('Lorem ipsum')
+        expect(response.text).toContain('Períodos de check-in')
+        expect(response.text).toContain('/api/tenant/checkin-periods')
         expect(response.text).toContain('class="status-message"')
         expect(response.text).toContain('src="/navbar.js"')
         expect(response.text).toContain('href="/admEstilo.css"')

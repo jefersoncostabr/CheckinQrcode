@@ -12,11 +12,12 @@ function criarQueryMock() {
 const qrQuery = criarQueryMock()
 const tenantQuery = criarQueryMock()
 const roomQuery = criarQueryMock()
+const existsQuery = { session: jest.fn() }
 const QrCode = { findOne: jest.fn().mockReturnValue(qrQuery) }
 const Tenant = { findOne: jest.fn().mockReturnValue(tenantQuery) }
 const Room = { findOne: jest.fn().mockReturnValue(roomQuery) }
 const Attendance = {
-    exists: jest.fn(),
+    exists: jest.fn().mockReturnValue(existsQuery),
     create: jest.fn(),
 }
 const User = { create: jest.fn(), findOne: jest.fn() }
@@ -31,6 +32,13 @@ const tentativas = { findOneAndUpdate: jest.fn(), updateOne: jest.fn() }
 const mongooseMock = {
     startSession: jest.fn(async () => sessionMock),
     connection: { collection: jest.fn(() => tentativas) },
+    Types: { ObjectId: () => 'mocked-object-id' },
+    Schema: class {
+        constructor(obj) {
+            this.obj = obj
+        }
+        static Types = { ObjectId: () => 'mocked-object-id' }
+    },
 }
 
 jest.unstable_mockModule('../src/models/qrCodeModel.js', () => ({ default: QrCode }))
@@ -45,6 +53,12 @@ jest.unstable_mockModule('../src/services/passwordService.js', () => ({
     hashPassword: jest.fn(async p => `hash:${p}`),
     verifyPassword: jest.fn(async (p, h) => h === `hash:${p}`),
 }))
+jest.unstable_mockModule('../src/services/checkinPeriodService.js', () => ({
+    inserirPresencaNoPeriodo: jest.fn(),
+    obterPeriodoCorrente: jest.fn(),
+    adicionarPresencaManualAoUltimoPeriodo: jest.fn(),
+    removerPresencaDoPeriodoAberto: jest.fn(),
+}))
 
 const {
     obterContextoQr,
@@ -55,7 +69,10 @@ const {
     registrarCheckinAutenticado,
     TenantCheckinError,
 } = await import('../src/services/tenantCheckinService.js')
-
+const {
+    inserirPresencaNoPeriodo,
+    obterPeriodoCorrente,
+} = await import('../src/services/checkinPeriodService.js')
 const token = 'A'.repeat(43)
 const tokenHash = createHash('sha256').update(token).digest('hex')
 const tenantId = '65f1a0000000000000000001'
@@ -135,8 +152,8 @@ describe('serviço de check-in por QR tenant-scoped', () => {
         QrCode.findOne.mockReturnValue(qrQuery)
         Tenant.findOne.mockReturnValue(tenantQuery)
         Room.findOne.mockReturnValue(roomQuery)
-        Attendance.exists.mockResolvedValue(null)
         Attendance.create.mockResolvedValue({})
+        existsQuery.session.mockResolvedValue(null)
         User.create.mockResolvedValue([{}])
         Membership.create.mockResolvedValue([{}])
         Person.create.mockResolvedValue([{}])
@@ -148,6 +165,13 @@ describe('serviço de check-in por QR tenant-scoped', () => {
         sessionMock.withTransaction.mockImplementation(async callback => callback())
         tentativas.findOneAndUpdate.mockResolvedValue({ count: 1, expiresAt: new Date(Date.now() + 900000) })
         tentativas.updateOne.mockResolvedValue({ matchedCount: 1 })
+        obterPeriodoCorrente.mockResolvedValue({
+            _id: 'periodo-id',
+            tenantId,
+            roomId,
+            status: 'open',
+        })
+        inserirPresencaNoPeriodo.mockResolvedValue(undefined)
     })
 
     it('resolve token em QR ativo e consulta tenant e sala pelo escopo do próprio QR', async () => {
@@ -241,17 +265,14 @@ describe('serviço de check-in por QR tenant-scoped', () => {
             })],
             { session: expect.anything() },
         )
-        expect(Attendance.create).toHaveBeenCalledWith(
-            [expect.objectContaining({
+        expect(inserirPresencaNoPeriodo).toHaveBeenCalledWith(
+            expect.objectContaining({
                 tenantId,
                 roomId,
                 personId: expect.anything(),
-                personNameSnapshot: 'Ána   Silva',
-                personNameKey: 'ana silva',
-                method: 'qr',
-                sourceIp: '127.0.0.1',
-            })],
-            { session: expect.anything() },
+                userId: expect.anything(),
+                session: sessionMock,
+            }),
         )
     })
 
@@ -335,15 +356,14 @@ describe('serviço de check-in por QR tenant-scoped', () => {
             sourceIp: '127.0.0.1',
         })).resolves.toEqual({ sala: { id: roomId, nome: 'Sala Azul' } })
 
-        expect(Attendance.create).toHaveBeenCalledWith({
-            tenantId,
-            roomId,
-            personId,
-            personNameSnapshot: 'Ana Silva',
-            personNameKey: 'ana silva',
-            method: 'qr',
-            sourceIp: '127.0.0.1',
-        })
+        expect(inserirPresencaNoPeriodo).toHaveBeenCalledWith(
+            expect.objectContaining({
+                tenantId,
+                roomId,
+                personId,
+                userId,
+            }),
+        )
         expect(Membership.findOne).toHaveBeenCalledWith({
             _id: 'membership-id', tenantId, userId, status: 'active',
         })

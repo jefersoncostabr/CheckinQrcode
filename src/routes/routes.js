@@ -92,7 +92,7 @@ async function registrarPresenca(req, res, manual = false, nomeReconhecido = nul
         const resultado = await lotacaoSala.findOneAndUpdate(
             {},
             { $push: { historico: { nome, ip, data: new Date(), sala: sala.nome, salaId: sala.id } } },
-            { new: true, upsert: true }
+            { returnDocument: 'after', upsert: true }
         )
         const quantidadeSala = resultado.historico.filter(item => pertenceSala(item, sala)).length
         const resposta = { sucesso: true, mensagem: 'Check-in realizado!', novaQuantidade: quantidadeSala }
@@ -171,6 +171,7 @@ router.get('/api/rotas', requireTenantAuth, (req, res) => {
         { metodo: 'GET', caminho: '/api/tenant/reports/attendance', acesso: 'reports:read + tenant ativo' },
         { metodo: 'DELETE', caminho: '/api/tenant/attendances/:id', acesso: 'attendance:manage + tenant ativo' },
         { metodo: 'GET', caminho: '/api/tenant/dashboard', acesso: 'attendance:read + tenant ativo' },
+        { metodo: 'GET', caminho: '/api/tenant/checkin-periods', acesso: 'checkinPeriods:read + tenant ativo' },
         { metodo: 'POST', caminho: '/api/tenant/attendances/manual', acesso: 'attendance:create + tenant ativo' },
         { metodo: 'DELETE', caminho: '/api/tenant/attendances/latest', acesso: 'attendance:manage + tenant ativo' },
         { metodo: 'DELETE', caminho: '/api/tenant/attendances', acesso: 'attendance:manage + tenant ativo' },
@@ -410,7 +411,7 @@ router.delete('/clean', requireAuth, async (req, res) => {
 
     try {
         if (limparTudo) {
-            await lotacaoSala.findOneAndUpdate({}, { $set: { historico: [] } }, { new: true, upsert: true })
+            await lotacaoSala.findOneAndUpdate({}, { $set: { historico: [] } }, { returnDocument: 'after', upsert: true })
             return res.json({ sucesso: true, mensagem: 'Histórico limpo!', novaQuantidade: 0 })
         }
 

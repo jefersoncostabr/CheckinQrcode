@@ -1,6 +1,10 @@
 import express from 'express'
 import { authorizeTenantPermission } from '../middleware/authorizeTenant.js'
 import {
+    CheckinPeriodError,
+    listarPeriodosDoTenant,
+} from '../services/checkinPeriodService.js'
+import {
     criarPresencaManualDoTenant,
     excluirPresencaDoTenant,
     gerarRelatorioDePresencasDoTenant,
@@ -14,7 +18,7 @@ import {
 const router = express.Router()
 
 function responderErro(error, res, next) {
-    if (error instanceof TenantAttendanceError) {
+    if (error instanceof TenantAttendanceError || error instanceof CheckinPeriodError) {
         return res.status(error.statusCode).json({
             sucesso: false,
             mensagem: error.message,
@@ -30,6 +34,15 @@ router.get('/attendances', authorizeTenantPermission('attendance:read'), async (
             page: req.query.page,
         })
         return res.json({ sucesso: true, ...resultado })
+    } catch (error) {
+        return responderErro(error, res, next)
+    }
+})
+
+router.get('/checkin-periods', authorizeTenantPermission('checkinPeriods:read'), async (req, res, next) => {
+    try {
+        const checkins = await listarPeriodosDoTenant(req.tenant.id)
+        return res.json({ sucesso: true, checkins })
     } catch (error) {
         return responderErro(error, res, next)
     }

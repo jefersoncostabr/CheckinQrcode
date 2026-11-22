@@ -68,6 +68,7 @@ Todas as rotas abaixo exigem sessão tenant e a permissão indicada. O serviço 
 | `POST` | `/api/tenant/biometrics/verify` | `descritor`, `nome` opcional | `biometrics:manage`; verifica somente perfis da organização ativa. |
 | `POST` | `/api/tenant/biometrics/checkin` | `roomId`, `descritor`, `consentimento: true` | `attendance:create`; registra presença facial na sala. |
 | `DELETE` | `/api/tenant/biometrics/profiles/:id` | — | `biometrics:manage`; exclui perfil da organização ativa. |
+| `GET` | `/api/tenant/checkin-periods` | — | `checkinPeriods:read`; lista os períodos de check-in existentes da organização ativa, abertos ou fechados. |
 
 ## Check-in público via QR
 
@@ -111,6 +112,30 @@ node scripts\migrateUserEmailIndex.js --confirm-database NOME_DO_BANCO
 ```
 
 O script cria e verifica um índice único de proteção antes de remover o índice antigo; se a criação falhar, ele não remove o índice antigo. Se uma etapa posterior falhar, o índice de proteção permanece e o script pode ser executado novamente. O servidor só deve ser iniciado após a migração bem-sucedida. A criação do índice de proteção requer que o MongoDB aceite índices únicos esparso e não esparso com a mesma chave; caso não aceite, interrompa e planeje a migração durante manutenção, sem desproteger a unicidade.
+
+### Migração dos períodos de check-in
+
+Antes de implantar o histórico de check-in por período, faça backup do banco, interrompa a aplicação e todas as escritas nas coleções `rooms` e `attendances`, e confirme o banco apontado por `MONGO_URI`. Execute manualmente:
+
+```powershell
+node scripts\migrateCheckinPeriods.js --confirm-database NOME_DO_BANCO
+```
+
+O script:
+1. Atribui um `currentPeriodId` estável a cada sala antiga e marca `legacyPeriod` como true, sem criar documento em `checkinPeriods`.
+2. Atribui o mesmo `periodId` às presenças antigas daquela sala, verificando também o `tenantId`.
+3. Interrompe com erro explícito se houver presença sem sala correspondente ou com tenant inconsistente.
+4. Verifica que nenhuma presença antiga ficou sem `periodId`.
+5. Cria e verifica o novo índice único por tenant, sala, período e nome. Não remove o índice antigo se a criação ou verificação falhar.
+6. Depois de confirmar o novo índice, remove o índice único antigo por tenant, sala e nome.
+7. Pode ser executado novamente sem alterar identificadores já atribuídos nem duplicar dados.
+
+O servidor só deve ser iniciado após a migração bem-sucedida.
+
+O servidor bloqueia a inicialização se encontrar salas ou presenças sem período
+válido ou o índice único antigo. O histórico é armazenado em `checkinPeriods`,
+sem rota de consulta nesta etapa. Salas legadas começam a gerar histórico ao
+serem reabertas; presenças anteriores são preservadas sem histórico retroativo.
 
 ## Rotas antigas desativadas
 

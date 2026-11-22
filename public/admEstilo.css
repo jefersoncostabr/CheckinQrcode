@@ -99,6 +99,50 @@ h2 {
     text-align: center;
 }
 
+.periodos-lista {
+    display: grid;
+    gap: 12px;
+    list-style: none;
+    margin: 18px 0 0;
+    padding: 0;
+}
+
+.periodo-item {
+    padding: 14px;
+    border-left: 4px solid #3498db;
+    border-radius: 4px;
+    background-color: #f4f7f6;
+}
+
+.periodo-item p {
+    margin: 10px 0 0;
+}
+
+.periodo-cabecalho {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.periodo-aberto,
+.periodo-fechado {
+    flex-shrink: 0;
+    padding: 4px 8px;
+    border-radius: 999px;
+    color: #fff;
+    font-size: 0.875rem;
+    font-weight: 700;
+}
+
+.periodo-aberto {
+    background-color: #248a55;
+}
+
+.periodo-fechado {
+    background-color: #6c757d;
+}
+
 #btnAtualizarQtd:disabled {
     cursor: wait;
     opacity: 0.65;

@@ -15,6 +15,7 @@ const criarPresencaManualDoTenant = jest.fn()
 const limparPresencasDaSalaDoTenant = jest.fn()
 const obterResumoDoTenant = jest.fn()
 const removerUltimaPresencaDoTenant = jest.fn()
+const listarPeriodosDoTenant = jest.fn()
 class TenantAttendanceError extends Error {
     constructor(message, statusCode) {
         super(message)
@@ -34,6 +35,16 @@ jest.unstable_mockModule('../src/services/tenantAttendanceService.js', () => ({
     obterResumoDoTenant,
     removerUltimaPresencaDoTenant,
     TenantAttendanceError,
+}))
+jest.unstable_mockModule('../src/services/checkinPeriodService.js', () => ({
+    CheckinPeriodError: class CheckinPeriodError extends Error {
+        constructor(message, statusCode) {
+            super(message)
+            this.name = 'CheckinPeriodError'
+            this.statusCode = statusCode
+        }
+    },
+    listarPeriodosDoTenant,
 }))
 
 const { default: tenantAttendanceRoutes } = await import('../src/routes/tenantAttendanceRoutes.js')
@@ -133,5 +144,30 @@ describe('rotas de presenças e relatórios tenant-scoped', () => {
             sucesso: false,
             mensagem: 'Presença não encontrada.',
         })
+    })
+
+    it('lista períodos de check-in do tenant ativo com tenant da sessão', async () => {
+        const periodos = [
+            { id: 'periodo-1', roomId: 'sala-1', roomName: 'Sala A', status: 'open' },
+            { id: 'periodo-2', roomId: 'sala-1', roomName: 'Sala A', status: 'closed' },
+        ]
+        listarPeriodosDoTenant.mockResolvedValue(periodos)
+
+        const response = await request(app)
+            .get('/api/tenant/checkin-periods?tenantId=attacker')
+            .expect(200)
+
+        expect(response.body).toEqual({ sucesso: true, checkins: periodos })
+        expect(listarPeriodosDoTenant).toHaveBeenCalledWith('65f1a0000000000000000001')
+        expect(appliedPermissions).toContain('checkinPeriods:read')
+    })
+
+    it('retorna lista vazia quando não há períodos de check-in', async () => {
+        listarPeriodosDoTenant.mockResolvedValue([])
+
+        const response = await request(app).get('/api/tenant/checkin-periods').expect(200)
+
+        expect(response.body).toEqual({ sucesso: true, checkins: [] })
+        expect(listarPeriodosDoTenant).toHaveBeenCalledWith('65f1a0000000000000000001')
     })
 })

@@ -2,6 +2,7 @@ const menuItems = [
     { label: 'Painel', href: '/adm', roles: ['owner', 'admin', 'operator', 'viewer', 'user'] },
     { label: 'Adicionar presença', href: '/adm/adicionar-manual', roles: ['owner', 'admin', 'operator', 'user'] },
     { label: 'Monitor facial', href: '/adm/monitor-facial', roles: ['owner', 'admin'] },
+    { label: 'Períodos', href: '/adm/avancado', roles: ['owner', 'admin'] },
     { label: 'Relatório', href: '/adm/relatorio', roles: ['owner', 'admin', 'viewer'] },
 ]
 

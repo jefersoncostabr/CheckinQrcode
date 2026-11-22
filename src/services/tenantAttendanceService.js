@@ -1,6 +1,11 @@
 import mongoose from 'mongoose'
 import Attendance from '../models/attendanceModel.js'
 import Room from '../models/roomModel.js'
+import {
+    adicionarPresencaManualAoUltimoPeriodo,
+    removerPresenca,
+    limparPresencasDoPeriodo,
+} from './checkinPeriodService.js'
 
 const PAGE_SIZE = 100
 
@@ -56,42 +61,61 @@ function validarNome(name) {
 }
 
 function tratarDuplicidade(error) {
-    if (
-        error?.code === 11000 &&
-        error.keyPattern?.tenantId &&
-        error.keyPattern?.roomId &&
-        error.keyPattern?.personNameKey
-    ) {
-        throw new TenantAttendanceError(
-            'Este nome já está na lista de presença para esta sala.',
-            409,
-        )
+    if (error?.code === 11000) {
+        const keyPattern = error.keyPattern || {}
+        const isAttendanceIndex =
+            keyPattern.tenantId === 1 &&
+            keyPattern.roomId === 1 &&
+            keyPattern.personNameKey === 1
+        if (isAttendanceIndex) {
+            throw new TenantAttendanceError(
+                'Este nome já está na lista de presença para esta sala.',
+                409,
+            )
+        }
     }
     throw error
 }
 
 export async function obterResumoDoTenant(tenantId) {
     validarId(tenantId, 'Organização')
-    const [rooms, results] = await Promise.all([
-        Room.find({ tenantId, status: { $ne: 'archived' } })
-            .select('_id name status')
-            .sort({ name: 1 })
-            .lean(),
-        Attendance.aggregate([
-            { $match: { tenantId: new mongoose.Types.ObjectId(tenantId) } },
-            { $group: { _id: '$roomId', quantidade: { $sum: 1 } } },
-        ]),
-    ])
-    const counts = new Map(results.map(result => [String(result._id), result.quantidade]))
+    const rooms = await Room.find({ tenantId, status: { $ne: 'archived' } })
+        .select('_id name status currentPeriodId legacyPeriod')
+        .sort({ name: 1 })
+        .lean()
+
+    const periodoIds = rooms
+        .filter(room => room.currentPeriodId)
+        .map(room => room.currentPeriodId)
+
+    const counts = new Map()
+    if (periodoIds.length > 0) {
+        const results = await Attendance.aggregate([
+            {
+                $match: {
+                    tenantId: new mongoose.Types.ObjectId(tenantId),
+                    periodId: { $in: periodoIds },
+                },
+            },
+            { $group: { _id: '$periodId', quantidade: { $sum: 1 } } },
+        ])
+        for (const result of results) {
+            counts.set(String(result._id), result.quantidade)
+        }
+    }
+
     return {
         salas: rooms.map(room => ({
             id: String(room._id),
             nome: room.name,
             status: room.status,
             aberta: room.status === 'open',
-            quantidade: counts.get(String(room._id)) || 0,
+            quantidade: counts.get(String(room.currentPeriodId)) || 0,
         })),
-        total: results.reduce((sum, result) => sum + result.quantidade, 0),
+        total: rooms.reduce(
+            (sum, room) => sum + (counts.get(String(room.currentPeriodId)) || 0),
+            0,
+        ),
     }
 }
 
@@ -103,42 +127,40 @@ export async function criarPresencaManualDoTenant(tenantId, { roomId, name, sour
         _id: roomId,
         tenantId,
         status: { $ne: 'archived' },
-    }).select('_id name').lean()
+    }).select('_id name status legacyPeriod currentPeriodId').lean()
     if (!room) {
         throw new TenantAttendanceError('Sala não encontrada.', 404)
     }
 
+    const attendance = {
+        _id: new mongoose.Types.ObjectId(),
+        tenantId,
+        roomId: room._id,
+        personId: null,
+        personNameSnapshot,
+        personNameKey: normalizarNome(personNameSnapshot),
+        method: 'manual',
+        sourceIp: typeof sourceIp === 'string' ? sourceIp.slice(0, 45) : undefined,
+    }
+
     try {
-        await Attendance.create({
+        await adicionarPresencaManualAoUltimoPeriodo({
             tenantId,
             roomId: room._id,
-            personNameSnapshot,
-            personNameKey: normalizarNome(personNameSnapshot),
-            method: 'manual',
-            sourceIp: typeof sourceIp === 'string' ? sourceIp.slice(0, 45) : undefined,
+            attendance,
+            personId: null,
+            checkedInAt: new Date(),
         })
     } catch (error) {
         tratarDuplicidade(error)
     }
-
     return { sucesso: true, sala: room.name }
 }
 
 export async function removerUltimaPresencaDoTenant(tenantId, roomId) {
     validarId(tenantId, 'Organização')
     validarId(roomId, 'Sala')
-    const room = await Room.exists({
-        _id: roomId,
-        tenantId,
-        status: { $ne: 'archived' },
-    })
-    if (!room) {
-        throw new TenantAttendanceError('Sala não encontrada.', 404)
-    }
-    const deleted = await Attendance.findOneAndDelete(
-        { tenantId, roomId },
-        { sort: { createdAt: -1, _id: -1 } },
-    ).lean()
+    const deleted = await removerPresenca({ tenantId, roomId, somenteAtual: true, ultima: true })
     if (!deleted) {
         throw new TenantAttendanceError('Nenhuma presença encontrada nesta sala.', 404)
     }
@@ -148,16 +170,8 @@ export async function removerUltimaPresencaDoTenant(tenantId, roomId) {
 export async function limparPresencasDaSalaDoTenant(tenantId, roomId) {
     validarId(tenantId, 'Organização')
     validarId(roomId, 'Sala')
-    const room = await Room.exists({
-        _id: roomId,
-        tenantId,
-        status: { $ne: 'archived' },
-    })
-    if (!room) {
-        throw new TenantAttendanceError('Sala não encontrada.', 404)
-    }
-    const result = await Attendance.deleteMany({ tenantId, roomId })
-    return { sucesso: true, registrosRemovidos: result.deletedCount }
+    const registrosRemovidos = await limparPresencasDoPeriodo(tenantId, roomId)
+    return { sucesso: true, registrosRemovidos }
 }
 
 export async function listarPresencasDoTenant(tenantId, { roomId, page: pageInput } = {}) {
@@ -167,10 +181,16 @@ export async function listarPresencasDoTenant(tenantId, { roomId, page: pageInpu
 
     if (roomId != null) {
         validarId(roomId, 'Sala')
-        const room = await Room.exists({ _id: roomId, tenantId })
+        const room = await Room.findOne({ _id: roomId, tenantId })
+            .select('_id currentPeriodId legacyPeriod').lean()
         if (!room) {
             throw new TenantAttendanceError('Sala não encontrada.', 404)
         }
+
+        if (!room.currentPeriodId) {
+            throw new TenantAttendanceError('Sala sem período corrente. Execute a migração de períodos.', 409)
+        }
+        filter.periodId = room.currentPeriodId
         filter.roomId = roomId
     }
 
@@ -238,9 +258,14 @@ export async function gerarRelatorioDePresencasDoTenant(tenantId) {
 export async function excluirPresencaDoTenant(tenantId, attendanceId) {
     validarId(tenantId, 'Organização')
     validarId(attendanceId, 'Presença')
-    const attendance = await Attendance.findOneAndDelete({
+    const attendance = await Attendance.findOne({
         _id: attendanceId,
         tenantId,
     }).lean()
-    return attendance ? serializarPresenca(attendance, null) : null
+    if (!attendance) {
+        return null
+    }
+
+    const deleted = await removerPresenca({ tenantId, roomId: attendance.roomId, attendanceId })
+    return deleted ? serializarPresenca(deleted, null) : null
 }

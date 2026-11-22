@@ -5,6 +5,7 @@ const personQuery = { select: jest.fn(), lean: jest.fn() }
 const profileLookupQuery = { select: jest.fn(), lean: jest.fn() }
 const profileListQuery = { select: jest.fn(), lean: jest.fn() }
 const deleteProfileQuery = { select: jest.fn(), lean: jest.fn() }
+const roomQuery = { select: jest.fn(), lean: jest.fn() }
 const Person = {
     findOneAndUpdate: jest.fn(),
     findOne: jest.fn(),
@@ -15,8 +16,11 @@ const BiometricProfile = {
     create: jest.fn(),
     deleteOne: jest.fn(),
 }
-const Attendance = { create: jest.fn() }
+const Attendance = { create: jest.fn(), exists: jest.fn() }
+const Room = { findOne: jest.fn() }
 const obterContextoQr = jest.fn()
+const inserirPresencaNoPeriodo = jest.fn()
+const obterPeriodoCorrente = jest.fn()
 class TenantCheckinError extends Error {
     constructor(message, statusCode) {
         super(message)
@@ -32,21 +36,30 @@ profileListQuery.select.mockReturnValue(profileListQuery)
 profileListQuery.lean.mockResolvedValue([])
 deleteProfileQuery.select.mockReturnValue(deleteProfileQuery)
 deleteProfileQuery.lean.mockResolvedValue(null)
+roomQuery.select.mockReturnValue(roomQuery)
+roomQuery.lean.mockResolvedValue(null)
 Person.findOneAndUpdate.mockReturnValue(personQuery)
 Person.findOne.mockReturnValue(personQuery)
 BiometricProfile.findOne.mockReturnValue(profileLookupQuery)
 BiometricProfile.find.mockReturnValue(profileListQuery)
 BiometricProfile.deleteOne.mockResolvedValue({ deletedCount: 1 })
 Attendance.create.mockResolvedValue({})
+Room.findOne.mockReturnValue(roomQuery)
+inserirPresencaNoPeriodo.mockResolvedValue(undefined)
 
 jest.unstable_mockModule('../src/models/personModel.js', () => ({ default: Person }))
 jest.unstable_mockModule('../src/models/biometricProfileModel.js', () => ({
     default: BiometricProfile,
 }))
 jest.unstable_mockModule('../src/models/attendanceModel.js', () => ({ default: Attendance }))
+jest.unstable_mockModule('../src/models/roomModel.js', () => ({ default: Room }))
 jest.unstable_mockModule('../src/services/tenantCheckinService.js', () => ({
     obterContextoQr,
     TenantCheckinError,
+}))
+jest.unstable_mockModule('../src/services/checkinPeriodService.js', () => ({
+    inserirPresencaNoPeriodo,
+    obterPeriodoCorrente,
 }))
 
 const {
@@ -91,6 +104,15 @@ describe('serviço de biometria isolada por tenant', () => {
         BiometricProfile.deleteOne.mockResolvedValue({ deletedCount: 1 })
         BiometricProfile.create.mockResolvedValue({ _id: profileId })
         Attendance.create.mockResolvedValue({})
+        Attendance.exists.mockResolvedValue(null)
+        Room.findOne.mockReturnValue(roomQuery)
+        inserirPresencaNoPeriodo.mockResolvedValue(undefined)
+        obterPeriodoCorrente.mockResolvedValue({
+            _id: 'periodo-id',
+            tenantId,
+            roomId,
+            status: 'open',
+        })
         setupContext()
     })
 
@@ -132,7 +154,7 @@ describe('serviço de biometria isolada por tenant', () => {
                     status: 'active',
                 },
             },
-            { new: true, upsert: true, runValidators: true },
+            { returnDocument: 'after', upsert: true, runValidators: true },
         )
     })
 
@@ -163,7 +185,7 @@ describe('serviço de biometria isolada por tenant', () => {
                     status: 'active',
                 },
             },
-            { new: true, upsert: true, runValidators: true },
+            { returnDocument: 'after', upsert: true, runValidators: true },
         )
         expect(BiometricProfile.create).toHaveBeenCalledWith(expect.objectContaining({
             tenantId,
@@ -212,15 +234,14 @@ describe('serviço de biometria isolada por tenant', () => {
             tenantId,
             status: 'active',
         })
-        expect(Attendance.create).toHaveBeenCalledWith({
-            tenantId,
-            roomId,
-            personId,
-            personNameSnapshot: 'Ana Silva',
-            personNameKey: 'ana silva',
-            method: 'face',
-            sourceIp: '127.0.0.1',
-        })
+        expect(inserirPresencaNoPeriodo).toHaveBeenCalledWith(
+            expect.objectContaining({
+                tenantId,
+                roomId,
+                personId,
+                userId: null,
+            }),
+        )
     })
 
     it('não consulta perfis sem consentimento e rejeita tenant ou sala inativos', async () => {

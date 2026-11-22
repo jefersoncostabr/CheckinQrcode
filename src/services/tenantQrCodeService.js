@@ -83,7 +83,7 @@ export async function rotacionarQrCodeDoTenant(tenantId, qrCodeId, baseUrl) {
     const qrCode = await QrCode.findOneAndUpdate(
         { _id: qrCodeId, tenantId, status: 'active', roomId: { $exists: true } },
         { $set: { tokenHash, tokenRecuperavel: token, qrBaseUrl: baseUrl } },
-        { new: true, runValidators: true },
+        { returnDocument: 'after', runValidators: true },
     ).lean()
     return qrCode ? { ...serializarQrCode(qrCode), token } : null
 }
@@ -115,7 +115,7 @@ export async function associarQrCodeASalaDoTenant(tenantId, qrCodeId, roomId) {
         const qrCode = await QrCode.findOneAndUpdate(
             { _id: qrCodeId, tenantId, status: { $ne: 'revoked' } },
             update,
-            { new: true, runValidators: true },
+            { returnDocument: 'after', runValidators: true },
         ).lean()
         return qrCode ? serializarQrCode(qrCode, room?.name || null) : null
     } catch (error) {
@@ -188,7 +188,7 @@ export async function revogarQrCodeDoTenant(tenantId, qrCodeId) {
     const qrCode = await QrCode.findOneAndUpdate(
         { _id: qrCodeId, tenantId },
         { $set: { status: 'revoked' }, $unset: { roomId: 1 } },
-        { new: true, runValidators: true },
+        { returnDocument: 'after', runValidators: true },
     ).lean()
     return qrCode ? serializarQrCode(qrCode) : null
 }

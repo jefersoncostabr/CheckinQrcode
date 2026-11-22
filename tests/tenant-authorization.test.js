@@ -47,6 +47,11 @@ describe('autorização por papel e tenant', () => {
         expect(roleHasTenantPermission('user', 'rooms:read')).toBe(false)
         expect(roleHasTenantPermission('user', 'attendance:read')).toBe(false)
         expect(roleHasTenantPermission('unknown', 'rooms:read')).toBe(false)
+        expect(roleHasTenantPermission('admin', 'checkinPeriods:read')).toBe(true)
+        expect(roleHasTenantPermission('owner', 'checkinPeriods:read')).toBe(true)
+        expect(roleHasTenantPermission('operator', 'checkinPeriods:read')).toBe(false)
+        expect(roleHasTenantPermission('viewer', 'checkinPeriods:read')).toBe(false)
+        expect(roleHasTenantPermission('user', 'checkinPeriods:read')).toBe(false)
     })
 
     it('rejeita permissões inválidas ao configurar o middleware', () => {

@@ -5,6 +5,12 @@ const roomSchema = new mongoose.Schema({
     name: { type: String, required: true, trim: true, maxlength: 120 },
     activeName: { type: String, select: false },
     status: { type: String, enum: ['open', 'closed', 'archived'], default: 'open' },
+    currentPeriodId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'CheckinPeriod',
+    },
+    legacyPeriod: { type: Boolean, default: false },
+    periodRevision: { type: Number, default: 0 },
 }, { timestamps: true })
 
 roomSchema.index(

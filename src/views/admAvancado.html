@@ -17,19 +17,107 @@
             <p>Pronto.</p>
         </div>
 
-        <section class="card" aria-labelledby="tituloTeste">
-            <h2 id="tituloTeste">Bloco de teste</h2>
-            <p>
-                Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-                Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
-            </p>
-            <p>
-                Ut enim ad minim veniam, quis nostrud exercitation ullamco
-                laboris nisi ut aliquip ex ea commodo consequat.
-            </p>
+        <section class="card" aria-labelledby="tituloPeriodos">
+            <h2 id="tituloPeriodos">Períodos de check-in</h2>
+            <div class="checkins-header">
+                <p>Histórico de abertura e fechamento das salas.</p>
+                <button id="btnAtualizarPeriodos" class="btn-primary" type="button">Atualizar</button>
+            </div>
+            <ul id="listaPeriodos" class="periodos-lista" aria-live="polite"></ul>
+            <p id="periodosVazio" class="checkins-empty" role="status">Carregando...</p>
         </section>
     </main>
 
     <script defer src="/navbar.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const statusEl = document.getElementById('status');
+            const listaEl = document.getElementById('listaPeriodos');
+            const vazioEl = document.getElementById('periodosVazio');
+            const atualizarEl = document.getElementById('btnAtualizarPeriodos');
+
+            function atualizarStatus(message, type = 'info') {
+                statusEl.className = 'status-message';
+                if (type === 'success') statusEl.classList.add('success');
+                if (type === 'error') statusEl.classList.add('error');
+                statusEl.innerHTML = '';
+                const paragraph = document.createElement('p');
+                paragraph.textContent = message;
+                statusEl.appendChild(paragraph);
+            }
+
+            function formatarData(value) {
+                if (!value) return '-';
+                const date = new Date(value);
+                if (Number.isNaN(date.getTime())) return '-';
+                return new Intl.DateTimeFormat('pt-BR', {
+                    dateStyle: 'short',
+                    timeStyle: 'short',
+                }).format(date);
+            }
+
+            async function carregarPeriodos() {
+                atualizarEl.disabled = true;
+                try {
+                    const response = await fetch('/api/tenant/checkin-periods', { cache: 'no-store' });
+                    const data = await response.json();
+                    if (!response.ok) {
+                        throw new Error(data.mensagem || 'Não foi possível consultar os períodos.');
+                    }
+
+                    const periodos = Array.isArray(data.checkins) ? data.checkins : [];
+                    listaEl.replaceChildren();
+
+                    if (periodos.length === 0) {
+                        vazioEl.hidden = false;
+                        vazioEl.textContent = 'Nenhum período de check-in encontrado.';
+                        atualizarStatus('Consulta concluída.', 'success');
+                        return;
+                    }
+
+                    vazioEl.hidden = true;
+                    periodos.forEach(periodo => {
+                        const item = document.createElement('li');
+                        item.className = 'periodo-item';
+
+                        const cabecalho = document.createElement('div');
+                        cabecalho.className = 'periodo-cabecalho';
+
+                        const sala = document.createElement('strong');
+                        sala.textContent = periodo.roomName || 'Sala sem nome';
+
+                        const situacao = document.createElement('span');
+                        situacao.className = periodo.status === 'open' ? 'periodo-aberto' : 'periodo-fechado';
+                        situacao.textContent = periodo.status === 'open' ? 'Aberto' : 'Fechado';
+
+                        cabecalho.append(sala, situacao);
+
+                        const participantes = Array.isArray(periodo.participants)
+                            ? periodo.participants.length
+                            : 0;
+                        const detalhes = document.createElement('p');
+                        detalhes.textContent =
+                            `Início: ${formatarData(periodo.startedAt)} · ` +
+                            `Fim: ${formatarData(periodo.endedAt)} · ` +
+                            `Participantes: ${participantes}`;
+
+                        item.append(cabecalho, detalhes);
+                        listaEl.appendChild(item);
+                    });
+                    atualizarStatus(`${periodos.length} período(s) encontrado(s).`, 'success');
+                } catch (error) {
+                    listaEl.replaceChildren();
+                    vazioEl.hidden = false;
+                    vazioEl.textContent = 'Não foi possível carregar os períodos.';
+                    atualizarStatus(`Erro: ${error.message}`, 'error');
+                } finally {
+                    atualizarEl.disabled = false;
+                }
+            }
+
+            atualizarEl.addEventListener('click', carregarPeriodos);
+            carregarPeriodos();
+        });
+    </script>
 </body>
 </html>

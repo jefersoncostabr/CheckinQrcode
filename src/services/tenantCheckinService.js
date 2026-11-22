@@ -9,6 +9,10 @@ import Membership from '../models/membershipModel.js'
 import Person from '../models/personModel.js'
 import { roleHasTenantPermission } from '../middleware/authorizeTenant.js'
 import { hashPassword, verifyPassword } from './passwordService.js'
+import {
+    inserirPresencaNoPeriodo,
+    obterPeriodoCorrente,
+} from './checkinPeriodService.js'
 
 const QR_TOKEN_PATTERN = /^[A-Za-z0-9_-]{43}$/
 
@@ -164,9 +168,32 @@ export async function cadastrarContaEPrimeiroCheckin({ token, nome, senha, sourc
 
     const session = await mongoose.startSession()
     let resultado
+    let periodo
 
     try {
         await session.withTransaction(async () => {
+            const periodoCorrente = await obterPeriodoCorrente(
+                contexto.tenantId,
+                contexto.room._id,
+            )
+            if (!periodoCorrente || periodoCorrente.status !== 'open') {
+                throw new TenantCheckinError('Esta sala está fechada para check-in.', 403)
+            }
+            periodo = periodoCorrente
+
+            const duplicado = await Attendance.exists({
+                tenantId: contexto.tenantId,
+                roomId: contexto.room._id,
+                periodId: periodo._id,
+                personNameKey,
+            }).session(session)
+            if (duplicado) {
+                throw new TenantCheckinError(
+                    'Este nome já está na lista de presença para esta sala.',
+                    409,
+                )
+            }
+
             const [user] = await User.create([{
                 name: nomeLimpo,
                 passwordHash,
@@ -189,15 +216,26 @@ export async function cadastrarContaEPrimeiroCheckin({ token, nome, senha, sourc
                 status: 'active',
             }], { session })
 
-            await Attendance.create([{
+            const attendance = {
                 tenantId: contexto.tenantId,
                 roomId: contexto.room._id,
                 personId: person._id,
+                periodId: periodo._id,
                 personNameSnapshot: nomeLimpo,
                 personNameKey,
                 method: 'qr',
                 sourceIp: typeof sourceIp === 'string' ? sourceIp.slice(0, 45) : undefined,
-            }], { session })
+            }
+
+            await inserirPresencaNoPeriodo({
+                tenantId: contexto.tenantId,
+                roomId: contexto.room._id,
+                attendance,
+                personId: person._id,
+                userId: user._id,
+                checkedInAt: new Date(),
+                session,
+            })
 
             resultado = {
                 userId: String(user._id),
@@ -215,6 +253,17 @@ export async function cadastrarContaEPrimeiroCheckin({ token, nome, senha, sourc
             ) {
                 throw new TenantCheckinError(
                     'Já existe uma pessoa cadastrada com este nome nesta organização. Procure a administração.',
+                    409,
+                )
+            }
+            if (
+                error.keyPattern?.tenantId &&
+                error.keyPattern?.roomId &&
+                error.keyPattern?.periodId &&
+                error.keyPattern?.personNameKey
+            ) {
+                throw new TenantCheckinError(
+                    'Este nome já está na lista de presença para esta sala.',
                     409,
                 )
             }
@@ -371,9 +420,18 @@ export async function registrarCheckinAutenticado({ token, sourceIp, ...identida
     const participante = await validarParticipante(contexto, identidade)
     const personNameKey = participante.nameKey
 
+    const periodoCorrente = await obterPeriodoCorrente(
+        contexto.tenantId,
+        contexto.room._id,
+    )
+    if (!periodoCorrente || periodoCorrente.status !== 'open') {
+        throw new TenantCheckinError('Esta sala está fechada para check-in.', 403)
+    }
+
     const duplicado = await Attendance.exists({
         tenantId: contexto.tenantId,
         roomId: contexto.room._id,
+        periodId: periodoCorrente._id,
         personNameKey,
     })
     if (duplicado) {
@@ -383,21 +441,32 @@ export async function registrarCheckinAutenticado({ token, sourceIp, ...identida
         )
     }
 
+    const attendance = {
+        tenantId: contexto.tenantId,
+        roomId: contexto.room._id,
+        personId: participante.personId,
+        periodId: periodoCorrente._id,
+        personNameSnapshot: participante.nome,
+        personNameKey,
+        method: 'qr',
+        sourceIp: typeof sourceIp === 'string' ? sourceIp.slice(0, 45) : undefined,
+    }
+
     try {
-        await Attendance.create({
+        await inserirPresencaNoPeriodo({
             tenantId: contexto.tenantId,
             roomId: contexto.room._id,
+            attendance,
             personId: participante.personId,
-            personNameSnapshot: participante.nome,
-            personNameKey,
-            method: 'qr',
-            sourceIp: typeof sourceIp === 'string' ? sourceIp.slice(0, 45) : undefined,
+            userId: participante.userId,
+            checkedInAt: new Date(),
         })
     } catch (error) {
         if (
             error?.code === 11000 &&
             error.keyPattern?.tenantId &&
             error.keyPattern?.roomId &&
+            error.keyPattern?.periodId &&
             error.keyPattern?.personNameKey
         ) {
             throw new TenantCheckinError(

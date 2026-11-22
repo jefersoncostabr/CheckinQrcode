@@ -12,12 +12,13 @@ Cada vínculo de uma conta com uma organização possui um papel. Os papéis sã
 6- `reports:read`: consultar relatórios.
 7- `biometrics:manage`: gerenciar operações e perfis biométricos.
 8- `advanced:read`: acessar a página avançada.
+9- `checkinPeriods:read`: consultar os períodos de check-in existentes da organização ativa.
 
 
 | Papel | Permissões |
 | --- | --- |
-| `owner` | Todas as permissões: gerenciar a organização e membros; consultar e gerenciar salas e QR Codes; criar, consultar e gerenciar presenças; consultar relatórios; gerenciar biometria; acessar a página avançada. |
-| `admin` | Consultar e gerenciar salas e QR Codes; criar, consultar e gerenciar presenças; consultar relatórios; gerenciar biometria; acessar a página avançada. Não pode gerenciar a organização nem os membros. |
+| `owner` | Todas as permissões: gerenciar a organização e membros; consultar e gerenciar salas e QR Codes; criar, consultar e gerenciar presenças; consultar relatórios; gerenciar biometria; acessar a página avançada; consultar períodos de check-in. |
+| `admin` | Consultar e gerenciar salas e QR Codes; criar, consultar e gerenciar presenças; consultar relatórios; gerenciar biometria; acessar a página avançada; consultar períodos de check-in. Não pode gerenciar a organização nem os membros. |
 | `operator` | Consultar salas e QR Codes; criar e consultar presenças. |
 | `viewer` | Consultar salas, presenças e relatórios. |
 | `user` | Criar presenças. Não pode consultar salas ou presenças, nem gerenciar dados. |

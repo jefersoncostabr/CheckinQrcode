@@ -11,6 +11,7 @@ const listQuery = {
 const roomListQuery = { select: jest.fn(), sort: jest.fn(), lean: jest.fn() }
 const roomQuery = { select: jest.fn(), lean: jest.fn() }
 const deleteQuery = { lean: jest.fn() }
+const findOneQuery = { lean: jest.fn() }
 const Attendance = {
     countDocuments: jest.fn(),
     create: jest.fn(),
@@ -18,6 +19,7 @@ const Attendance = {
     find: jest.fn(),
     aggregate: jest.fn(),
     findOneAndDelete: jest.fn(),
+    findOne: jest.fn(),
 }
 const Room = {
     exists: jest.fn(),
@@ -35,14 +37,35 @@ roomListQuery.lean.mockResolvedValue([])
 roomQuery.select.mockReturnValue(roomQuery)
 roomQuery.lean.mockResolvedValue(null)
 deleteQuery.lean.mockResolvedValue(null)
+findOneQuery.lean.mockResolvedValue(null)
 Attendance.find.mockReturnValue(listQuery)
+Attendance.findOne.mockReturnValue(findOneQuery)
 Attendance.findOneAndDelete.mockReturnValue(deleteQuery)
 Room.find.mockReturnValue(roomListQuery)
 Room.findOne.mockReturnValue(roomQuery)
 
+const inserirPresencaNoPeriodo = jest.fn()
+const adicionarPresencaManualAoUltimoPeriodo = jest.fn()
+const removerPresencaDoPeriodoAberto = jest.fn()
+const removerPresenca = jest.fn()
+const limparPresencasDoPeriodo = jest.fn()
+const obterPeriodoCorrente = jest.fn()
+
 jest.unstable_mockModule('../src/models/attendanceModel.js', () => ({ default: Attendance }))
 jest.unstable_mockModule('../src/models/roomModel.js', () => ({ default: Room }))
+jest.unstable_mockModule('../src/services/checkinPeriodService.js', () => ({
+    inserirPresencaNoPeriodo,
+    adicionarPresencaManualAoUltimoPeriodo,
+    removerPresencaDoPeriodoAberto,
+    removerPresenca,
+    limparPresencasDoPeriodo,
+    obterPeriodoCorrente,
+}))
 
+const sessionMock = {
+    withTransaction: jest.fn(async callback => callback()),
+    endSession: jest.fn(),
+}
 const {
     excluirPresencaDoTenant,
     criarPresencaManualDoTenant,
@@ -57,6 +80,7 @@ const {
 const tenantId = '65f1a0000000000000000001'
 const roomId = '65f1a0000000000000000002'
 const attendanceId = '65f1a0000000000000000003'
+const periodoId = '65f1a0000000000000000004'
 
 describe('serviço de presenças e relatórios tenant-scoped', () => {
     beforeEach(() => {
@@ -71,10 +95,18 @@ describe('serviço de presenças e relatórios tenant-scoped', () => {
         roomQuery.select.mockReturnValue(roomQuery)
         roomQuery.lean.mockResolvedValue(null)
         deleteQuery.lean.mockResolvedValue(null)
+        findOneQuery.lean.mockResolvedValue(null)
         Attendance.find.mockReturnValue(listQuery)
+        Attendance.findOne.mockReturnValue(findOneQuery)
         Attendance.findOneAndDelete.mockReturnValue(deleteQuery)
         Room.find.mockReturnValue(roomListQuery)
         Room.findOne.mockReturnValue(roomQuery)
+        obterPeriodoCorrente.mockResolvedValue({
+            _id: periodoId,
+            tenantId,
+            roomId,
+            status: 'open',
+        })
     })
 
     it('lista presenças limitadas ao tenant e pagina sem expor IP', async () => {
@@ -124,9 +156,10 @@ describe('serviço de presenças e relatórios tenant-scoped', () => {
             _id: roomId,
             name: 'Sala Azul',
             status: 'open',
+            currentPeriodId: periodoId,
         }])
         Attendance.aggregate.mockResolvedValue([
-            { _id: new mongoose.Types.ObjectId(roomId), quantidade: 3 },
+            { _id: periodoId, quantidade: 3 },
         ])
 
         await expect(obterResumoDoTenant(tenantId)).resolves.toEqual({
@@ -144,14 +177,24 @@ describe('serviço de presenças e relatórios tenant-scoped', () => {
             status: { $ne: 'archived' },
         })
         expect(Attendance.aggregate).toHaveBeenCalledWith([
-            { $match: { tenantId: new mongoose.Types.ObjectId(tenantId) } },
-            { $group: { _id: '$roomId', quantidade: { $sum: 1 } } },
+            {
+                $match: {
+                    tenantId: new mongoose.Types.ObjectId(tenantId),
+                    periodId: { $in: [periodoId] },
+                },
+            },
+            { $group: { _id: '$periodId', quantidade: { $sum: 1 } } },
         ])
     })
 
     it('registra presença manual dentro da sala e tenant informados', async () => {
-        roomQuery.lean.mockResolvedValue({ _id: roomId, name: 'Sala Azul' })
-        Attendance.create.mockResolvedValue({})
+        roomQuery.lean.mockResolvedValue({ _id: roomId, name: 'Sala Azul', status: 'open', legacyPeriod: false })
+        obterPeriodoCorrente.mockResolvedValue({
+            _id: periodoId,
+            tenantId,
+            roomId,
+            status: 'open',
+        })
 
         await expect(criarPresencaManualDoTenant(tenantId, {
             roomId,
@@ -164,30 +207,94 @@ describe('serviço de presenças e relatórios tenant-scoped', () => {
             tenantId,
             status: { $ne: 'archived' },
         })
-        expect(Attendance.create).toHaveBeenCalledWith({
+        expect(adicionarPresencaManualAoUltimoPeriodo).toHaveBeenCalledWith(
+            expect.objectContaining({
+                tenantId,
+                roomId: roomId,
+                personId: null,
+            }),
+        )
+    })
+
+    it('remove a última presença do período aberto atualizando o histórico', async () => {
+        removerPresenca.mockResolvedValue({ _id: attendanceId })
+        Room.findOne.mockReturnValue(roomQuery)
+        roomQuery.lean.mockResolvedValue({
+            _id: roomId,
+            status: 'open',
+            legacyPeriod: false,
+            currentPeriodId: periodoId,
+        })
+        obterPeriodoCorrente.mockResolvedValue({
+            _id: periodoId,
             tenantId,
             roomId,
-            personNameSnapshot: 'Ana Silva',
-            personNameKey: 'ana silva',
-            method: 'manual',
-            sourceIp: '127.0.0.1',
+            status: 'open',
+        })
+        Attendance.findOne.mockReturnValue(findOneQuery)
+        findOneQuery.lean.mockResolvedValue({
+            _id: attendanceId,
+            roomId,
+            periodId: periodoId,
+        })
+
+        await removerUltimaPresencaDoTenant(tenantId, roomId)
+
+        expect(removerPresenca).toHaveBeenCalledWith({
+            tenantId,
+            roomId,
+            somenteAtual: true,
+            ultima: true,
         })
     })
 
-    it('remove a última presença ou limpa somente a sala do tenant', async () => {
-        Room.exists.mockResolvedValue({ _id: roomId })
-        deleteQuery.lean.mockResolvedValue({ _id: attendanceId, roomId })
-        Attendance.deleteMany.mockResolvedValue({ deletedCount: 2 })
+    it('remove última presença de período fechado sem tocar o histórico', async () => {
+        removerPresenca.mockResolvedValue({ _id: attendanceId })
+        Room.findOne.mockReturnValue(roomQuery)
+        roomQuery.lean.mockResolvedValue({
+            _id: roomId,
+            status: 'closed',
+            legacyPeriod: false,
+            currentPeriodId: periodoId,
+        })
+        obterPeriodoCorrente.mockResolvedValue({
+            _id: periodoId,
+            tenantId,
+            roomId,
+            status: 'closed',
+        })
+        Attendance.findOne.mockReturnValue(findOneQuery)
+        findOneQuery.lean.mockResolvedValue({
+            _id: attendanceId,
+            roomId,
+            periodId: periodoId,
+        })
 
         await removerUltimaPresencaDoTenant(tenantId, roomId)
-        await expect(limparPresencasDaSalaDoTenant(tenantId, roomId))
-            .resolves.toEqual({ sucesso: true, registrosRemovidos: 2 })
 
-        expect(Attendance.findOneAndDelete).toHaveBeenCalledWith(
-            { tenantId, roomId },
-            { sort: { createdAt: -1, _id: -1 } },
-        )
-        expect(Attendance.deleteMany).toHaveBeenCalledWith({ tenantId, roomId })
+        expect(removerPresenca).toHaveBeenCalledWith({
+            tenantId, roomId, somenteAtual: true, ultima: true,
+        })
+    })
+
+    it('limpa presenças somente do período corrente em transação', async () => {
+        Room.findOne.mockReturnValue(roomQuery)
+        roomQuery.lean.mockResolvedValue({
+            _id: roomId,
+            status: 'open',
+            legacyPeriod: false,
+            currentPeriodId: periodoId,
+        })
+        obterPeriodoCorrente.mockResolvedValue({
+            _id: periodoId,
+            tenantId,
+            roomId,
+            status: 'open',
+        })
+        limparPresencasDoPeriodo.mockResolvedValue(2)
+
+        const result = await limparPresencasDaSalaDoTenant(tenantId, roomId)
+        expect(result).toEqual({ sucesso: true, registrosRemovidos: 2 })
     })
 
     it('gera agregação de relatório com filtro tenant e nomes das salas scoped', async () => {
@@ -212,12 +319,24 @@ describe('serviço de presenças e relatórios tenant-scoped', () => {
     })
 
     it('exclui presença somente quando pertence ao tenant informado', async () => {
-        await excluirPresencaDoTenant(tenantId, attendanceId)
-
-        expect(Attendance.findOneAndDelete).toHaveBeenCalledWith({
+        Attendance.findOne.mockReturnValue(findOneQuery)
+        findOneQuery.lean.mockResolvedValue({
             _id: attendanceId,
             tenantId,
+            roomId,
+            periodId: periodoId,
         })
+        removerPresenca.mockResolvedValue({
+            _id: attendanceId,
+            roomId,
+            personNameSnapshot: 'Ana',
+            method: 'manual',
+            createdAt: new Date(),
+        })
+
+        await excluirPresencaDoTenant(tenantId, attendanceId)
+
+        expect(removerPresenca).toHaveBeenCalledWith({ tenantId, roomId, attendanceId })
     })
 
     it('rejeita tenant, sala, presença ou paginação inválidos antes das consultas', async () => {

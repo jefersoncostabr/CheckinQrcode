@@ -149,7 +149,7 @@ describe('serviço de QR Codes isolados por tenant', () => {
         expect(QrCode.findOneAndUpdate).toHaveBeenCalledWith(
             { _id: qrCodeId, tenantId, status: { $ne: 'revoked' } },
             { $set: { roomId, status: 'active' } },
-            { new: true, runValidators: true },
+            { returnDocument: 'after', runValidators: true },
         )
     })
 
@@ -199,7 +199,7 @@ describe('serviço de QR Codes isolados por tenant', () => {
         expect(QrCode.findOneAndUpdate).toHaveBeenCalledWith(
             { _id: qrCodeId, tenantId: outroTenant, status: { $ne: 'revoked' } },
             { $set: { roomId, status: 'active' } },
-            { new: true, runValidators: true },
+            { returnDocument: 'after', runValidators: true },
         )
     })
 
@@ -216,7 +216,7 @@ describe('serviço de QR Codes isolados por tenant', () => {
         expect(QrCode.findOneAndUpdate).toHaveBeenCalledWith(
             { _id: qrCodeId, tenantId, status: { $ne: 'revoked' } },
             { $set: { status: 'available' }, $unset: { roomId: 1 } },
-            { new: true, runValidators: true },
+            { returnDocument: 'after', runValidators: true },
         )
     })
 
@@ -231,7 +231,7 @@ describe('serviço de QR Codes isolados por tenant', () => {
         expect(QrCode.findOneAndUpdate).toHaveBeenCalledWith(
             { _id: qrCodeId, tenantId },
             { $set: { status: 'revoked' }, $unset: { roomId: 1 } },
-            { new: true, runValidators: true },
+            { returnDocument: 'after', runValidators: true },
         )
     })
 
@@ -324,7 +324,7 @@ describe('serviço de QR Codes isolados por tenant', () => {
         expect(QrCode.findOneAndUpdate).toHaveBeenCalledWith(
             { _id: qrCodeId, tenantId, status: 'active', roomId: { $exists: true } },
             { $set: { tokenHash: expect.any(String), tokenRecuperavel: result.token, qrBaseUrl: baseUrl } },
-            { new: true, runValidators: true },
+            { returnDocument: 'after', runValidators: true },
         )
         expect(result.token).toBeDefined()
     })

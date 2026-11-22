@@ -1,5 +1,6 @@
 import Attendance from '../src/models/attendanceModel.js'
 import BiometricProfile from '../src/models/biometricProfileModel.js'
+import CheckinPeriod from '../src/models/checkinPeriodModel.js'
 import Membership from '../src/models/membershipModel.js'
 import Person from '../src/models/personModel.js'
 import QrCode from '../src/models/qrCodeModel.js'
@@ -87,8 +88,25 @@ describe('modelos da fundação multi-tenant', () => {
         ])
         expect(Attendance.schema.path('personNameKey').options.required).toBe(true)
         expect(Attendance.schema.indexes()).toContainEqual([
-            { tenantId: 1, roomId: 1, personNameKey: 1 },
-            { unique: true },
+            { tenantId: 1, roomId: 1, periodId: 1, personNameKey: 1 },
+            { unique: true, name: 'tenant_room_period_personNameKey_unique' },
         ])
+    })
+
+    it('declara o modelo e índice do período de check-in', () => {
+        expect(CheckinPeriod.modelName).toBe('CheckinPeriod')
+        expect(CheckinPeriod.schema.path('tenantId').options.required).toBe(true)
+        expect(CheckinPeriod.schema.path('roomId').options.required).toBe(true)
+        expect(CheckinPeriod.schema.path('status').enumValues).toEqual([
+            'open',
+            'closed',
+        ])
+        expect(CheckinPeriod.schema.indexes()).toContainEqual([
+            { tenantId: 1, roomId: 1, startedAt: -1 },
+            {},
+        ])
+        expect(Room.schema.path('currentPeriodId')).toBeDefined()
+        expect(Room.schema.path('legacyPeriod')).toBeDefined()
+        expect(Room.schema.path('periodRevision')).toBeDefined()
     })
 })

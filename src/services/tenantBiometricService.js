@@ -1,9 +1,15 @@
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto'
+import mongoose from 'mongoose'
 import Attendance from '../models/attendanceModel.js'
 import BiometricProfile from '../models/biometricProfileModel.js'
 import Person from '../models/personModel.js'
 import Room from '../models/roomModel.js'
+import User from '../models/userModel.js'
 import { obterContextoQr, TenantCheckinError } from './tenantCheckinService.js'
+import {
+    obterPeriodoCorrente,
+    inserirPresencaNoPeriodo,
+} from './checkinPeriodService.js'
 
 const FACE_DESCRIPTOR_LENGTH = 128
 const FACE_MATCH_THRESHOLD = 0.48
@@ -84,7 +90,7 @@ async function obterPessoaDoTenant(tenantId, name) {
                 status: 'active',
             },
         },
-        { new: true, upsert: true, runValidators: true },
+        { returnDocument: 'after', upsert: true, runValidators: true },
     ).lean()
     if (!person || person.status !== 'active') {
         throw new TenantBiometricError('Cadastro de participante inativo.', 409)
@@ -213,26 +219,55 @@ export async function registrarCheckinFacialDoTenant({ token, descriptor, consen
         _id: matchedProfile.personId,
         tenantId: context.tenantId,
         status: 'active',
-    }).select('_id name nameKey').lean()
+    }).select('_id name nameKey userId').lean()
     if (!person) {
         throw new TenantBiometricError('Perfil facial indisponível.', 404)
     }
 
+    const periodoCorrente = await obterPeriodoCorrente(context.tenantId, context.room._id)
+    if (!periodoCorrente || periodoCorrente.status !== 'open') {
+        throw new TenantBiometricError('Esta sala está fechada para check-in.', 403)
+    }
+
+    const duplicado = await Attendance.exists({
+        tenantId: context.tenantId,
+        roomId: context.room._id,
+        periodId: periodoCorrente._id,
+        personNameKey: person.nameKey,
+    })
+    if (duplicado) {
+        throw new TenantBiometricError(
+            'Este participante já está na lista de presença para esta sala.',
+            409,
+        )
+    }
+
+    const attendance = {
+        tenantId: context.tenantId,
+        roomId: context.room._id,
+        personId: person._id,
+        periodId: periodoCorrente._id,
+        personNameSnapshot: person.name,
+        personNameKey: person.nameKey,
+        method: 'face',
+        sourceIp: typeof sourceIp === 'string' ? sourceIp.slice(0, 45) : undefined,
+    }
+
     try {
-        await Attendance.create({
+        await inserirPresencaNoPeriodo({
             tenantId: context.tenantId,
             roomId: context.room._id,
+            attendance,
             personId: person._id,
-            personNameSnapshot: person.name,
-            personNameKey: person.nameKey,
-            method: 'face',
-            sourceIp: typeof sourceIp === 'string' ? sourceIp.slice(0, 45) : undefined,
+            userId: person.userId || null,
+            checkedInAt: new Date(),
         })
     } catch (error) {
         if (
             error?.code === 11000 &&
             error.keyPattern?.tenantId &&
             error.keyPattern?.roomId &&
+            error.keyPattern?.periodId &&
             error.keyPattern?.personNameKey
         ) {
             throw new TenantBiometricError(
@@ -359,26 +394,55 @@ export async function registrarCheckinFacialNaSalaDoTenant({
         _id: matchedProfile.personId,
         tenantId,
         status: 'active',
-    }).select('_id name nameKey').lean()
+    }).select('_id name nameKey userId').lean()
     if (!person) {
         throw new TenantBiometricError('Perfil facial indisponível.', 404)
     }
 
+    const periodoCorrente = await obterPeriodoCorrente(tenantId, roomId)
+    if (!periodoCorrente || periodoCorrente.status !== 'open') {
+        throw new TenantBiometricError('Esta sala está fechada para check-in.', 403)
+    }
+
+    const duplicado = await Attendance.exists({
+        tenantId,
+        roomId: room._id,
+        periodId: periodoCorrente._id,
+        personNameKey: person.nameKey,
+    })
+    if (duplicado) {
+        throw new TenantBiometricError(
+            'Este participante já está na lista de presença para esta sala.',
+            409,
+        )
+    }
+
+    const attendance = {
+        tenantId,
+        roomId: room._id,
+        personId: person._id,
+        periodId: periodoCorrente._id,
+        personNameSnapshot: person.name,
+        personNameKey: person.nameKey,
+        method: 'face',
+        sourceIp: typeof sourceIp === 'string' ? sourceIp.slice(0, 45) : undefined,
+    }
+
     try {
-        await Attendance.create({
+        await inserirPresencaNoPeriodo({
             tenantId,
             roomId: room._id,
+            attendance,
             personId: person._id,
-            personNameSnapshot: person.name,
-            personNameKey: person.nameKey,
-            method: 'face',
-            sourceIp: typeof sourceIp === 'string' ? sourceIp.slice(0, 45) : undefined,
+            userId: person.userId || null,
+            checkedInAt: new Date(),
         })
     } catch (error) {
         if (
             error?.code === 11000 &&
             error.keyPattern?.tenantId &&
             error.keyPattern?.roomId &&
+            error.keyPattern?.periodId &&
             error.keyPattern?.personNameKey
         ) {
             throw new TenantBiometricError(
