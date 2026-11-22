@@ -280,6 +280,119 @@ button:hover,
     color: #a94442;
 }
 
+.qr-management-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 18px;
+}
+
+.qr-management-header h2 {
+    margin-bottom: 8px;
+}
+
+.qr-management-header p {
+    margin: 0;
+    text-align: center;
+}
+
+.qr-codes-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 14px;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.qr-code-item {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 16px;
+    border-left: 4px solid #3498db;
+    border-radius: 5px;
+    background-color: #f4f7f6;
+}
+
+.qr-code-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.qr-code-header strong {
+    overflow-wrap: anywhere;
+}
+
+.qr-status {
+    flex-shrink: 0;
+    padding: 4px 8px;
+    border-radius: 999px;
+    color: #fff;
+    font-size: 0.8rem;
+    font-weight: 700;
+}
+
+.qr-status-active {
+    background-color: #248a55;
+}
+
+.qr-status-available {
+    background-color: #2878b5;
+}
+
+.qr-code-room,
+.qr-code-date {
+    margin: 0;
+}
+
+.qr-code-date {
+    color: #5f6b76;
+    font-size: 0.85rem;
+}
+
+.qr-code-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-top: auto;
+}
+
+.qr-code-actions .action-button {
+    flex: 1 1 100px;
+}
+
+.qr-room-select {
+    box-sizing: border-box;
+    width: 100%;
+    min-height: 42px;
+    padding: 8px 10px;
+    border: 1px solid #bdc3c7;
+    border-radius: 4px;
+    background-color: #fff;
+    font: inherit;
+}
+
+#qrManagementCard button:disabled {
+    cursor: not-allowed;
+    opacity: 0.65;
+}
+
+@media (max-width: 520px) {
+    .qr-management-header {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .qr-management-header button {
+        width: 100%;
+    }
+}
+
 @media (min-width: 1200px) {
     .container {
         display: grid;

@@ -228,6 +228,22 @@
             <ul id="listaSalas" style="margin-top: 10px; padding-left: 20px;"></ul>
         </div>
 
+        <section class="card" id="qrManagementCard" aria-labelledby="qrManagementTitle">
+            <div class="qr-management-header">
+                <div>
+                    <h2 id="qrManagementTitle">Gerenciar QR Codes</h2>
+                    <p id="resumoQrs">Carregando QR Codes...</p>
+                </div>
+                <button id="btnCriarQrDisponivel" class="btn-primary" type="button">
+                    + QR Code reutilizável
+                </button>
+            </div>
+            <ul id="listaQrCodes" class="qr-codes-list" aria-live="polite"></ul>
+            <p id="qrsVazio" class="checkins-empty" role="status">
+                Carregando QR Codes...
+            </p>
+        </section>
+
         <div class="card" id="biometricManagementCard">
             <h2>Perfis biométricos desta organização</h2>
             <ul id="listaPerfisFaciais"></ul>

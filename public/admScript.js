@@ -5,9 +5,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const checkinsVazioEl = document.getElementById('checkinsVazio');
     const statusEl = document.getElementById('status');
     const listaSalasEl = document.getElementById('listaSalas');
+    const qrManagementCard = document.getElementById('qrManagementCard');
+    const listaQrCodesEl = document.getElementById('listaQrCodes');
+    const qrsVazioEl = document.getElementById('qrsVazio');
+    const resumoQrsEl = document.getElementById('resumoQrs');
+    const btnCriarQrDisponivel = document.getElementById('btnCriarQrDisponivel');
     const listaPerfisFaciaisEl = document.getElementById('listaPerfisFaciais');
     let qrCodesTenant = [];
     let podeConsultarQrs = false;
+    let salasTenant = [];
+    let podeGerenciarQrs = false;
 
     // Botões
     const btnAtualizarQtd = document.getElementById('btnAtualizarQtd');
@@ -83,9 +90,15 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function mostrarQrCode(data, filename) {
+    function mostrarQrCode(data, filename, message = '', type = 'success') {
         statusEl.replaceChildren();
-        statusEl.className = 'status-message success';
+        statusEl.className = `status-message ${type}`;
+
+        if (message) {
+            const feedback = document.createElement('p');
+            feedback.textContent = message;
+            statusEl.appendChild(feedback);
+        }
 
         const img = document.createElement('img');
         img.src = data.qrCodeDataUri;
@@ -117,6 +130,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const tenant = data.tenant;
         document.getElementById('tenantNameDisplay').textContent = tenant.name;
         const manage = ['owner', 'admin'].includes(tenant.role);
+        podeGerenciarQrs = manage;
         podeConsultarQrs = ['owner', 'admin', 'operator'].includes(tenant.role);
         document.getElementById('attendanceDashboardCard').hidden =
             !['owner', 'admin', 'operator', 'viewer'].includes(tenant.role);
@@ -125,6 +139,9 @@ document.addEventListener('DOMContentLoaded', () => {
         btnCadastrarUsuario.hidden = !podeVerAcoesPresenca;
         document.getElementById('roomManagementCard').hidden = !manage;
         document.getElementById('biometricManagementCard').hidden = !manage;
+        qrManagementCard.hidden = !manage;
+        btnCriarQrDisponivel.hidden = !manage;
+        btnCriarQrDisponivel.disabled = !manage;
         btnAddSala.disabled = !manage;
         btnCadastrarUsuario.disabled = !manage;
         document.querySelector('a[href="/relatorio"]').hidden =
@@ -136,7 +153,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function carregarSalas() {
         await apiRequest('/api/tenant/rooms', { method: 'GET' }, (data) => {
-            const salas = Array.isArray(data.salas) ? data.salas : [];
+            salasTenant = Array.isArray(data.salas) ? data.salas : [];
+            const salas = salasTenant;
 
             listaSalasEl.innerHTML = '';
 
@@ -221,14 +239,254 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    function formatarDataQr(valor) {
+        if (!valor) return 'Data indisponível';
+        const data = new Date(valor);
+        if (Number.isNaN(data.getTime())) return 'Data indisponível';
+
+        return new Intl.DateTimeFormat('pt-BR', {
+            dateStyle: 'short',
+            timeStyle: 'short',
+        }).format(data);
+    }
+
+    function criarBotaoQr(texto, classe, acao) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = `action-button ${classe}`;
+        button.textContent = texto;
+        button.addEventListener('click', acao);
+        return button;
+    }
+
+    function renderizarQrCodes(data) {
+        const qrsUtilizaveis = qrCodesTenant.filter(qr => qr.status !== 'revoked');
+        listaQrCodesEl.replaceChildren();
+
+        const limite = Number.isInteger(data.limite) ? data.limite : 10;
+        const quantidadeAtiva = Number.isInteger(data.quantidadeAtiva)
+            ? data.quantidadeAtiva
+            : qrsUtilizaveis.length;
+
+        resumoQrsEl.textContent =
+            `${quantidadeAtiva} de ${limite} QR Code(s) em uso ou disponíveis.`;
+        btnCriarQrDisponivel.disabled =
+            !podeGerenciarQrs || quantidadeAtiva >= limite;
+
+        if (qrsUtilizaveis.length === 0) {
+            qrsVazioEl.hidden = false;
+            qrsVazioEl.textContent =
+                'Nenhum QR Code reutilizável foi criado.';
+            return;
+        }
+
+        qrsVazioEl.hidden = true;
+        const salasJaAssociadas = new Set(
+            qrsUtilizaveis
+                .filter(qr => qr.status === 'active' && qr.roomId)
+                .map(qr => String(qr.roomId)),
+        );
+
+        qrsUtilizaveis.forEach(qr => {
+            const item = document.createElement('li');
+            item.className = 'qr-code-item';
+
+            const cabecalho = document.createElement('div');
+            cabecalho.className = 'qr-code-header';
+
+            const identificacao = document.createElement('strong');
+            identificacao.textContent = `QR ${String(qr.id).slice(-6).toUpperCase()}`;
+
+            const situacao = document.createElement('span');
+            situacao.className =
+                qr.status === 'active'
+                    ? 'qr-status qr-status-active'
+                    : 'qr-status qr-status-available';
+            situacao.textContent =
+                qr.status === 'active' ? 'Em uso' : 'Disponível';
+
+            cabecalho.append(identificacao, situacao);
+
+            const sala = document.createElement('p');
+            sala.className = 'qr-code-room';
+            sala.textContent =
+                qr.status === 'active'
+                    ? `Sala: ${qr.roomName || 'Sala não encontrada'}`
+                    : 'Sala: ainda não associado';
+
+            const criacao = document.createElement('p');
+            criacao.className = 'qr-code-date';
+            criacao.textContent = `Criado em: ${formatarDataQr(qr.criadaEm)}`;
+
+            const acoes = document.createElement('div');
+            acoes.className = 'qr-code-actions';
+
+            if (qr.status === 'active') {
+                acoes.append(
+                    criarBotaoQr(
+                        'Exibir',
+                        'btn-secondary',
+                        () => exibirQrCodeExistente(qr),
+                    ),
+                    criarBotaoQr(
+                        'Liberar',
+                        'btn-warning',
+                        () => liberarQrCode(qr),
+                    ),
+                    criarBotaoQr(
+                        'Revogar',
+                        'btn-danger',
+                        () => revogarQrCode(qr),
+                    ),
+                );
+            } else {
+                const select = document.createElement('select');
+                select.className = 'qr-room-select';
+                select.setAttribute(
+                    'aria-label',
+                    `Selecionar sala para o QR ${String(qr.id).slice(-6)}`,
+                );
+
+                const optionPadrao = document.createElement('option');
+                optionPadrao.value = '';
+                optionPadrao.textContent = 'Selecionar sala';
+                select.appendChild(optionPadrao);
+
+                salasTenant
+                    .filter(salaAtual =>
+                        !salasJaAssociadas.has(String(salaAtual.id)),
+                    )
+                    .forEach(salaAtual => {
+                        const option = document.createElement('option');
+                        option.value = String(salaAtual.id);
+                        option.textContent =
+                            `${salaAtual.nome} ` +
+                            `(${salaAtual.status === 'open' ? 'aberta' : 'fechada'})`;
+                        select.appendChild(option);
+                    });
+
+                const btnAssociar = criarBotaoQr(
+                    'Associar à sala',
+                    'btn-primary',
+                    () => associarQrCode(qr, select.value),
+                );
+                btnAssociar.disabled = select.options.length <= 1;
+
+                acoes.append(
+                    select,
+                    btnAssociar,
+                    criarBotaoQr(
+                        'Revogar',
+                        'btn-danger',
+                        () => revogarQrCode(qr),
+                    ),
+                );
+            }
+
+            item.append(cabecalho, sala, criacao, acoes);
+            listaQrCodesEl.appendChild(item);
+        });
+    }
+
     async function carregarQrs() {
-        if (!podeConsultarQrs) return false;
+        if (!podeConsultarQrs || qrManagementCard.hidden) return false;
+
         let sucesso = false;
-        await apiRequest('/api/tenant/qrcodes', { method: 'GET' }, (data) => {
-            qrCodesTenant = Array.isArray(data.qrcodes) ? data.qrcodes : [];
+        await apiRequest('/api/tenant/qrcodes', { method: 'GET' }, data => {
+            qrCodesTenant = Array.isArray(data.qrcodes)
+                ? data.qrcodes
+                : [];
+            renderizarQrCodes(data);
             sucesso = true;
         });
+
         return sucesso;
+    }
+
+    async function criarQrDisponivel() {
+        btnCriarQrDisponivel.disabled = true;
+
+        await apiRequest('/api/tenant/qrcodes', { method: 'POST' }, async data => {
+            mostrarQrCode(
+                data.qrcode,
+                `qrcode_disponivel_${data.qrcode.id}.png`,
+                'QR Code criado e disponível para associação.',
+            );
+            await carregarQrs();
+            statusEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        });
+
+        btnCriarQrDisponivel.disabled = false;
+        await carregarQrs();
+    }
+
+    async function associarQrCode(qr, roomId) {
+        if (!roomId) {
+            updateStatus('Selecione uma sala para associar o QR Code.', 'error');
+            return;
+        }
+
+        await apiRequest(`/api/tenant/qrcodes/${qr.id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ roomId }),
+        }, async () => {
+            updateStatus('QR Code associado à sala.', 'success');
+            await carregarQrs();
+            await exibirQrCodeExistente({ ...qr, roomId, status: 'active' });
+        });
+    }
+
+    async function liberarQrCode(qr) {
+        const nomeSala = qr.roomName || 'a sala atual';
+        if (!confirm(`Liberar este QR Code de "${nomeSala}" para reutilização?`)) {
+            return;
+        }
+
+        await apiRequest(`/api/tenant/qrcodes/${qr.id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ roomId: null }),
+        }, async () => {
+            updateStatus('QR Code liberado e disponível para outra sala.', 'success');
+            await carregarQrs();
+        });
+    }
+
+    async function revogarQrCode(qr) {
+        if (!confirm('Revogar permanentemente este QR Code? Essa ação não pode ser desfeita.')) {
+            return;
+        }
+
+        await apiRequest(`/api/tenant/qrcodes/${qr.id}`, {
+            method: 'DELETE',
+        }, async () => {
+            updateStatus('QR Code revogado com sucesso.', 'success');
+            await carregarQrs();
+        });
+    }
+
+    async function exibirQrCodeExistente(qr) {
+        if (qr.status !== 'active') {
+            updateStatus(
+                'Associe o QR Code a uma sala antes de exibir a imagem.',
+                'error',
+            );
+            return;
+        }
+
+        await apiRequest(`/api/tenant/qrcodes/${qr.id}/visual`, {
+            method: 'GET',
+        }, data => {
+            mostrarQrCode(
+                data.qrcode,
+                `qrcode_${qr.roomId || qr.id}.png`,
+            );
+            statusEl.scrollIntoView({
+                behavior: 'smooth',
+                block: 'center',
+            });
+        });
     }
 
     async function alterarEstadoSala(sala) {
@@ -409,41 +667,76 @@ document.addEventListener('DOMContentLoaded', () => {
     async function exibirQrDaSala(salaId) {
         if (exibindoQrPorSala.get(salaId)) return;
         exibindoQrPorSala.set(salaId, true);
+
         try {
-            const ok = await carregarQrs()
-            if (!ok) return
+            const ok = await carregarQrs();
+            if (!ok) return;
 
             const associado = qrCodesTenant.find(qr =>
                 qr.roomId === salaId && qr.status === 'active',
-            )
+            );
+
             if (associado) {
-                await apiRequest(`/api/tenant/qrcodes/${associado.id}/visual`, {
-                    method: 'GET',
-                }, data => {
-                    mostrarQrCode(data.qrcode, `qrcode_sala_${salaId}.png`)
-                    statusEl.scrollIntoView({ behavior: 'smooth', block: 'center' })
-                })
-                return
+                await exibirQrCodeExistente(associado);
+                return;
             }
 
-            await apiRequest('/api/tenant/qrcodes', { method: 'POST' }, async data => {
-                const association = await apiRequest(`/api/tenant/qrcodes/${data.qrcode.id}`, {
+            const disponivel = qrCodesTenant.find(qr =>
+                qr.status === 'available' && !qr.roomId,
+            );
+
+            if (disponivel) {
+                await apiRequest(`/api/tenant/qrcodes/${disponivel.id}`, {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ roomId: salaId }),
-                })
-                mostrarQrCode(data.qrcode, `qrcode_sala_${salaId}.png`)
-                statusEl.scrollIntoView({ behavior: 'smooth', block: 'center' })
-                if (!association) {
-                    const erro = document.createElement('p');
-                    erro.textContent = 'O QR foi criado, mas não pôde ser associado à sala. Guarde a imagem; a associação deste QR existente só está disponível pela API.';
-                    statusEl.prepend(erro);
-                    statusEl.className = 'status-message error';
+                }, async data => {
+                    updateStatus(
+                        'QR Code disponível reutilizado para esta sala.',
+                        'success',
+                    );
+                    await carregarQrs();
+                    await exibirQrCodeExistente(data.qrcode);
+                });
+                return;
+            }
+
+            await apiRequest('/api/tenant/qrcodes', {
+                method: 'POST',
+            }, async data => {
+                const associacao = await apiRequest(
+                    `/api/tenant/qrcodes/${data.qrcode.id}`,
+                    {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ roomId: salaId }),
+                    },
+                );
+
+                if (!associacao) {
+                    mostrarQrCode(
+                        data.qrcode,
+                        `qrcode_sala_${salaId}.png`,
+                        'O QR foi criado, mas não pôde ser associado à sala.',
+                        'error',
+                    );
+                    await carregarQrs();
+                    return;
                 }
-                await carregarQrs()
-            })
+
+                mostrarQrCode(
+                    data.qrcode,
+                    `qrcode_sala_${salaId}.png`,
+                    'QR Code criado e associado à sala.',
+                );
+                await carregarQrs();
+                statusEl.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'center',
+                });
+            });
         } finally {
-            exibindoQrPorSala.delete(salaId)
+            exibindoQrPorSala.delete(salaId);
         }
     }
 
@@ -481,6 +774,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     btnAddSala.addEventListener('click', adicionarSala);
+    btnCriarQrDisponivel.addEventListener('click', criarQrDisponivel);
 
     // Carregar a contagem inicial e as salas ao carregar a página
     configurarSessaoTenant().then(() => {
