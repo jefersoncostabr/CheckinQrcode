@@ -21,14 +21,14 @@
             <input id="faceTestName" type="text" maxlength="120" autocomplete="name" placeholder="Digite o nome a verificar">
         </div>
 
-        <button id="faceTestButton" type="button">Verificar rosto</button>
+        <button id="faceTestButton" type="button" aria-label="Verificar rosto com reconhecimento facial" title="Verificar rosto com reconhecimento facial">Verificar rosto</button>
         <div id="faceTestCameraStage" class="face-camera-stage" hidden>
             <video id="faceTestVideo" autoplay muted playsinline hidden></video>
             <div class="face-guide" aria-hidden="true"></div>
         </div>
         <p id="faceTestStatus" role="status" aria-live="polite"></p>
         <p id="faceTestResult" class="face-test-result" role="status" aria-live="polite" hidden></p>
-        <button id="faceTestCancel" class="secondary" type="button" hidden>Cancelar captura</button>
+        <button id="faceTestCancel" class="secondary" type="button" hidden aria-label="Cancelar captura facial do teste" title="Cancelar captura facial do teste">Cancelar captura</button>
 
         <a href="/add" class="face-test-back">Voltar ao check-in</a>
     </main>

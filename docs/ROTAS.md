@@ -52,7 +52,7 @@ Todas as rotas abaixo exigem sessão tenant e a permissão indicada. O serviço 
 | `GET` | `/api/tenant/qrcodes` | — | `qrcodes:read`; lista QR sem revelar tokens ou hashes e retorna limite/quantidade ativa. |
 | `POST` | `/api/tenant/qrcodes` | — | `qrcodes:manage`; cria um QR disponível e retorna token/imagem (limite de 10 por tenant). O token recuperável é guardado sem criptografia no banco, permitindo reexibição posterior por administrador autorizado. Configure `PUBLIC_BASE_URL` quando o endereço público não puder ser detectado. |
 | `GET` | `/api/tenant/qrcodes/:id/visual` | — | `qrcodes:manage`; reexibe a imagem de um QR Code ativo associado a uma sala, sem gerar outro token nem invalidar cópias existentes. Retorna `Cache-Control: no-store`. QR Codes sem dados recuperáveis retornam `409`. |
-| `PATCH` | `/api/tenant/qrcodes/:id` | `roomId` ou `null` | `qrcodes:manage`; associa a uma sala da mesma organização ou libera a associação. |
+| `PATCH` | `/api/tenant/qrcodes/:id` | `roomId` ou `null` em uma requisição; alternativamente `apelido` | `qrcodes:manage`; associa/libera a sala ou atualiza o apelido administrativo do QR sem alterar o token. |
 | `POST` | `/api/tenant/qrcodes/:id/rotate` | — | `qrcodes:manage`; gera token/imagem novos e invalida cópias anteriores. |
 | `DELETE` | `/api/tenant/qrcodes/:id` | — | `qrcodes:manage`; revoga o QR. |
 | `GET` | `/api/tenant/dashboard` | — | `attendance:read`; contagem por sala. |

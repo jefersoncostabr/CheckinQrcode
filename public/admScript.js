@@ -250,11 +250,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }).format(data);
     }
 
-    function criarBotaoQr(texto, classe, acao) {
+    function criarBotaoQr(texto, classe, acao, title) {
         const button = document.createElement('button');
         button.type = 'button';
         button.className = `action-button ${classe}`;
         button.textContent = texto;
+        if (title) button.title = title;
         button.addEventListener('click', acao);
         return button;
     }
@@ -295,7 +296,20 @@ document.addEventListener('DOMContentLoaded', () => {
             cabecalho.className = 'qr-code-header';
 
             const identificacao = document.createElement('strong');
-            identificacao.textContent = `QR ${String(qr.id).slice(-6).toUpperCase()}`;
+            const codigoQr = `QR ${String(qr.id).slice(-6).toUpperCase()}`;
+            const apelido = typeof qr.apelido === 'string'
+                ? qr.apelido.trim()
+                : '';
+            identificacao.textContent = apelido || codigoQr;
+            identificacao.title = apelido
+                ? `${apelido} - Identificador ${codigoQr}`
+                : codigoQr;
+            identificacao.setAttribute(
+                'aria-label',
+                apelido
+                    ? `QR Code ${apelido}, identificador ${codigoQr}`
+                    : codigoQr,
+            );
 
             const situacao = document.createElement('span');
             situacao.className =
@@ -327,16 +341,19 @@ document.addEventListener('DOMContentLoaded', () => {
                         'Exibir',
                         'btn-secondary',
                         () => exibirQrCodeExistente(qr),
+                        'Exibir imagem do QR Code',
                     ),
                     criarBotaoQr(
                         'Liberar',
                         'btn-warning',
                         () => liberarQrCode(qr),
+                        'Liberar QR Code da sala',
                     ),
                     criarBotaoQr(
                         'Revogar',
                         'btn-danger',
                         () => revogarQrCode(qr),
+                        'Revogar QR Code permanentemente',
                     ),
                 );
             } else {
@@ -369,6 +386,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     'Associar à sala',
                     'btn-primary',
                     () => associarQrCode(qr, select.value),
+                    'Associar QR Code a esta sala',
                 );
                 btnAssociar.disabled = select.options.length <= 1;
 
@@ -379,9 +397,39 @@ document.addEventListener('DOMContentLoaded', () => {
                         'Revogar',
                         'btn-danger',
                         () => revogarQrCode(qr),
+                        'Revogar QR Code permanentemente',
                     ),
                 );
             }
+
+            const editorApelido = document.createElement('div');
+            editorApelido.className = 'qr-alias-editor';
+
+            const labelApelido = document.createElement('label');
+            labelApelido.textContent = 'Apelido do QR Code';
+            labelApelido.htmlFor = `apelido-qr-${qr.id}`;
+
+            const inputApelido = document.createElement('input');
+            inputApelido.id = `apelido-qr-${qr.id}`;
+            inputApelido.className = 'qr-alias-input';
+            inputApelido.type = 'text';
+            inputApelido.maxLength = 80;
+            inputApelido.value = qr.apelido || '';
+            inputApelido.placeholder = 'Ex.: Entrada Principal';
+            inputApelido.setAttribute(
+                'aria-label',
+                `Apelido do QR Code ${String(qr.id).slice(-6)}`,
+            );
+
+            const btnSalvarApelido = criarBotaoQr(
+                'Salvar apelido',
+                'btn-primary',
+                () => salvarApelidoQrCode(qr, inputApelido.value),
+                'Salvar apelido do QR Code',
+            );
+
+            editorApelido.append(labelApelido, inputApelido, btnSalvarApelido);
+            acoes.appendChild(editorApelido);
 
             item.append(cabecalho, sala, criacao, acoes);
             listaQrCodesEl.appendChild(item);
@@ -434,6 +482,22 @@ document.addEventListener('DOMContentLoaded', () => {
             updateStatus('QR Code associado à sala.', 'success');
             await carregarQrs();
             await exibirQrCodeExistente({ ...qr, roomId, status: 'active' });
+        });
+    }
+
+    async function salvarApelidoQrCode(qr, apelido) {
+        await apiRequest(`/api/tenant/qrcodes/${qr.id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ apelido: apelido.trim() }),
+        }, async () => {
+            updateStatus(
+                apelido.trim()
+                    ? 'Apelido do QR Code salvo com sucesso.'
+                    : 'Apelido do QR Code removido.',
+                'success',
+            );
+            await carregarQrs();
         });
     }
 

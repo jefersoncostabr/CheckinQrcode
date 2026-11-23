@@ -206,16 +206,16 @@
                 <p>Atualização automática a cada minuto.</p>
                 <div class="checkins-refresh">
                     <span>Última atualização: <time id="atualizacaoContagem">--:--:--</time></span>
-                    <button id="btnAtualizarQtd" class="btn-primary">Atualizar</button>
+                    <button id="btnAtualizarQtd" class="btn-primary" aria-label="Atualizar check-ins" title="Atualizar check-ins">Atualizar</button>
                 </div>
             </div>
             <ul id="listaCheckins" class="checkins-list" aria-live="polite"></ul>
             <p id="checkinsVazio" class="checkins-empty" role="status">Carregando...</p>
             <div class="actions" style="margin-top: 20px;">
-                <button id="btnAddPresenca" class="btn-primary">+Presença</button>
-                <button id="btnCadastrarUsuario" class="btn-primary" type="button">+Usuário</button>
-                <a id="btnTestarBiometria" hidden href="/teste-rosto" class="btn-secondary" target="_blank" rel="noopener">Teste Facial</a>
-                <a id="btnRelatorio" hidden href="/relatorio" class="btn-secondary" target="_blank" rel="noopener">Relatório</a>
+                <button id="btnAddPresenca" class="btn-primary" aria-label="Adicionar presença manual" title="Adicionar presença manual">+Presença</button>
+                <button id="btnCadastrarUsuario" class="btn-primary" type="button" aria-label="Cadastrar usuário facial" title="Cadastrar usuário facial">+Usuário</button>
+                <a id="btnTestarBiometria" hidden href="/teste-rosto" class="btn-secondary" target="_blank" rel="noopener" aria-label="Testar reconhecimento facial" title="Testar reconhecimento facial">Teste Facial</a>
+                <a id="btnRelatorio" hidden href="/relatorio" class="btn-secondary" target="_blank" rel="noopener" aria-label="Abrir relatório de presença" title="Abrir relatório de presença">Relatório</a>
             </div>
         </div>
 
@@ -223,7 +223,7 @@
             <h2>Salas do Evento</h2>
             <div class="actions">
                 <input type="text" id="salaInput" placeholder="Nome da sala" style="flex: 1; min-width: 180px;" />
-                <button id="btnAddSala" class="btn-primary">Adicionar Sala</button>
+                <button id="btnAddSala" class="btn-primary" aria-label="Adicionar nova sala" title="Adicionar nova sala">Adicionar Sala</button>
             </div>
             <ul id="listaSalas" style="margin-top: 10px; padding-left: 20px;"></ul>
         </div>
@@ -234,7 +234,7 @@
                     <h2 id="qrManagementTitle">Gerenciar QR Codes</h2>
                     <p id="resumoQrs">Carregando QR Codes...</p>
                 </div>
-                <button id="btnCriarQrDisponivel" class="btn-primary" type="button">
+                <button id="btnCriarQrDisponivel" class="btn-primary" type="button" aria-label="Criar QR Code disponível para associação" title="Criar QR Code disponível para associação">
                     + QR Code reutilizável
                 </button>
             </div>
@@ -265,14 +265,14 @@
                 </div>
                 <p id="statusCadastroUsuario" role="status" aria-live="polite"></p>
                 <div class="actions capture-actions">
-                    <button id="btnConfirmarCadastro" class="btn-primary" type="submit">Iniciar busca automática do rosto</button>
-                    <button id="btnCancelarCadastro" type="button">Cancelar</button>
+                    <button id="btnConfirmarCadastro" class="btn-primary" type="submit" aria-label="Iniciar captura facial para cadastro de usuário" title="Iniciar captura facial para cadastro de usuário">Iniciar busca automática do rosto</button>
+                    <button id="btnCancelarCadastro" type="button" aria-label="Cancelar cadastro facial" title="Cancelar cadastro facial">Cancelar</button>
                 </div>
             </form>
         </dialog>
 
         <div class="actions">
-            <a id="btnAvancado" hidden href="/adm/avancado" class="btn-secondary">Avançado</a>
+            <a id="btnAvancado" hidden href="/adm/avancado" class="btn-secondary" aria-label="Abrir painel avançado" title="Abrir painel avançado">Avançado</a>
         </div>
 
          <div style="text-align: center; margin-top: 20px;">

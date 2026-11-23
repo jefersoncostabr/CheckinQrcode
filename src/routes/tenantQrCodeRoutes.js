@@ -3,6 +3,7 @@ import { generateQRCodeBuffer, getQrBaseUrl } from '../services/qrCodeService.js
 import { authorizeTenantPermission } from '../middleware/authorizeTenant.js'
 import {
     associarQrCodeASalaDoTenant,
+    atualizarApelidoQrCodeDoTenant,
     criarQrCodeDoTenant,
     listarQrCodesDoTenant,
     recuperarVisualQrCode,
@@ -103,14 +104,42 @@ router.get('/qrcodes/:id/visual', authorizeTenantPermission('qrcodes:manage'), a
 
 router.patch('/qrcodes/:id', authorizeTenantPermission('qrcodes:manage'), async (req, res, next) => {
     try {
-        const qrcode = await associarQrCodeASalaDoTenant(
-            req.tenant.id,
-            req.params.id,
-            req.body?.roomId,
-        )
-        if (!qrcode) {
-            return res.status(404).json({ sucesso: false, mensagem: 'QR Code ou sala não encontrado.' })
+        const body =
+            req.body &&
+            typeof req.body === 'object' &&
+            !Array.isArray(req.body)
+                ? req.body
+                : {}
+        const temRoomId = Object.prototype.hasOwnProperty.call(body, 'roomId')
+        const temApelido = Object.prototype.hasOwnProperty.call(body, 'apelido')
+
+        if (temRoomId === temApelido) {
+            return res.status(400).json({
+                sucesso: false,
+                mensagem:
+                    'Informe somente roomId ou apelido na atualização do QR Code.',
+            })
         }
+
+        const qrcode = temApelido
+            ? await atualizarApelidoQrCodeDoTenant(
+                req.tenant.id,
+                req.params.id,
+                body.apelido,
+            )
+            : await associarQrCodeASalaDoTenant(
+                req.tenant.id,
+                req.params.id,
+                body.roomId,
+            )
+
+        if (!qrcode) {
+            return res.status(404).json({
+                sucesso: false,
+                mensagem: 'QR Code ou sala não encontrado.',
+            })
+        }
+
         return res.json({ sucesso: true, qrcode })
     } catch (error) {
         return responderErro(error, res, next)

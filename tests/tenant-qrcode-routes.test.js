@@ -11,6 +11,7 @@ const authorizeTenantPermission = jest.fn(permission => (req, res, next) => {
 const listarQrCodesDoTenant = jest.fn()
 const criarQrCodeDoTenant = jest.fn()
 const associarQrCodeASalaDoTenant = jest.fn()
+const atualizarApelidoQrCodeDoTenant = jest.fn()
 const rotacionarQrCodeDoTenant = jest.fn()
 const revogarQrCodeDoTenant = jest.fn()
 const recuperarVisualQrCode = jest.fn()
@@ -29,6 +30,7 @@ jest.unstable_mockModule('../src/services/tenantQrCodeService.js', () => ({
     listarQrCodesDoTenant,
     criarQrCodeDoTenant,
     associarQrCodeASalaDoTenant,
+    atualizarApelidoQrCodeDoTenant,
     rotacionarQrCodeDoTenant,
     revogarQrCodeDoTenant,
     recuperarVisualQrCode,
@@ -179,5 +181,146 @@ describe('rotas de QR Codes multi-tenant', () => {
         await request(app)
             .get('/api/tenant/qrcodes/qr-id/visual')
             .expect(404)
+    })
+
+    it('atualiza somente o apelido pelo PATCH existente', async () => {
+        atualizarApelidoQrCodeDoTenant.mockResolvedValue({
+            id: 'qr-id',
+            apelido: 'Entrada Principal',
+            status: 'available',
+            roomId: null,
+        })
+
+        const response = await request(app)
+            .patch('/api/tenant/qrcodes/qr-id')
+            .send({ apelido: 'Entrada Principal' })
+            .expect(200)
+
+        expect(atualizarApelidoQrCodeDoTenant).toHaveBeenCalledWith(
+            '65f1a0000000000000000001',
+            'qr-id',
+            'Entrada Principal',
+        )
+        expect(associarQrCodeASalaDoTenant).not.toHaveBeenCalled()
+        expect(response.body.qrcode.apelido).toBe('Entrada Principal')
+    })
+
+    it('PATCH com apelido NÃO chama associarQrCodeASalaDoTenant', async () => {
+        atualizarApelidoQrCodeDoTenant.mockResolvedValue({
+            id: 'qr-id',
+            apelido: 'Recepção',
+            status: 'available',
+            roomId: null,
+        })
+
+        await request(app)
+            .patch('/api/tenant/qrcodes/qr-id')
+            .send({ apelido: 'Recepção' })
+            .expect(200)
+
+        expect(atualizarApelidoQrCodeDoTenant).toHaveBeenCalled()
+        expect(associarQrCodeASalaDoTenant).not.toHaveBeenCalled()
+    })
+
+    it('PATCH com roomId continua chamando associarQrCodeASalaDoTenant', async () => {
+        associarQrCodeASalaDoTenant.mockResolvedValue({
+            id: 'qr-id',
+            status: 'active',
+            roomId: 'sala-id',
+        })
+
+        await request(app)
+            .patch('/api/tenant/qrcodes/qr-id')
+            .send({ roomId: 'sala-id' })
+            .expect(200)
+
+        expect(associarQrCodeASalaDoTenant).toHaveBeenCalledWith(
+            '65f1a0000000000000000001',
+            'qr-id',
+            'sala-id',
+        )
+        expect(atualizarApelidoQrCodeDoTenant).not.toHaveBeenCalled()
+    })
+
+    it('PATCH com roomId NÃO chama atualizarApelidoQrCodeDoTenant', async () => {
+        associarQrCodeASalaDoTenant.mockResolvedValue({
+            id: 'qr-id',
+            status: 'active',
+            roomId: 'sala-id',
+        })
+
+        await request(app)
+            .patch('/api/tenant/qrcodes/qr-id')
+            .send({ roomId: 'sala-id' })
+            .expect(200)
+
+        expect(atualizarApelidoQrCodeDoTenant).not.toHaveBeenCalled()
+    })
+
+    it('PATCH com roomId e apelido simultaneamente retorna 400', async () => {
+        const response = await request(app)
+            .patch('/api/tenant/qrcodes/qr-id')
+            .send({ roomId: 'sala-id', apelido: 'Recepção' })
+            .expect(400)
+
+        expect(response.body.sucesso).toBe(false)
+        expect(atualizarApelidoQrCodeDoTenant).not.toHaveBeenCalled()
+        expect(associarQrCodeASalaDoTenant).not.toHaveBeenCalled()
+    })
+
+    it('PATCH sem roomId e sem apelido retorna 400', async () => {
+        const response = await request(app)
+            .patch('/api/tenant/qrcodes/qr-id')
+            .send({})
+            .expect(400)
+
+        expect(response.body.sucesso).toBe(false)
+        expect(atualizarApelidoQrCodeDoTenant).not.toHaveBeenCalled()
+        expect(associarQrCodeASalaDoTenant).not.toHaveBeenCalled()
+    })
+
+    it('QR inexistente ou revogado retorna 404 ao salvar apelido', async () => {
+        atualizarApelidoQrCodeDoTenant.mockResolvedValue(null)
+
+        await request(app)
+            .patch('/api/tenant/qrcodes/qr-id')
+            .send({ apelido: 'Recepção' })
+            .expect(404)
+    })
+
+    it('apelido com mais de 80 caracteres retorna erro 400', async () => {
+        atualizarApelidoQrCodeDoTenant.mockRejectedValue(
+            new TenantQrCodeError('O apelido deve ter no máximo 80 caracteres.', 400),
+        )
+
+        const apelidoLongo = 'A'.repeat(81)
+        const response = await request(app)
+            .patch('/api/tenant/qrcodes/qr-id')
+            .send({ apelido: apelidoLongo })
+            .expect(400)
+
+        expect(response.body.sucesso).toBe(false)
+        expect(response.body.mensagem).toBe('O apelido deve ter no máximo 80 caracteres.')
+    })
+
+    it('apelido vazio remove o apelido', async () => {
+        atualizarApelidoQrCodeDoTenant.mockResolvedValue({
+            id: 'qr-id',
+            apelido: null,
+            status: 'available',
+            roomId: null,
+        })
+
+        const response = await request(app)
+            .patch('/api/tenant/qrcodes/qr-id')
+            .send({ apelido: '' })
+            .expect(200)
+
+        expect(atualizarApelidoQrCodeDoTenant).toHaveBeenCalledWith(
+            '65f1a0000000000000000001',
+            'qr-id',
+            '',
+        )
+        expect(response.body.qrcode.apelido).toBeNull()
     })
 })

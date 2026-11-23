@@ -47,7 +47,10 @@ async function iniciarPainel({ qrcodes = [] } = {}) {
         else if (url === '/api/tenant/rooms') data = { salas }
         else if (url === '/api/tenant/qrcodes' && method === 'GET') data = qrcodes
         else if (url === '/api/tenant/qrcodes' && method === 'POST') data = { qrcode: { id: 'qr-criado-1', qrCodeDataUri: 'data:image/png;base64,abc' } }
-        else if (qrPatch && method === 'PATCH') data = { qrcode: { id: qrPatch[1], qrCodeDataUri: 'data:image/png;base64,abc' } }
+        else if (qrPatch && method === 'PATCH') {
+            const body = options && options.body ? JSON.parse(options.body) : {}
+            data = { qrcode: { id: qrPatch[1], qrCodeDataUri: 'data:image/png;base64,abc', apelido: body.apelido ?? null } }
+        }
         else if (url.match(/^\/api\/tenant\/qrcodes\/[^\/]+\/visual$/) && method === 'GET') data = { qrcode: { qrCodeDataUri: 'data:image/png;base64,abc' } }
         else if (url === '/api/tenant/biometrics/profiles') data = { pessoas: [] }
         else throw new Error(`URL inesperada: ${url} ${method}`)
@@ -309,4 +312,203 @@ test('criar QR disponível mantém a imagem e o download visíveis', async () =>
     expect(status.children.some(elemento =>
         elemento.textContent === 'QR Code criado e disponível para associação.'
     )).toBe(true)
+})
+
+test('cabeçalho exibe apelido como identificação principal quando existe', async () => {
+    const { document } = await iniciarPainel({
+        qrcodes: {
+            qrcodes: [{
+                id: 'qr-apelido-1',
+                apelido: 'Entrada Principal',
+                status: 'available',
+                roomId: null,
+                roomName: null,
+                criadaEm: '2026-01-01T10:00:00Z',
+            }],
+            limite: 10,
+            quantidadeAtiva: 1,
+        },
+    })
+
+    const itens = document.getElementById('listaQrCodes').children
+    expect(itens.length).toBe(1)
+
+    const item = itens[0]
+    const header = item.children[0]
+    expect(header.children[0].textContent).toBe('Entrada Principal')
+    expect(header.children[0].title).toBe('Entrada Principal - Identificador QR LIDO-1')
+})
+
+test('QR sem apelido continua exibindo QR seguido dos últimos caracteres do ID', async () => {
+    const { document } = await iniciarPainel({
+        qrcodes: {
+            qrcodes: [{
+                id: 'qr-sem-apelido-1',
+                apelido: null,
+                status: 'available',
+                roomId: null,
+                roomName: null,
+                criadaEm: '2026-01-01T10:00:00Z',
+            }],
+            limite: 10,
+            quantidadeAtiva: 1,
+        },
+    })
+
+    const itens = document.getElementById('listaQrCodes').children
+    expect(itens.length).toBe(1)
+
+    const item = itens[0]
+    const header = item.children[0]
+    expect(header.children[0].textContent).toBe('QR LIDO-1')
+})
+
+test('salvar apelido envia somente o campo apelido', async () => {
+    const { document, fetch } = await iniciarPainel({
+        qrcodes: {
+            qrcodes: [{
+                id: 'qr-apelido-1',
+                apelido: 'Recepção',
+                status: 'available',
+                roomId: null,
+                roomName: null,
+                criadaEm: '2026-01-01T10:00:00Z',
+            }],
+            limite: 10,
+            quantidadeAtiva: 1,
+        },
+    })
+
+    const item = document.getElementById('listaQrCodes').children[0]
+    expect(item.children[0].children[0].textContent).toBe('Recepção')
+
+    const acoes = item.children[3]
+    const editor = acoes.children[3]
+    const input = editor.children[1]
+    const botao = editor.children[2]
+
+    input.value = 'Portão Principal'
+    await botao.listeners.click()
+
+    expect(fetch).toHaveBeenCalledWith(
+        '/api/tenant/qrcodes/qr-apelido-1',
+        expect.objectContaining({
+            method: 'PATCH',
+            body: JSON.stringify({ apelido: 'Portão Principal' }),
+        }),
+    )
+
+    const postCalls = fetch.mock.calls.filter(([url, options]) =>
+        url === '/api/tenant/qrcodes' &&
+        options?.method === 'POST'
+    )
+    expect(postCalls).toHaveLength(0)
+})
+
+test('salvar apelido vazio envia apelido como string vazia', async () => {
+    const { document, fetch } = await iniciarPainel({
+        qrcodes: {
+            qrcodes: [{
+                id: 'qr-apelido-vazio-1',
+                apelido: 'Recepção',
+                status: 'available',
+                roomId: null,
+                roomName: null,
+                criadaEm: '2026-01-01T10:00:00Z',
+            }],
+            limite: 10,
+            quantidadeAtiva: 1,
+        },
+    })
+
+    const item = document.getElementById('listaQrCodes').children[0]
+    const acoes = item.children[3]
+    const editor = acoes.children[3]
+    const input = editor.children[1]
+    const botao = editor.children[2]
+
+    input.value = ''
+    await botao.listeners.click()
+
+    expect(fetch).toHaveBeenCalledWith(
+        '/api/tenant/qrcodes/qr-apelido-vazio-1',
+        expect.objectContaining({
+            method: 'PATCH',
+            body: JSON.stringify({ apelido: '' }),
+        }),
+    )
+})
+
+test('salvar apelido não chama POST nem /visual', async () => {
+    const { document, fetch } = await iniciarPainel({
+        qrcodes: {
+            qrcodes: [{
+                id: 'qr-apelido-somente-1',
+                apelido: null,
+                status: 'available',
+                roomId: null,
+                roomName: null,
+                criadaEm: '2026-01-01T10:00:00Z',
+            }],
+            limite: 10,
+            quantidadeAtiva: 1,
+        },
+    })
+
+    const item = document.getElementById('listaQrCodes').children[0]
+    const acoes = item.children[3]
+    const editor = acoes.children[3]
+    const input = editor.children[1]
+    const botao = editor.children[2]
+
+    input.value = 'Novo Apelido'
+    await botao.listeners.click()
+
+    const postCalls = fetch.mock.calls.filter(([url, options]) =>
+        url === '/api/tenant/qrcodes' &&
+        options?.method === 'POST'
+    )
+    expect(postCalls).toHaveLength(0)
+
+    const visualCalls = fetch.mock.calls.filter(([url]) =>
+        url.includes('/visual')
+    )
+    expect(visualCalls).toHaveLength(0)
+})
+
+test('associação de sala continua enviando somente roomId', async () => {
+    const { document, fetch } = await iniciarPainel({
+        qrcodes: {
+            qrcodes: [{
+                id: 'qr-assoc-apelido-1',
+                apelido: 'Minha Sala',
+                status: 'available',
+                roomId: null,
+                roomName: null,
+                criadaEm: '2026-01-01T10:00:00Z',
+            }],
+            limite: 10,
+            quantidadeAtiva: 1,
+        },
+    })
+
+    const item = document.getElementById('listaQrCodes').children[0]
+    const actions = item.children[3]
+    const select = actions.children[0]
+    select.value = '1'
+    const btnAssociar = actions.children[1]
+
+    await btnAssociar.listeners.click()
+
+    expect(fetch).toHaveBeenCalledWith('/api/tenant/qrcodes/qr-assoc-apelido-1', expect.objectContaining({
+        method: 'PATCH',
+        body: JSON.stringify({ roomId: '1' }),
+    }))
+
+    const apelidoCalls = fetch.mock.calls.filter(([url, options]) =>
+        url === '/api/tenant/qrcodes/qr-assoc-apelido-1' &&
+        options?.method === 'PATCH' &&
+        options?.body?.includes('apelido')
+    )
+    expect(apelidoCalls).toHaveLength(0)
 })

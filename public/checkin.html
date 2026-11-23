@@ -23,21 +23,13 @@
         <input id="senhaInput" type="password"
             autocomplete="current-password" disabled>
 
-        <button id="btnCriarConta" type="button" disabled>
-            Criar conta e confirmar presença
-        </button>
+        <button id="btnCriarConta" type="button" disabled aria-label="Criar conta e confirmar presença" title="Criar conta e confirmar presença">Criar conta e confirmar presença</button>
 
-        <button id="btnEntrar" type="button" disabled>
-            Entrar
-        </button>
+        <button id="btnEntrar" type="button" disabled aria-label="Entrar com conta existente" title="Entrar com conta existente">Entrar</button>
 
-        <button id="btnConfirmar" type="button" disabled hidden>
-            Confirmar presença
-        </button>
+        <button id="btnConfirmar" type="button" disabled hidden aria-label="Confirmar presença na sala" title="Confirmar presença na sala">Confirmar presença</button>
 
-        <button id="btnSair" type="button" hidden>
-            Sair da conta
-        </button>
+        <button id="btnSair" type="button" hidden aria-label="Sair da conta" title="Sair da conta">Sair da conta</button>
 
         <p id="statusConta" role="status" aria-live="polite"></p>
     </div>
@@ -53,17 +45,17 @@
         <div class="face-register">
             <label for="faceName">Nome para cadastrar meu rosto</label>
             <input id="faceName" type="text" maxlength="120" placeholder="Digite seu nome completo">
-            <button id="faceEnrollBtn" type="button">Cadastrar meu rosto</button>
+            <button id="faceEnrollBtn" type="button" aria-label="Cadastrar meu rosto para reconhecimento facial" title="Cadastrar meu rosto para reconhecimento facial">Cadastrar meu rosto</button>
         </div>
 
-        <button id="faceCheckinBtn" type="button">Fazer check-in com meu rosto</button>
+        <button id="faceCheckinBtn" type="button" aria-label="Fazer check-in com reconhecimento facial" title="Fazer check-in com reconhecimento facial">Fazer check-in com meu rosto</button>
         <div id="faceCameraStage" class="face-camera-stage" hidden>
             <video id="faceVideo" autoplay muted playsinline hidden></video>
             <div class="face-guide" aria-hidden="true"></div>
         </div>
         <p id="faceStatus" role="status" aria-live="polite"></p>
-        <button id="faceCaptureCancel" type="button" class="secondary" hidden>Cancelar captura</button>
-        <button id="faceDeleteBtn" type="button" class="secondary" hidden>Excluir meu cadastro facial deste dispositivo</button>
+        <button id="faceCaptureCancel" type="button" class="secondary" hidden aria-label="Cancelar captura facial" title="Cancelar captura facial">Cancelar captura</button>
+        <button id="faceDeleteBtn" type="button" class="secondary" hidden aria-label="Excluir meu cadastro facial deste dispositivo" title="Excluir meu cadastro facial deste dispositivo">Excluir meu cadastro facial deste dispositivo</button>
     </section>
 </body>
 </html>

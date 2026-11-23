@@ -3,6 +3,12 @@ import mongoose from 'mongoose'
 const qrCodeSchema = new mongoose.Schema({
     tenantId: { type: mongoose.Schema.Types.ObjectId, ref: 'Tenant', required: true },
     roomId: { type: mongoose.Schema.Types.ObjectId, ref: 'Room' },
+    apelido: {
+        type: String,
+        trim: true,
+        maxlength: 80,
+        default: null,
+    },
     tokenHash: { type: String, required: true, unique: true, select: false },
     tokenRecuperavel: { type: String, select: false },
     qrBaseUrl: { type: String, select: false },

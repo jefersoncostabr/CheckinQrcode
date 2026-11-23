@@ -21,9 +21,26 @@ function validarId(id, nome) {
     return id
 }
 
+function normalizarApelido(apelido) {
+    if (typeof apelido !== 'string') {
+        throw new TenantQrCodeError('Apelido inválido.', 400)
+    }
+
+    const normalizado = apelido.trim()
+    if (normalizado.length > 80) {
+        throw new TenantQrCodeError(
+            'O apelido deve ter no máximo 80 caracteres.',
+            400,
+        )
+    }
+
+    return normalizado || null
+}
+
 function serializarQrCode(qrCode, roomName = null) {
     return {
         id: String(qrCode._id),
+        apelido: qrCode.apelido || null,
         status: qrCode.status,
         roomId: qrCode.roomId ? String(qrCode.roomId) : null,
         roomName,
@@ -131,6 +148,35 @@ export async function associarQrCodeASalaDoTenant(tenantId, qrCodeId, roomId) {
         }
         throw error
     }
+}
+
+export async function atualizarApelidoQrCodeDoTenant(
+    tenantId,
+    qrCodeId,
+    apelido,
+) {
+    validarId(tenantId, 'Organização')
+    validarId(qrCodeId, 'QR Code')
+    const apelidoNormalizado = normalizarApelido(apelido)
+
+    const update = apelidoNormalizado
+        ? { $set: { apelido: apelidoNormalizado } }
+        : { $unset: { apelido: 1 } }
+
+    const qrCode = await QrCode.findOneAndUpdate(
+        {
+            _id: qrCodeId,
+            tenantId,
+            status: { $ne: 'revoked' },
+        },
+        update,
+        {
+            returnDocument: 'after',
+            runValidators: true,
+        },
+    ).lean()
+
+    return qrCode ? serializarQrCode(qrCode) : null
 }
 
 export async function recuperarVisualQrCode(tenantId, qrCodeId) {

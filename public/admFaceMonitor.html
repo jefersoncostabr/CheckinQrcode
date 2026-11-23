@@ -53,9 +53,9 @@
                 <span>Confirme que as pessoas foram informadas e consentiram com o uso da biometria para registrar presença.</span>
             </label>
             <div class="actions">
-                <button id="monitorStart" type="button">Iniciar monitoramento</button>
-                <button id="lerQrSala" type="button">Ler QR da sala</button>
-                <button id="pararLeituraQr" type="button" hidden>Cancelar leitura</button>
+                <button id="monitorStart" type="button" aria-label="Iniciar monitoramento de presença por biometria" title="Iniciar monitoramento de presença por biometria">Iniciar monitoramento</button>
+                <button id="lerQrSala" type="button" aria-label="Ler QR Code da sala" title="Ler QR Code da sala">Ler QR da sala</button>
+                <button id="pararLeituraQr" type="button" hidden aria-label="Cancelar leitura de QR Code" title="Cancelar leitura de QR Code">Cancelar leitura</button>
             </div>
         </div>
         <p id="monitorStatus" role="status" aria-live="polite">Carregando salas...</p>
@@ -67,7 +67,7 @@
             <video id="monitorVideo" autoplay muted playsinline></video>
             <div class="face-guide" aria-hidden="true"></div>
         </section>
-        <button id="monitorStop" type="button" disabled hidden>Parar câmera</button>
+        <button id="monitorStop" type="button" disabled hidden aria-label="Parar câmera e encerrar monitoramento" title="Parar câmera e encerrar monitoramento">Parar câmera</button>
         <p><a href="/adm">Voltar ao painel</a></p>
     </main>
     <script defer src="https://unpkg.com/@zxing/browser@0.1.5/umd/index.min.js"></script>

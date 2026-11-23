@@ -44,6 +44,7 @@ jest.unstable_mockModule('../src/services/qrCodeService.js', () => ({
 
 const {
     associarQrCodeASalaDoTenant,
+    atualizarApelidoQrCodeDoTenant,
     criarQrCodeDoTenant,
     listarQrCodesDoTenant,
     recuperarVisualQrCode,
@@ -333,5 +334,149 @@ describe('serviço de QR Codes isolados por tenant', () => {
         await expect(listarQrCodesDoTenant('tenant-inválido'))
             .rejects.toBeInstanceOf(TenantQrCodeError)
         expect(QrCode.find).not.toHaveBeenCalled()
+    })
+
+    it('salva apelido removendo espaços laterais', async () => {
+        updateQuery.lean.mockResolvedValue({
+            _id: qrCodeId,
+            apelido: 'Entrada Principal',
+            status: 'available',
+        })
+
+        await atualizarApelidoQrCodeDoTenant(
+            tenantId,
+            qrCodeId,
+            '  Entrada Principal  ',
+        )
+
+        expect(QrCode.findOneAndUpdate).toHaveBeenCalledWith(
+            {
+                _id: qrCodeId,
+                tenantId,
+                status: { $ne: 'revoked' },
+            },
+            { $set: { apelido: 'Entrada Principal' } },
+            {
+                returnDocument: 'after',
+                runValidators: true,
+            },
+        )
+    })
+
+    it('apelido vazio remove o campo com $unset', async () => {
+        updateQuery.lean.mockResolvedValue({
+            _id: qrCodeId,
+            status: 'available',
+        })
+
+        await atualizarApelidoQrCodeDoTenant(tenantId, qrCodeId, '')
+
+        expect(QrCode.findOneAndUpdate).toHaveBeenCalledWith(
+            expect.objectContaining({
+                _id: qrCodeId,
+                tenantId,
+            }),
+            { $unset: { apelido: 1 } },
+            expect.any(Object),
+        )
+    })
+
+    it('rejeita apelido maior que 80 caracteres com erro 400', async () => {
+        const apelidoLongo = 'A'.repeat(81)
+
+        await expect(
+            atualizarApelidoQrCodeDoTenant(tenantId, qrCodeId, apelidoLongo),
+        ).rejects.toMatchObject({ statusCode: 400 })
+        expect(QrCode.findOneAndUpdate).not.toHaveBeenCalled()
+    })
+
+    it('rejeita tipo diferente de string com erro 400', async () => {
+        await expect(
+            atualizarApelidoQrCodeDoTenant(tenantId, qrCodeId, 123),
+        ).rejects.toMatchObject({ statusCode: 400 })
+        expect(QrCode.findOneAndUpdate).not.toHaveBeenCalled()
+    })
+
+    it('não atualiza apelido de QR revogado ou de outro tenant', async () => {
+        updateQuery.lean.mockResolvedValue(null)
+
+        const resultado = await atualizarApelidoQrCodeDoTenant(
+            tenantId,
+            qrCodeId,
+            'Recepção',
+        )
+
+        expect(resultado).toBeNull()
+        expect(QrCode.findOneAndUpdate).toHaveBeenCalledWith(
+            {
+                _id: qrCodeId,
+                tenantId,
+                status: { $ne: 'revoked' },
+            },
+            { $set: { apelido: 'Recepção' } },
+            expect.any(Object),
+        )
+    })
+
+    it('a listagem retorna o apelido do QR Code', async () => {
+        listQuery.lean.mockResolvedValue([{
+            _id: qrCodeId,
+            roomId,
+            apelido: 'Portão Principal',
+            status: 'available',
+        }])
+        roomListQuery.lean.mockResolvedValue([])
+
+        const resultado = await listarQrCodesDoTenant(tenantId)
+
+        expect(resultado[0].apelido).toBe('Portão Principal')
+    })
+
+    it('a atualização de apelido não altera token, sala ou status', async () => {
+        updateQuery.lean.mockResolvedValue({
+            _id: qrCodeId,
+            apelido: 'Recepção',
+            roomId,
+            status: 'active',
+            tokenHash: 'hash-secreto',
+            tokenRecuperavel: 'token-secreto',
+            qrBaseUrl: 'https://example.test',
+        })
+
+        const resultado = await atualizarApelidoQrCodeDoTenant(
+            tenantId,
+            qrCodeId,
+            'Recepção',
+        )
+
+        expect(resultado.apelido).toBe('Recepção')
+        expect(resultado.roomId).toBe(roomId)
+        expect(resultado.status).toBe('active')
+        expect(QrCode.findOneAndUpdate).toHaveBeenCalledWith(
+            expect.any(Object),
+            { $set: { apelido: 'Recepção' } },
+            expect.any(Object),
+        )
+    })
+
+    it('a listagem continua sem expor tokenHash, tokenRecuperavel e qrBaseUrl', async () => {
+        listQuery.lean.mockResolvedValue([{
+            _id: qrCodeId,
+            roomId,
+            apelido: 'Recepção',
+            tokenRecuperavel: 'token-secreto',
+            qrBaseUrl: 'https://example.test',
+            tokenHash: 'hash-secreto',
+            status: 'active',
+        }])
+        roomListQuery.lean.mockResolvedValue([])
+
+        const resultado = await listarQrCodesDoTenant(tenantId)
+
+        expect(JSON.stringify(resultado)).not.toContain('token-secreto')
+        expect(JSON.stringify(resultado)).not.toContain('hash-secreto')
+        expect(resultado[0]).not.toHaveProperty('tokenRecuperavel')
+        expect(resultado[0]).not.toHaveProperty('qrBaseUrl')
+        expect(resultado[0]).not.toHaveProperty('tokenHash')
     })
 })

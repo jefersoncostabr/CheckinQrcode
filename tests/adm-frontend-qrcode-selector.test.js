@@ -11,6 +11,7 @@ const authorizeTenantPermission = jest.fn(permission => (req, res, next) => {
 const listarQrCodesDoTenant = jest.fn()
 const criarQrCodeDoTenant = jest.fn()
 const associarQrCodeASalaDoTenant = jest.fn()
+const atualizarApelidoQrCodeDoTenant = jest.fn()
 const rotacionarQrCodeDoTenant = jest.fn()
 const revogarQrCodeDoTenant = jest.fn()
 const recuperarVisualQrCode = jest.fn()
@@ -41,6 +42,7 @@ jest.unstable_mockModule('../src/services/tenantQrCodeService.js', () => ({
     listarQrCodesDoTenant,
     criarQrCodeDoTenant,
     associarQrCodeASalaDoTenant,
+    atualizarApelidoQrCodeDoTenant,
     rotacionarQrCodeDoTenant,
     revogarQrCodeDoTenant,
     recuperarVisualQrCode,
@@ -146,5 +148,33 @@ describe('contrato da API usado pelo front-end de QR codes e salas', () => {
 
         expect(response.body.qrcodes).toHaveLength(1)
         expect(response.body.qrcodes[0].status).toBe('available')
+    })
+
+    it('listagem de QR codes inclui o campo apelido sem expor tokens', async () => {
+        listarQrCodesDoTenant.mockResolvedValue([
+            {
+                id: 'qr-com-apelido',
+                apelido: 'Portão Principal',
+                status: 'available',
+                roomId: null,
+                roomName: null,
+            },
+            {
+                id: 'qr-sem-apelido',
+                apelido: null,
+                status: 'active',
+                roomId: 'sala-1',
+                roomName: 'Sala Azul',
+            },
+        ])
+
+        const response = await request(app).get('/api/tenant/qrcodes').expect(200)
+
+        expect(response.body.qrcodes).toHaveLength(2)
+        expect(response.body.qrcodes[0].apelido).toBe('Portão Principal')
+        expect(response.body.qrcodes[1].apelido).toBeNull()
+        expect(response.body.qrcodes[0]).not.toHaveProperty('tokenHash')
+        expect(response.body.qrcodes[0]).not.toHaveProperty('tokenRecuperavel')
+        expect(response.body.qrcodes[0]).not.toHaveProperty('qrBaseUrl')
     })
 })

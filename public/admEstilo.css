@@ -377,6 +377,36 @@ button:hover,
     font: inherit;
 }
 
+.qr-alias-editor {
+    display: grid;
+    width: 100%;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    margin-top: 6px;
+}
+
+.qr-alias-editor label {
+    grid-column: 1 / -1;
+    font-size: 0.875rem;
+    font-weight: 700;
+}
+
+.qr-alias-input {
+    box-sizing: border-box;
+    min-width: 0;
+    min-height: 42px;
+    padding: 8px 10px;
+    border: 1px solid #bdc3c7;
+    border-radius: 4px;
+    background-color: #fff;
+    font: inherit;
+}
+
+.qr-alias-editor .action-button {
+    flex: none;
+    min-width: 125px;
+}
+
 #qrManagementCard button:disabled {
     cursor: not-allowed;
     opacity: 0.65;
@@ -389,6 +419,14 @@ button:hover,
     }
 
     .qr-management-header button {
+        width: 100%;
+    }
+
+    .qr-alias-editor {
+        grid-template-columns: 1fr;
+    }
+
+    .qr-alias-editor .action-button {
         width: 100%;
     }
 }
