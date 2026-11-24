@@ -166,85 +166,94 @@ export async function criarSalaComQrDoTenant(tenantId, nameInput, qrCodeId) {
     return serializarSala(salaCriada)
 }
 
-export async function alterarEstadoSalaDoTenant(tenantId, roomId, status) {
+export async function alterarEstadoSalaDoTenant(tenantId, roomId, status, sessionExterno = null) {
     validarId(tenantId, 'Organização')
     validarId(roomId, 'Sala')
     if (!['open', 'closed'].includes(status)) {
         throw new TenantRoomError('Estado da sala inválido.', 400)
     }
 
-    const session = await mongoose.startSession()
+    const usarSessaoExterna = sessionExterno != null
+    const session = usarSessaoExterna ? sessionExterno : await mongoose.startSession()
     let sala
     try {
-        await session.withTransaction(async () => {
-            const salaAtual = await Room.findOne({
-                _id: roomId,
-                tenantId,
-                status: { $ne: 'archived' },
-            }).session(session).lean()
-            if (!salaAtual) {
-                sala = null
-                return
-            }
-
-            if (salaAtual.status === status) {
-                sala = salaAtual
-                return
-            }
-
-            if (status === 'open') {
-                const startedAt = new Date()
-                const periodo = await CheckinPeriod.create([{
-                    tenantId,
-                    roomId: salaAtual._id,
-                    roomName: salaAtual.name,
-                    startedAt,
-                    status: 'open',
-                }], { session })
-
-                await Room.findOneAndUpdate(
-                    { _id: roomId, tenantId },
-                    {
-                        $set: {
-                            status: 'open',
-                            currentPeriodId: periodo[0]._id,
-                            legacyPeriod: false,
-                        },
-                        $inc: { periodRevision: 1 },
-                    },
-                    { session },
-                )
-                sala = await Room.findOne({ _id: roomId, tenantId }).session(session).lean()
-            } else {
-                if (!salaAtual.currentPeriodId) {
-                    throw new TenantRoomError('Sala sem período corrente. Execute a migração de períodos.', 409)
-                }
-                if (!salaAtual.legacyPeriod) {
-                    const periodo = await CheckinPeriod.findOneAndUpdate(
-                        { _id: salaAtual.currentPeriodId, tenantId, roomId, status: 'open' },
-                        { $set: { endedAt: new Date(), status: 'closed' } },
-                        { session },
-                    )
-                    if (!periodo) throw new TenantRoomError('Período aberto não encontrado.', 409)
-                }
-                await Room.findOneAndUpdate(
-                    { _id: roomId, tenantId },
-                    {
-                        $set: { status: 'closed' },
-                        $inc: { periodRevision: 1 },
-                    },
-                    { session },
-                )
-                sala = await Room.findOne({ _id: roomId, tenantId }).session(session).lean()
-            }
-        })
+        if (!usarSessaoExterna) {
+            await session.withTransaction(async () => {
+                sala = await executarAlteracaoEstado(session, tenantId, roomId, status)
+            })
+        } else {
+            sala = await executarAlteracaoEstado(session, tenantId, roomId, status)
+        }
     } catch (error) {
         capturarDuplicidade(error)
         throw error
     } finally {
-        await session.endSession()
+        if (!usarSessaoExterna) {
+            await session.endSession()
+        }
     }
     return sala ? serializarSala(sala) : null
+}
+
+async function executarAlteracaoEstado(session, tenantId, roomId, status) {
+    const salaAtual = await Room.findOne({
+        _id: roomId,
+        tenantId,
+        status: { $ne: 'archived' },
+    }).session(session).lean()
+    if (!salaAtual) {
+        return null
+    }
+
+    if (salaAtual.status === status) {
+        return salaAtual
+    }
+
+    if (status === 'open') {
+        const startedAt = new Date()
+        const [periodo] = await CheckinPeriod.create([{
+            tenantId,
+            roomId: salaAtual._id,
+            roomName: salaAtual.name,
+            startedAt,
+            status: 'open',
+        }], { session })
+
+        await Room.findOneAndUpdate(
+            { _id: roomId, tenantId },
+            {
+                $set: {
+                    status: 'open',
+                    currentPeriodId: periodo._id,
+                    legacyPeriod: false,
+                },
+                $inc: { periodRevision: 1 },
+            },
+            { session },
+        )
+        return Room.findOne({ _id: roomId, tenantId }).session(session).lean()
+    }
+
+    if (!salaAtual.currentPeriodId) {
+        throw new TenantRoomError('Sala sem período corrente. Execute a migração de períodos.', 409)
+    }
+    if (!salaAtual.legacyPeriod) {
+        const periodo = await CheckinPeriod.findOneAndUpdate(
+            { _id: salaAtual.currentPeriodId, tenantId, roomId, status: 'open' },
+            { $set: { endedAt: new Date(), status: 'closed' } },
+            { session },
+        )
+        if (!periodo) throw new TenantRoomError('Período aberto não encontrado.', 409)
+    }
+    await Room.findOneAndUpdate(
+        { _id: roomId, tenantId },
+        {
+            $set: { status: 'closed' },
+            $inc: { periodRevision: 1 },
+        },
+        { session },
+    )
+    return Room.findOne({ _id: roomId, tenantId }).session(session).lean()
 }
 
 export async function arquivarSalaDoTenant(tenantId, roomId) {

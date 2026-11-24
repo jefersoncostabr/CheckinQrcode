@@ -17,10 +17,11 @@ O nome e a porta local podem variar conforme a configuração. Para acessar pelo
 | `GET` | `/adm` | Sessão tenant | Painel administrativo da organização ativa. |
 | `GET` | `/adm/avancado` | `advanced:read` + sessão tenant | Página avançada; acesso para `owner` e `admin`. |
 | `GET` | `/adm/adicionar-manual` | Sessão tenant | Tela de lançamento manual de presença. |
-| `GET` | `/adm/monitor-facial` | Sessão tenant | Monitor facial para uma sala do tenant. |
+| `GET` | `/adm/monitor-facial` | `biometrics:monitor` + sessão tenant | Monitor facial para uma sala do tenant. |
 | `GET` | `/adm/relatorio` ou `/relatorio` | `reports:read` + sessão tenant | Relatório e lista de presenças da organização ativa. |
 | `GET` | `/add#TOKEN` | Público | Check-in por nome ou biometria usando um QR ativo. |
 | `GET` | `/teste-rosto` | Sessão tenant | Página administrativa de teste facial. |
+| `GET` | `/professor` | `classes:manage` + sessão tenant | Página do professor para cadastrar, iniciar e encerrar aulas. |
 
 O cadastro e o login abrem o painel `/adm` após autenticação. Se a conta pertencer a mais de uma organização, o login pede para selecionar uma.
 
@@ -66,9 +67,22 @@ Todas as rotas abaixo exigem sessão tenant e a permissão indicada. O serviço 
 | `GET` | `/api/tenant/biometrics/profiles` | — | `biometrics:manage`; lista perfis sem descritores. |
 | `POST` | `/api/tenant/biometrics/enroll` | `nome`, `descritor`, `consentimento: true` | `biometrics:manage`; cadastra biometria com consentimento. |
 | `POST` | `/api/tenant/biometrics/verify` | `descritor`, `nome` opcional | `biometrics:manage`; verifica somente perfis da organização ativa. |
-| `POST` | `/api/tenant/biometrics/checkin` | `roomId`, `descritor`, `consentimento: true` | `attendance:create`; registra presença facial na sala. |
+| `GET` | `/api/tenant/biometrics/monitor/:roomId` | — | `biometrics:monitor`; retorna o identificador do período aberto ou `null`. |
+| `POST` | `/api/tenant/biometrics/checkin` | `roomId`, `descritor`, `consentimento: true`, `periodoId` opcional | `attendance:create`; registra presença facial. Quando informado, o período deve permanecer o mesmo durante o registro. |
 | `DELETE` | `/api/tenant/biometrics/profiles/:id` | — | `biometrics:manage`; exclui perfil da organização ativa. |
 | `GET` | `/api/tenant/checkin-periods` | — | `checkinPeriods:read`; lista os períodos de check-in existentes da organização ativa, abertos ou fechados. |
+| `GET` | `/api/tenant/classes` | — | `classes:manage`; lista as aulas cadastradas do tenant ativo, com status da sala e período associado. |
+| `POST` | `/api/tenant/classes` | `name`, `startTime`, `endTime` | `classes:manage`; cadastra uma aula e seus horários sem associá-la a uma sala. |
+| `POST` | `/api/tenant/classes/:id/start` | `roomId` | `classes:manage`; abre a sala escolhida e inicia um período vinculado à aula. Requer sala fechada. |
+| `POST` | `/api/tenant/classes/:id/close` | — | `classes:manage`; fecha o período aberto da aula. |
+| `POST` | `/api/tenant/classes/:id/start-qr` | `roomId` | `classes:manage`; gera QR temporário de abertura vinculado à aula e sala escolhida, válido por 2 minutos. |
+| `POST` | `/api/tenant/classes/start-from-qr` | `token` | `classes:manage`; consome o token do QR temporário e abre a sala com período vinculado à aula, em uma única transação. |
+
+As operações `POST` de aulas exigem `Content-Type: application/json` e
+`Origin` igual à origem da aplicação. O QR de início usa
+`/add#class-start=TOKEN` e somente o monitor autenticado pode consumi-lo.
+Antes da leitura, confirme o consentimento no monitor. O monitor encerra a
+captura se o período mudar ou não puder ser verificado.
 
 ## Check-in público via QR
 

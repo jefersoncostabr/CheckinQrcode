@@ -11,6 +11,7 @@ import tenantCheckinRoutes from './routes/tenantCheckinRoutes.js'
 import tenantAttendanceRoutes from './routes/tenantAttendanceRoutes.js'
 import tenantAuthRoutes from './routes/tenantAuthRoutes.js'
 import tenantBiometricRoutes from './routes/tenantBiometricRoutes.js'
+import tenantClassRoutes from './routes/tenantClassRoutes.js'
 
 const app = express()
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -115,6 +116,7 @@ app.use('/api/tenant', tenantQrCodeRoutes)
 app.use('/api/tenant', tenantAttendanceRoutes)
 app.use('/api/tenant', tenantBiometricRoutes)
 app.use('/api/tenant/auth', tenantAuthRoutes)
+app.use('/api/tenant', tenantClassRoutes)
 app.use(routes)
 
 export default app

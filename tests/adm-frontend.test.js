@@ -22,7 +22,7 @@ function criarElemento() {
     }
 }
 
-async function iniciarPainel({ qrcodes = [] } = {}) {
+async function iniciarPainel({ qrcodes = [], comAula = false } = {}) {
     const elementos = new Map()
     const confirm = jest.fn(() => true)
     const document = {
@@ -38,12 +38,14 @@ async function iniciarPainel({ qrcodes = [] } = {}) {
         { id: '1', nome: 'Sala aberta', status: 'open' },
         { id: '2', nome: 'Sala fechada', status: 'closed' },
     ]
-    const fetch = jest.fn(async (url, options = {}) => {
-        let data
-        const method = (options.method || 'GET').toUpperCase()
-        const qrPatch = url.match(/^\/api\/tenant\/qrcodes\/([^\/]+)$/)
+        const fetch = jest.fn(async (url, options = {}) => {
+            let data
+            const method = (options.method || 'GET').toUpperCase()
+            const qrPatch = url.match(/^\/api\/tenant\/qrcodes\/([^\/]+)$/)
         if (url === '/api/tenant/auth/session') data = { tenant: { name: 'Evento', role: 'admin' } }
-        else if (url === '/api/tenant/dashboard') data = { salas: [{ id: '1', nome: 'Sala aberta', aberta: true, quantidade: 2 }] }
+        else if (url === '/api/tenant/dashboard') data = comAula
+            ? { salas: [{ id: '1', nome: 'Sala aberta', aberta: true, quantidade: 2, aulaNome: 'Matemática', professorNome: 'Professor Teste' }] }
+            : { salas: [{ id: '1', nome: 'Sala aberta', aberta: true, quantidade: 2 }] }
         else if (url === '/api/tenant/rooms') data = { salas }
         else if (url === '/api/tenant/qrcodes' && method === 'GET') data = qrcodes
         else if (url === '/api/tenant/qrcodes' && method === 'POST') data = { qrcode: { id: 'qr-criado-1', qrCodeDataUri: 'data:image/png;base64,abc' } }
@@ -80,6 +82,19 @@ test('inicializa o painel e mostra as salas abertas e fechadas', async () => {
         'Fechar sala', 'Reabrir sala',
     ])
     expect(console.error).not.toHaveBeenCalled()
+})
+
+test('painel exibe aula e professor quando retornados pelo dashboard', async () => {
+    const { document, fetch } = await iniciarPainel({ comAula: true })
+    const checkins = document.getElementById('listaCheckins').children
+
+    expect(checkins[0].children[0].textContent).toBe(
+        'Sala aberta · Aula: Matemática · Professor: Professor Teste',
+    )
+    expect(checkins[0].children[1].textContent).toBe('2 check-ins')
+    expect(fetch).toHaveBeenCalledWith('/api/tenant/dashboard', expect.objectContaining({
+        cache: 'no-store',
+    }))
 })
 
 test('o botão de adicionar sala usa a função registrada na inicialização', async () => {

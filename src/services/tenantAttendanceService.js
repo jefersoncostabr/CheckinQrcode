@@ -1,6 +1,8 @@
 import mongoose from 'mongoose'
 import Attendance from '../models/attendanceModel.js'
 import Room from '../models/roomModel.js'
+import Class from '../models/classModel.js'
+import CheckinPeriod from '../models/checkinPeriodModel.js'
 import {
     adicionarPresencaManualAoUltimoPeriodo,
     removerPresenca,
@@ -79,7 +81,11 @@ function tratarDuplicidade(error) {
 
 export async function obterResumoDoTenant(tenantId) {
     validarId(tenantId, 'Organização')
-    const rooms = await Room.find({ tenantId, status: { $ne: 'archived' } })
+
+    const rooms = await Room.find({
+        tenantId,
+        status: { $ne: 'archived' },
+    })
         .select('_id name status currentPeriodId legacyPeriod')
         .sort({ name: 1 })
         .lean()
@@ -89,31 +95,83 @@ export async function obterResumoDoTenant(tenantId) {
         .map(room => room.currentPeriodId)
 
     const counts = new Map()
+    const periodoPorId = new Map()
+
     if (periodoIds.length > 0) {
-        const results = await Attendance.aggregate([
-            {
-                $match: {
-                    tenantId: new mongoose.Types.ObjectId(tenantId),
-                    periodId: { $in: periodoIds },
+        const [results, periodos] = await Promise.all([
+            Attendance.aggregate([
+                {
+                    $match: {
+                        tenantId: new mongoose.Types.ObjectId(tenantId),
+                        periodId: { $in: periodoIds },
+                    },
                 },
-            },
-            { $group: { _id: '$periodId', quantidade: { $sum: 1 } } },
+                { $group: { _id: '$periodId', quantidade: { $sum: 1 } } },
+            ]),
+            CheckinPeriod.find({
+                tenantId,
+                _id: { $in: periodoIds },
+                status: 'open',
+            })
+                .select('_id classId')
+                .lean(),
         ])
+
         for (const result of results) {
             counts.set(String(result._id), result.quantidade)
         }
+
+        for (const periodo of periodos) {
+            periodoPorId.set(String(periodo._id), periodo)
+        }
     }
 
+    const classIds = [...new Set(
+        [...periodoPorId.values()]
+            .map(periodo => periodo.classId)
+            .filter(Boolean)
+            .map(id => String(id)),
+    )]
+
+    const aulas = classIds.length
+        ? await Class.find({
+            tenantId,
+            _id: { $in: classIds },
+        })
+            .select('_id name createdBy')
+            .populate({ path: 'createdBy', select: 'name status' })
+            .lean()
+        : []
+
+    const aulaPorId = new Map(
+        aulas.map(aula => [String(aula._id), aula]),
+    )
+
     return {
-        salas: rooms.map(room => ({
-            id: String(room._id),
-            nome: room.name,
-            status: room.status,
-            aberta: room.status === 'open',
-            quantidade: counts.get(String(room.currentPeriodId)) || 0,
-        })),
+        salas: rooms.map(room => {
+            const periodo = periodoPorId.get(String(room.currentPeriodId))
+            const aula = periodo?.classId
+                ? aulaPorId.get(String(periodo.classId))
+                : null
+
+            return {
+                id: String(room._id),
+                nome: room.name,
+                status: room.status,
+                aberta: room.status === 'open',
+                quantidade: counts.get(String(room.currentPeriodId)) || 0,
+                aulaId: aula ? String(aula._id) : null,
+                aulaNome: aula?.name || null,
+                professorId: aula?.createdBy?._id
+                    ? String(aula.createdBy._id)
+                    : null,
+                professorNome: aula?.createdBy?.name || null,
+            }
+        }),
         total: rooms.reduce(
-            (sum, room) => sum + (counts.get(String(room.currentPeriodId)) || 0),
+            (sum, room) => sum + (
+                counts.get(String(room.currentPeriodId)) || 0
+            ),
             0,
         ),
     }

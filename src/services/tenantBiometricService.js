@@ -9,6 +9,7 @@ import { obterContextoQr, TenantCheckinError } from './tenantCheckinService.js'
 import {
     obterPeriodoCorrente,
     inserirPresencaNoPeriodo,
+    CheckinPeriodError,
 } from './checkinPeriodService.js'
 
 const FACE_DESCRIPTOR_LENGTH = 128
@@ -16,10 +17,11 @@ const FACE_MATCH_THRESHOLD = 0.48
 const CONSENT_POLICY_VERSION = '1'
 
 export class TenantBiometricError extends Error {
-    constructor(message, statusCode) {
+    constructor(message, statusCode, code) {
         super(message)
         this.name = 'TenantBiometricError'
         this.statusCode = statusCode
+        if (code) this.code = code
     }
 }
 
@@ -355,6 +357,7 @@ export async function registrarCheckinFacialNaSalaDoTenant({
     descriptor,
     consentimento,
     sourceIp,
+    periodoId,
 }) {
     validarConsentimento(consentimento)
     if (!validarDescritor(descriptor)) {
@@ -403,6 +406,9 @@ export async function registrarCheckinFacialNaSalaDoTenant({
     if (!periodoCorrente || periodoCorrente.status !== 'open') {
         throw new TenantBiometricError('Esta sala está fechada para check-in.', 403)
     }
+    if (periodoId != null && String(periodoCorrente._id) !== String(periodoId)) {
+        throw new TenantBiometricError('O período da sala mudou. Reinicie o monitoramento.', 409, 'PERIODO_ALTERADO')
+    }
 
     const duplicado = await Attendance.exists({
         tenantId,
@@ -438,6 +444,9 @@ export async function registrarCheckinFacialNaSalaDoTenant({
             checkedInAt: new Date(),
         })
     } catch (error) {
+        if (periodoId != null && error instanceof CheckinPeriodError && error.statusCode === 409) {
+            throw new TenantBiometricError('O período da sala mudou. Reinicie o monitoramento.', 409, 'PERIODO_ALTERADO')
+        }
         if (
             error?.code === 11000 &&
             error.keyPattern?.tenantId &&

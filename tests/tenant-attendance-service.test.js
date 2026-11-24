@@ -26,6 +26,19 @@ const Room = {
     find: jest.fn(),
     findOne: jest.fn(),
 }
+const Class = {
+    find: jest.fn(),
+}
+const CheckinPeriod = {
+    find: jest.fn(),
+}
+
+const inserirPresencaNoPeriodo = jest.fn()
+const adicionarPresencaManualAoUltimoPeriodo = jest.fn()
+const removerPresencaDoPeriodoAberto = jest.fn()
+const removerPresenca = jest.fn()
+const limparPresencasDoPeriodo = jest.fn()
+const obterPeriodoCorrente = jest.fn()
 
 for (const method of ['select', 'sort', 'skip', 'limit']) {
     listQuery[method].mockReturnValue(listQuery)
@@ -44,15 +57,22 @@ Attendance.findOneAndDelete.mockReturnValue(deleteQuery)
 Room.find.mockReturnValue(roomListQuery)
 Room.findOne.mockReturnValue(roomQuery)
 
-const inserirPresencaNoPeriodo = jest.fn()
-const adicionarPresencaManualAoUltimoPeriodo = jest.fn()
-const removerPresencaDoPeriodoAberto = jest.fn()
-const removerPresenca = jest.fn()
-const limparPresencasDoPeriodo = jest.fn()
-const obterPeriodoCorrente = jest.fn()
+const periodoMockQuery = {
+    select: jest.fn().mockReturnThis(),
+    lean: jest.fn(),
+}
+const classMockQuery = {
+    select: jest.fn().mockReturnThis(),
+    populate: jest.fn().mockReturnThis(),
+    lean: jest.fn(),
+}
+classMockQuery.select.mockReturnValue(classMockQuery)
+classMockQuery.populate.mockReturnValue(classMockQuery)
 
 jest.unstable_mockModule('../src/models/attendanceModel.js', () => ({ default: Attendance }))
 jest.unstable_mockModule('../src/models/roomModel.js', () => ({ default: Room }))
+jest.unstable_mockModule('../src/models/classModel.js', () => ({ default: Class }))
+jest.unstable_mockModule('../src/models/checkinPeriodModel.js', () => ({ default: CheckinPeriod }))
 jest.unstable_mockModule('../src/services/checkinPeriodService.js', () => ({
     inserirPresencaNoPeriodo,
     adicionarPresencaManualAoUltimoPeriodo,
@@ -81,6 +101,8 @@ const tenantId = '65f1a0000000000000000001'
 const roomId = '65f1a0000000000000000002'
 const attendanceId = '65f1a0000000000000000003'
 const periodoId = '65f1a0000000000000000004'
+const classId = '65f1a0000000000000000005'
+const professorId = '65f1a0000000000000000006'
 
 describe('serviço de presenças e relatórios tenant-scoped', () => {
     beforeEach(() => {
@@ -101,6 +123,13 @@ describe('serviço de presenças e relatórios tenant-scoped', () => {
         Attendance.findOneAndDelete.mockReturnValue(deleteQuery)
         Room.find.mockReturnValue(roomListQuery)
         Room.findOne.mockReturnValue(roomQuery)
+        CheckinPeriod.find.mockReturnValue(periodoMockQuery)
+        periodoMockQuery.select.mockReturnValue(periodoMockQuery)
+        periodoMockQuery.lean.mockResolvedValue([])
+        Class.find.mockReturnValue(classMockQuery)
+        classMockQuery.select.mockReturnValue(classMockQuery)
+        classMockQuery.populate.mockReturnValue(classMockQuery)
+        classMockQuery.lean.mockResolvedValue([])
         obterPeriodoCorrente.mockResolvedValue({
             _id: periodoId,
             tenantId,
@@ -161,6 +190,20 @@ describe('serviço de presenças e relatórios tenant-scoped', () => {
         Attendance.aggregate.mockResolvedValue([
             { _id: periodoId, quantidade: 3 },
         ])
+        CheckinPeriod.find.mockReturnValue(periodoMockQuery)
+        periodoMockQuery.select.mockReturnValue(periodoMockQuery)
+        periodoMockQuery.lean.mockResolvedValue([{
+            _id: periodoId,
+            classId,
+        }])
+        Class.find.mockReturnValue(classMockQuery)
+        classMockQuery.select.mockReturnValue(classMockQuery)
+        classMockQuery.populate.mockReturnValue(classMockQuery)
+        classMockQuery.lean.mockResolvedValue([{
+            _id: classId,
+            name: 'Matemática',
+            createdBy: { _id: professorId, name: 'Professor Teste', status: 'active' },
+        }])
 
         await expect(obterResumoDoTenant(tenantId)).resolves.toEqual({
             salas: [{
@@ -169,6 +212,10 @@ describe('serviço de presenças e relatórios tenant-scoped', () => {
                 status: 'open',
                 aberta: true,
                 quantidade: 3,
+                aulaId: classId,
+                aulaNome: 'Matemática',
+                professorId: professorId,
+                professorNome: 'Professor Teste',
             }],
             total: 3,
         })

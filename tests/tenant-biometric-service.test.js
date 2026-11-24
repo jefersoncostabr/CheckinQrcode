@@ -21,6 +21,12 @@ const Room = { findOne: jest.fn() }
 const obterContextoQr = jest.fn()
 const inserirPresencaNoPeriodo = jest.fn()
 const obterPeriodoCorrente = jest.fn()
+class CheckinPeriodError extends Error {
+    constructor(message, statusCode) {
+        super(message)
+        this.statusCode = statusCode
+    }
+}
 class TenantCheckinError extends Error {
     constructor(message, statusCode) {
         super(message)
@@ -60,6 +66,7 @@ jest.unstable_mockModule('../src/services/tenantCheckinService.js', () => ({
 jest.unstable_mockModule('../src/services/checkinPeriodService.js', () => ({
     inserirPresencaNoPeriodo,
     obterPeriodoCorrente,
+    CheckinPeriodError,
 }))
 
 const {
@@ -68,6 +75,7 @@ const {
     excluirBiometriaDoTenant,
     excluirBiometriaAdministrativaDoTenant,
     registrarCheckinFacialDoTenant,
+    registrarCheckinFacialNaSalaDoTenant,
     TenantBiometricError,
 } = await import('../src/services/tenantBiometricService.js')
 
@@ -113,7 +121,27 @@ describe('serviço de biometria isolada por tenant', () => {
             roomId,
             status: 'open',
         })
+
         setupContext()
+    })
+
+    it('rejeita presença quando o monitor usa um período anterior', async () => {
+        roomQuery.lean.mockResolvedValue({ _id: roomId, name: 'Sala Azul', status: 'open' })
+        profileListQuery.lean.mockResolvedValue([{ personId, descriptor }])
+        obterPeriodoCorrente.mockResolvedValue({ _id: 'periodo-novo', status: 'open' })
+        await expect(registrarCheckinFacialNaSalaDoTenant({
+            tenantId, roomId, descriptor, consentimento: true, periodoId: 'periodo-antigo',
+        })).rejects.toMatchObject({ statusCode: 409, code: 'PERIODO_ALTERADO' })
+        expect(inserirPresencaNoPeriodo).not.toHaveBeenCalled()
+    })
+
+    it('sinaliza mudança de período detectada durante a gravação', async () => {
+        roomQuery.lean.mockResolvedValue({ _id: roomId, name: 'Sala Azul', status: 'open' })
+        profileListQuery.lean.mockResolvedValue([{ personId, descriptor }])
+        inserirPresencaNoPeriodo.mockRejectedValueOnce(new CheckinPeriodError('O período mudou.', 409))
+        await expect(registrarCheckinFacialNaSalaDoTenant({
+            tenantId, roomId, descriptor, consentimento: true, periodoId: 'periodo-id',
+        })).rejects.toMatchObject({ statusCode: 409, code: 'PERIODO_ALTERADO' })
     })
 
     it('exige consentimento e valida descritor antes de persistir', async () => {

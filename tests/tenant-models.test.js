@@ -1,6 +1,7 @@
 import Attendance from '../src/models/attendanceModel.js'
 import BiometricProfile from '../src/models/biometricProfileModel.js'
 import CheckinPeriod from '../src/models/checkinPeriodModel.js'
+import Class from '../src/models/classModel.js'
 import Membership from '../src/models/membershipModel.js'
 import Person from '../src/models/personModel.js'
 import QrCode from '../src/models/qrCodeModel.js'
@@ -108,5 +109,12 @@ describe('modelos da fundação multi-tenant', () => {
         expect(Room.schema.path('currentPeriodId')).toBeDefined()
         expect(Room.schema.path('legacyPeriod')).toBeDefined()
         expect(Room.schema.path('periodRevision')).toBeDefined()
+    })
+
+    it('guarda início e fim da aula sem associar sala no cadastro', () => {
+        expect(Class.schema.path('startTime')).toBeDefined()
+        expect(Class.schema.path('endTime')).toBeDefined()
+        expect(Class.schema.path('roomId')).toBeUndefined()
+        expect(Class.schema.path('time')).toBeUndefined()
     })
 })

@@ -611,7 +611,18 @@ document.addEventListener('DOMContentLoaded', () => {
                     item.className = 'checkin-room';
 
                     const nome = document.createElement('strong');
-                    nome.textContent = sala.nome;
+                    const identificacaoAula = sala.aulaNome
+                        ? `Aula: ${sala.aulaNome}`
+                        : '';
+                    const identificacaoProfessor = sala.professorNome
+                        ? `Professor: ${sala.professorNome}`
+                        : '';
+
+                    nome.textContent = [
+                        sala.nome,
+                        identificacaoAula,
+                        identificacaoProfessor,
+                    ].filter(Boolean).join(' · ');
 
                     const total = document.createElement('span');
                     total.className = 'checkin-count';

@@ -12,8 +12,10 @@ export const TENANT_PERMISSIONS = Object.freeze([
     'attendance:manage',
     'reports:read',
     'biometrics:manage',
+    'biometrics:monitor',
     'advanced:read',
     'checkinPeriods:read',
+    'classes:manage',
 ])
 
 export const TENANT_ROLE_PERMISSIONS = Object.freeze({
@@ -28,14 +30,18 @@ export const TENANT_ROLE_PERMISSIONS = Object.freeze({
         'attendance:manage',
         'reports:read',
         'biometrics:manage',
+        'biometrics:monitor',
         'advanced:read',
         'checkinPeriods:read',
+        'classes:manage',
     ]),
     operator: Object.freeze([
         'rooms:read',
         'qrcodes:read',
         'attendance:create',
         'attendance:read',
+        'classes:manage',
+        'biometrics:monitor',
     ]),
     viewer: Object.freeze([
         'rooms:read',

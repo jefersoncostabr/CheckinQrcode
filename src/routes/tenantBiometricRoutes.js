@@ -1,4 +1,6 @@
 import express from 'express'
+import mongoose from 'mongoose'
+import Room from '../models/roomModel.js'
 import { authorizeTenantPermission } from '../middleware/authorizeTenant.js'
 import { CheckinPeriodError } from '../services/checkinPeriodService.js'
 import {
@@ -17,6 +19,7 @@ function responderErro(error, res, next) {
         return res.status(error.statusCode).json({
             sucesso: false,
             mensagem: error.message,
+            ...(error.code ? { codigo: error.code } : {}),
         })
     }
     return next(error)
@@ -77,6 +80,25 @@ router.post('/biometrics/verify', authorizeTenantPermission('biometrics:manage')
     }
 })
 
+router.get('/biometrics/monitor/:roomId', authorizeTenantPermission('biometrics:monitor'), async (req, res, next) => {
+    if (!mongoose.isValidObjectId(req.params.roomId)) {
+        return res.status(400).json({ sucesso: false, mensagem: 'Sala inválida.' })
+    }
+    try {
+        const sala = await Room.findOne({
+            _id: req.params.roomId,
+            tenantId: req.tenant.id,
+            status: 'open',
+        }).select('currentPeriodId').lean()
+        return res.set('Cache-Control', 'no-store').json({
+            sucesso: true,
+            periodoId: sala?.currentPeriodId ? String(sala.currentPeriodId) : null,
+        })
+    } catch (error) {
+        return next(error)
+    }
+})
+
 router.post('/biometrics/checkin', authorizeTenantPermission('attendance:create'), async (req, res, next) => {
     try {
         const result = await registrarCheckinFacialNaSalaDoTenant({
@@ -85,6 +107,7 @@ router.post('/biometrics/checkin', authorizeTenantPermission('attendance:create'
             descriptor: req.body?.descritor,
             consentimento: req.body?.consentimento,
             sourceIp: req.ip,
+            ...(req.body?.periodoId != null ? { periodoId: req.body.periodoId } : {}),
         })
         return res.status(201).json({
             sucesso: true,

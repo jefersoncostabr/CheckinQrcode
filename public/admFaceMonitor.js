@@ -25,7 +25,7 @@ function atualizarFeedback(state, message) {
 
 async function carregarSalasAbertas() {
     try {
-        const response = await fetch('/api/tenant/rooms');
+        const response = await fetch('/api/tenant/rooms', { cache: 'no-store' });
         if (!response.ok) {
             throw new Error(`Erro ao carregar salas (${response.status}).`);
         }
@@ -100,40 +100,76 @@ async function validarQrESelecionarSala(textoQr) {
         throw new Error('O conteúdo lido não é um endereço de QR Code válido.');
     }
 
-    if (!['http:', 'https:'].includes(urlQr.protocol) || urlQr.pathname !== '/add') {
-        throw new Error('Este QR Code não é um QR de sala do sistema.');
+    if (!['http:', 'https:'].includes(urlQr.protocol)) {
+        throw new Error('O conteúdo lido não é um endereço de QR Code válido.');
     }
 
-    const token = new URLSearchParams(urlQr.hash.slice(1)).get('token') || urlQr.hash.slice(1)
-    if (!token || !/^[A-Za-z0-9_-]{43}$/.test(token)) {
-        throw new Error('O QR Code não contém um token de sala válido.');
+    if (urlQr.pathname === '/add' && urlQr.hash.startsWith('#class-start=')) {
+        if (!consentimento.checked) {
+            throw new Error('Confirme o consentimento antes de abrir a sala.');
+        }
+        const token = new URLSearchParams(urlQr.hash.slice(1)).get('class-start');
+        if (!token || !/^[A-Za-z0-9_-]{43}$/.test(token)) {
+            throw new Error('O QR Code não contém um token de abertura válido.');
+        }
+
+        const response = await fetch('/api/tenant/classes/start-from-qr', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token }),
+        });
+        const data = await response.json();
+        if (!response.ok || !data.sucesso) {
+            throw new Error(data.mensagem || 'Não foi possível abrir a sala pelo QR Code.');
+        }
+
+        await carregarSalasAbertas();
+        const opcaoSala = [...salaSelect.options].find(
+            opcao => opcao.value === String(data.sala.id),
+        );
+        if (!opcaoSala) {
+            throw new Error('A sala foi aberta, mas não foi possível selecioná-la. Atualize a página e inicie o monitoramento manualmente.');
+        }
+        salaSelect.value = String(data.sala.id);
+        statusQrSala.textContent = `Sala aberta: ${data.sala.nome}. Iniciando o monitoramento facial.`;
+        return { tipo: 'class-start', salaId: String(data.sala.id), periodoId: data.periodoId };
     }
 
-    const response = await fetch('/api/checkin/tenant/resolve', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token }),
-    })
-    const data = await response.json();
+    if (urlQr.pathname === '/add') {
+        const token = new URLSearchParams(urlQr.hash.slice(1)).get('token') || urlQr.hash.slice(1)
+        if (!token || !/^[A-Za-z0-9_-]{43}$/.test(token)) {
+            throw new Error('O QR Code não contém um token de sala válido.');
+        }
 
-    if (!response.ok || !data.sucesso || !data.sala) {
-        throw new Error(data.mensagem || 'A sala do QR Code não foi encontrada.');
+        const response = await fetch('/api/checkin/tenant/resolve', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token }),
+        })
+        const data = await response.json();
+
+        if (!response.ok || !data.sucesso || !data.sala) {
+            throw new Error(data.mensagem || 'A sala do QR Code não foi encontrada.');
+        }
+
+        if (data.sala.aberta === false) {
+            throw new Error('A sala do QR Code está fechada.');
+        }
+
+        const opcaoSala = [...salaSelect.options].find(
+            opcao => opcao.value === String(data.sala.id),
+        );
+
+        if (!opcaoSala) {
+            throw new Error('A sala lida não está entre as salas abertas disponíveis.');
+        }
+
+        salaSelect.value = String(data.sala.id);
+        statusQrSala.textContent = `Sala selecionada: ${data.sala.nome}. Confirme o consentimento e inicie o monitoramento.`;
+        return { tipo: 'checkin', salaId: String(data.sala.id) };
     }
 
-    if (data.sala.aberta === false) {
-        throw new Error('A sala do QR Code está fechada.');
-    }
-
-    const opcaoSala = [...salaSelect.options].find(
-        opcao => opcao.value === String(data.sala.id),
-    );
-
-    if (!opcaoSala) {
-        throw new Error('A sala lida não está entre as salas abertas disponíveis.');
-    }
-
-    salaSelect.value = String(data.sala.id);
-    statusQrSala.textContent = `Sala selecionada: ${data.sala.nome}. Confirme o consentimento e inicie o monitoramento.`;
+    throw new Error('Este QR Code não é um QR de sala do sistema.');
 }
 
 botaoLerQr.addEventListener('click', async () => {
@@ -144,6 +180,11 @@ botaoLerQr.addEventListener('click', async () => {
 
     if (!window.ZXingBrowser?.BrowserQRCodeReader) {
         statusQrSala.textContent = 'O leitor ZXing não carregou. Verifique a conexão e recarregue a página.';
+        return;
+    }
+
+    if (!consentimento.checked) {
+        statusQrSala.textContent = 'Confirme que as pessoas foram informadas e consentiram antes de ler o QR Code.';
         return;
     }
 
@@ -183,14 +224,21 @@ botaoLerQr.addEventListener('click', async () => {
                 qrEmProcessamento = true;
                 controlesLeitorQr = controlesCallback;
                 pararLeituraQr();
+                botaoLerQr.disabled = true;
 
                 void validarQrESelecionarSala(resultado.getText())
-                    .then(() => {
+                    .then(async resultadoQr => {
                         statusQrSala.textContent += ' O leitor QR foi desligado.';
+                        if (resultadoQr.tipo === 'class-start') {
+                            await iniciarMonitoramentoFacial(resultadoQr.salaId, resultadoQr.periodoId)
+                        }
                     })
                     .catch(error => {
                         statusQrSala.textContent =
                             error.message || 'Não foi possível validar o QR Code.';
+                    })
+                    .finally(() => {
+                        if (!controladorMonitor && !leitorQrAtivo) botaoLerQr.disabled = false;
                     });
             },
         );
@@ -212,30 +260,76 @@ botaoPararLeituraQr.addEventListener('click', () => {
     statusQrSala.textContent = 'Leitura do QR Code cancelada.';
 });
 
-botaoIniciar.addEventListener('click', async () => {
-    if (!consentimento.checked) {
-        statusMonitor.textContent = 'Confirme que as pessoas foram informadas e consentiram.';
+async function consultarPeriodo(salaId, signal) {
+    const response = await fetch(`/api/tenant/biometrics/monitor/${encodeURIComponent(salaId)}`, {
+        cache: 'no-store',
+        signal,
+    });
+    const data = await response.json();
+    if (!response.ok || !data.sucesso) {
+        throw new Error(data.mensagem || 'Não foi possível verificar o período da sala.');
+    }
+    return data.periodoId;
+}
+
+async function iniciarMonitoramentoFacial(salaId, periodoEsperado = null) {
+    if (controladorMonitor) {
+        statusMonitor.textContent = 'O monitoramento já está iniciando ou em andamento.';
         return;
     }
-
-    const salaId = salaSelect.value;
+    if (!salaId) {
+        salaId = salaSelect.value;
+    }
     if (!salaId) {
         statusMonitor.textContent = 'Selecione uma sala aberta.';
         return;
     }
 
-    controladorMonitor = new AbortController();
-    painelMonitor.classList.add('capture-active');
-    document.body.classList.add('monitoring-active');
-    cameraStage.hidden = false;
-    botaoParar.hidden = false;
     botaoIniciar.disabled = true;
-    botaoParar.disabled = false;
-    botaoParar.focus();
-    salaSelect.disabled = true;
-    consentimento.disabled = true;
+    botaoLerQr.disabled = true;
+    controladorMonitor = new AbortController();
+    const controlador = controladorMonitor;
+    let timerPeriodo;
+    let motivoParada;
+    let iniciandoCamera = false;
 
     try {
+        const periodoId = await consultarPeriodo(salaId, controlador.signal);
+        if (!periodoId || (periodoEsperado && periodoId !== periodoEsperado)) {
+            throw new Error('A sala foi fechada ou o período mudou. Selecione uma sala aberta.');
+        }
+        if (controlador.signal.aborted) return;
+
+        const verificarPeriodo = async () => {
+            try {
+                const atual = await consultarPeriodo(salaId, controlador.signal);
+                if (controlador.signal.aborted) return;
+                if (atual !== periodoId) {
+                    motivoParada = 'O período da sala foi encerrado ou alterado. Monitoramento parado.';
+                    controlador.abort();
+                    return;
+                }
+                timerPeriodo = setTimeout(verificarPeriodo, 5000);
+            } catch (error) {
+                if (controlador.signal.aborted) return;
+                motivoParada = `Monitoramento parado: ${error.message || 'não foi possível verificar o período.'}`;
+                controlador.abort();
+            }
+        };
+        timerPeriodo = setTimeout(verificarPeriodo, 5000);
+        pararLeituraQr();
+        botaoLerQr.disabled = true;
+        painelMonitor.classList.add('capture-active');
+        document.body.classList.add('monitoring-active');
+        cameraStage.hidden = false;
+        botaoParar.hidden = false;
+        botaoIniciar.disabled = true;
+        botaoParar.disabled = false;
+        botaoParar.focus();
+        salaSelect.disabled = true;
+        consentimento.disabled = true;
+
+        iniciandoCamera = true;
         await FaceRecognition.monitorarDescritoresFaciais(
             videoMonitor,
             async descritor => {
@@ -245,12 +339,17 @@ botaoIniciar.addEventListener('click', async () => {
                     const response = await fetch('/api/tenant/biometrics/checkin', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ descritor, roomId: salaId, consentimento: true }),
-                        signal: controladorMonitor.signal,
+                        body: JSON.stringify({ descritor, roomId: salaId, periodoId, consentimento: true }),
+                        signal: controlador.signal,
                     });
                     const data = await response.json();
 
                     if (!response.ok || !data.sucesso) {
+                        if (data.codigo === 'PERIODO_ALTERADO') {
+                            motivoParada = data.mensagem || 'O período da sala mudou. Monitoramento parado.';
+                            controlador.abort();
+                            return;
+                        }
                         throw new Error(data.mensagem || 'Não foi possível registrar a presença.');
                     }
 
@@ -262,21 +361,27 @@ botaoIniciar.addEventListener('click', async () => {
             },
             message => statusMonitor.textContent = message,
             atualizarFeedback,
-            controladorMonitor.signal,
+            controlador.signal,
         );
     } catch (error) {
         if (error.name === 'AbortError') {
-            statusMonitor.textContent = 'Monitoramento parado.';
+            statusMonitor.textContent = motivoParada || 'Monitoramento parado.';
         } else {
-            statusMonitor.textContent = FaceRecognition.mensagemErroFacial(error);
+            statusMonitor.textContent = iniciandoCamera
+                ? FaceRecognition.mensagemErroFacial(error)
+                : error.message || 'Não foi possível verificar o período da sala.';
+            if (periodoEsperado) statusQrSala.textContent = 'Confira a sala: ela pode continuar aberta. Tente iniciar o monitoramento manualmente.';
         }
     } finally {
+        clearTimeout(timerPeriodo);
+        if (motivoParada) statusMonitor.textContent = motivoParada;
         controladorMonitor = undefined;
         painelMonitor.classList.remove('capture-active');
         painelMonitor.removeAttribute('data-capture-state');
         document.body.classList.remove('monitoring-active');
         cameraStage.hidden = true;
         botaoIniciar.disabled = false;
+        botaoLerQr.disabled = false;
         botaoParar.disabled = true;
         botaoParar.hidden = true;
         salaSelect.disabled = false;
@@ -284,6 +389,15 @@ botaoIniciar.addEventListener('click', async () => {
         videoMonitor.hidden = true;
         botaoIniciar.focus();
     }
+}
+
+botaoIniciar.addEventListener('click', async () => {
+    if (!consentimento.checked) {
+        statusMonitor.textContent = 'Confirme que as pessoas foram informadas e consentiram.';
+        return;
+    }
+
+    await iniciarMonitoramentoFacial(salaSelect.value);
 });
 
 botaoParar.addEventListener('click', () => {

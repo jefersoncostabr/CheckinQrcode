@@ -38,7 +38,7 @@ router.get('/adicionar-manual', authorizeTenantPermission('attendance:create'), 
     res.sendFile(path.join(publicDir, 'admAdd.html'))
 })
 
-router.get('/monitor-facial', authorizeTenantPermission('biometrics:manage'), (req, res) => {
+router.get('/monitor-facial', authorizeTenantPermission('biometrics:monitor'), (req, res) => {
     res.sendFile(path.join(publicDir, 'admFaceMonitor.html'))
 })
 

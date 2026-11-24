@@ -1,0 +1,174 @@
+* {
+    box-sizing: border-box;
+}
+
+body {
+    display: flex;
+    min-height: 100vh;
+    flex-direction: column;
+    align-items: center;
+    margin: 0;
+    padding: 20px;
+    background: #f4f7f6;
+    color: #333;
+    font-family: Arial, sans-serif;
+}
+
+.professor-container {
+    width: 100%;
+    max-width: 900px;
+}
+
+h1,
+h2 {
+    color: #2c3e50;
+}
+
+.card {
+    margin-bottom: 20px;
+    padding: 24px;
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+#form-aula {
+    display: grid;
+    gap: 8px;
+    margin-bottom: 0;
+}
+
+#form-aula .campo-nome-aula {
+    display: grid;
+    gap: 4px;
+    min-width: 0;
+}
+
+#form-aula .campo-nome-aula label {
+    margin-top: 0;
+}
+
+#form-aula .horarios-aula {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 110px));
+    gap: 12px;
+    margin-top: 12px;
+}
+
+#form-aula .campo-horario {
+    display: grid;
+    gap: 4px;
+    min-width: 0;
+}
+
+#form-aula .campo-horario label {
+    margin-top: 0;
+}
+
+#form-aula .campo-horario input[type="time"] {
+    width: 100%;
+    min-width: 0;
+    padding-inline: 6px;
+}
+
+label {
+    display: block;
+    margin-top: 12px;
+    font-weight: bold;
+}
+
+input,
+select {
+    width: 100%;
+    min-height: 44px;
+    padding: 8px;
+    border: 1px solid #8797a5;
+    border-radius: 5px;
+    background: #fff;
+    color: #222;
+    font: inherit;
+}
+
+button:not(.menuHamburger):not(.navbarLogout) {
+    min-height: 44px;
+    padding: 10px 16px;
+    border: 0;
+    border-radius: 5px;
+    background: #23384d;
+    color: #fff;
+    font: inherit;
+    cursor: pointer;
+}
+
+button:not(.menuHamburger):not(.navbarLogout):hover:not(:disabled) {
+    background: #36536f;
+}
+
+button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible {
+    outline: 3px solid #3478b5;
+    outline-offset: 2px;
+}
+
+#form-aula button {
+    justify-self: start;
+    margin-top: 12px;
+}
+
+@media (min-width: 700px) {
+    #form-aula {
+        grid-template-columns: minmax(0, 1.5fr) repeat(2, minmax(110px, 1fr));
+        align-items: end;
+    }
+
+    #form-aula .horarios-aula {
+        display: contents;
+        margin-top: 0;
+    }
+
+    #form-aula button {
+        grid-column: 1 / -1;
+    }
+}
+
+.acoes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+#mensagem {
+    min-height: 1.5em;
+}
+
+.qr-area {
+    margin-top: 16px;
+}
+
+.qr-area img {
+    max-width: 260px;
+    height: auto;
+    border: 1px solid #8797a5;
+    border-radius: 6px;
+    background: #fff;
+    padding: 8px;
+    margin-bottom: 8px;
+}
+
+#prazo-qr {
+    min-height: 1.5em;
+    font-weight: bold;
+    color: #23384d;
+}
+
+#orientacao-qr {
+    min-height: 1.5em;
+    color: #555;
+    font-size: 0.95em;
+}

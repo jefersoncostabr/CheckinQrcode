@@ -32,6 +32,10 @@ const checkinPeriodSchema = new mongoose.Schema({
         ref: 'Room',
         required: true,
     },
+    classId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Class',
+    },
     roomName: { type: String, required: true, trim: true, maxlength: 120 },
     startedAt: { type: Date, required: true },
     endedAt: { type: Date, default: null },

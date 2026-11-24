@@ -11,6 +11,7 @@ import tenantCheckinRoutes from '../src/routes/tenantCheckinRoutes.js'
 import tenantAttendanceRoutes from '../src/routes/tenantAttendanceRoutes.js'
 import tenantAuthRoutes from '../src/routes/tenantAuthRoutes.js'
 import tenantBiometricRoutes from '../src/routes/tenantBiometricRoutes.js'
+import tenantClassRoutes from '../src/routes/tenantClassRoutes.js'
 import * as qrCodeService from '../src/services/qrCodeService.js'
 import * as salasService from '../src/services/salasService.js'
 import request from 'supertest'
@@ -61,6 +62,7 @@ describe('regressão da reorganização de arquivos', () => {
             'GET /login',
             'POST /login',
             'GET /logout',
+            'GET /professor',
             'GET /qtd',
             'GET /add',
             'GET /teste-rosto',
@@ -101,6 +103,13 @@ describe('regressão da reorganização de arquivos', () => {
             'GET /adm/monitor-facial',
             'GET /adm/relatorio',
             'GET /api/tenant/checkin-periods',
+            'GET /api/tenant/biometrics/monitor/:roomId',
+            'GET /api/tenant/classes',
+            'POST /api/tenant/classes',
+            'POST /api/tenant/classes/:id/start',
+            'POST /api/tenant/classes/:id/close',
+            'POST /api/tenant/classes/:id/start-qr',
+            'POST /api/tenant/classes/start-from-qr',
             'GET /api/tenant/rooms',
             'POST /api/tenant/auth/register',
             'POST /api/tenant/auth/login',
@@ -140,6 +149,7 @@ describe('regressão da reorganização de arquivos', () => {
             ...listarRotas(tenantAttendanceRoutes, '/api/tenant'),
             ...listarRotas(tenantAuthRoutes, '/api/tenant/auth'),
             ...listarRotas(tenantBiometricRoutes, '/api/tenant'),
+            ...listarRotas(tenantClassRoutes, '/api/tenant'),
         ].sort()
 
         expect(rotasAtuais).toEqual(rotasOriginais)

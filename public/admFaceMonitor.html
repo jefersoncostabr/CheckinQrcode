@@ -48,17 +48,19 @@
         <div class="monitor-fields">
             <label for="monitorSala">Sala aberta</label>
             <select id="monitorSala"></select>
-            <label class="monitor-consent" for="monitorConsent">
-                <input id="monitorConsent" type="checkbox">
-                <span>Confirme que as pessoas foram informadas e consentiram com o uso da biometria para registrar presença.</span>
-            </label>
-            <div class="actions">
-                <button id="monitorStart" type="button" aria-label="Iniciar monitoramento de presença por biometria" title="Iniciar monitoramento de presença por biometria">Iniciar monitoramento</button>
-                <button id="lerQrSala" type="button" aria-label="Ler QR Code da sala" title="Ler QR Code da sala">Ler QR da sala</button>
-                <button id="pararLeituraQr" type="button" hidden aria-label="Cancelar leitura de QR Code" title="Cancelar leitura de QR Code">Cancelar leitura</button>
-            </div>
+        <label class="monitor-consent" for="monitorConsent">
+            <input id="monitorConsent" type="checkbox">
+            <span>Confirme que as pessoas foram informadas e consentiram com o uso da biometria para registrar presença.</span>
+        </label>
+        <div class="actions">
+            <button id="monitorStart" type="button" aria-label="Iniciar monitoramento de presença por biometria" title="Iniciar monitoramento de presença por biometria">Iniciar monitoramento</button>
+            <button id="lerQrSala" type="button" aria-label="Ler QR Code da sala" title="Ler QR Code da sala">Ler QR da sala</button>
+            <button id="pararLeituraQr" type="button" hidden aria-label="Cancelar leitura de QR Code" title="Cancelar leitura de QR Code">Cancelar leitura</button>
         </div>
         <p id="monitorStatus" role="status" aria-live="polite">Carregando salas...</p>
+        <p id="statusQrSala" role="status" aria-live="polite">
+            Após confirmar o consentimento acima, a leitura do QR de início abre a sala e inicia o monitoramento automaticamente.
+        </p>
         <section id="qrCameraStage" class="qr-camera" hidden>
             <video id="videoQrSala" autoplay muted playsinline></video>
         </section>

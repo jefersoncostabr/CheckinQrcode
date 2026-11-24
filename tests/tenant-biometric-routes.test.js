@@ -1,6 +1,7 @@
 import { jest } from '@jest/globals'
 import express from 'express'
 import request from 'supertest'
+import Room from '../src/models/roomModel.js'
 
 const appliedPermissions = []
 const authorizeTenantPermission = jest.fn(permission => (req, res, next) => {
@@ -114,5 +115,23 @@ describe('rotas administrativas de biometria tenant-scoped', () => {
             sucesso: false,
             mensagem: 'Descritor facial inválido.',
         })
+    })
+
+    it('consulta o período aberto da sala somente no tenant autenticado', async () => {
+        const roomId = '65f1a0000000000000000002'
+        const periodoId = '65f1a0000000000000000003'
+        const query = { select: jest.fn().mockReturnThis(), lean: jest.fn().mockResolvedValue({ currentPeriodId: periodoId }) }
+        const findOne = jest.spyOn(Room, 'findOne').mockReturnValue(query)
+        try {
+            const response = await request(app).get(`/api/tenant/biometrics/monitor/${roomId}`).expect(200)
+            expect(response.body.periodoId).toBe(periodoId)
+            expect(response.headers['cache-control']).toBe('no-store')
+            expect(findOne).toHaveBeenCalledWith({
+                _id: roomId, tenantId: '65f1a0000000000000000001', status: 'open',
+            })
+            expect(appliedPermissions).toEqual(['biometrics:monitor'])
+        } finally {
+            findOne.mockRestore()
+        }
     })
 })

@@ -11,15 +11,18 @@ Cada vínculo de uma conta com uma organização possui um papel. Os papéis sã
 5- `attendance:create` / `attendance:read` / `attendance:manage`: criar / consultar / gerenciar presenças.
 6- `reports:read`: consultar relatórios.
 7- `biometrics:manage`: gerenciar operações e perfis biométricos.
-8- `advanced:read`: acessar a página avançada.
-9- `checkinPeriods:read`: consultar os períodos de check-in existentes da organização ativa.
+8- `biometrics:monitor`: iniciar o monitor facial de uma sala sem gerenciar perfis biométricos.
+9- `advanced:read`: acessar a página avançada.
+10- `checkinPeriods:read`: consultar os períodos de check-in existentes da organização ativa.
+11- `classes:manage`: cadastrar, iniciar e encerrar aulas e gerar QR temporário de abertura de sala.
 
 
 | Papel | Permissões |
 | --- | --- |
 | `owner` | Todas as permissões: gerenciar a organização e membros; consultar e gerenciar salas e QR Codes; criar, consultar e gerenciar presenças; consultar relatórios; gerenciar biometria; acessar a página avançada; consultar períodos de check-in. |
 | `admin` | Consultar e gerenciar salas e QR Codes; criar, consultar e gerenciar presenças; consultar relatórios; gerenciar biometria; acessar a página avançada; consultar períodos de check-in. Não pode gerenciar a organização nem os membros. |
-| `operator` | Consultar salas e QR Codes; criar e consultar presenças. |
+| `admin` | Consultar e gerenciar salas e QR Codes; criar, consultar e gerenciar presenças; consultar relatórios; gerenciar biometria; acessar a página avançada; consultar períodos de check-in; cadastrar, iniciar e encerrar aulas e gerar QR temporário de abertura de sala. Não pode gerenciar a organização nem os membros. |
+| `operator` | Consultar salas e QR Codes; criar e consultar presenças; cadastrar, iniciar e encerrar aulas; gerar QR temporário de abertura de sala; iniciar o monitor facial de uma sala. Não pode gerenciar salas, QR Codes nem perfis biométricos. |
 | `viewer` | Consultar salas, presenças e relatórios. |
 | `user` | Criar presenças. Não pode consultar salas ou presenças, nem gerenciar dados. |
 

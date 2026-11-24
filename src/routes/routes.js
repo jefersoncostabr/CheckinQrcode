@@ -108,9 +108,15 @@ router.get('/', (req, res) => {
     res.send('O servidor funcionando.')
 })
 
+router.get('/professor', requireTenantAuth, authorizeTenantPermission('classes:manage'), (req, res) => {
+    res.set('Cache-Control', 'private, no-store')
+    res.sendFile(path.resolve(__dirname, '..', 'views', 'professor.html'))
+})
+
 router.get('/api/rotas', requireTenantAuth, (req, res) => {
     const rotasDisponiveis = [
         { metodo: 'GET', caminho: '/', acesso: 'público' },
+        { metodo: 'GET', caminho: '/professor', acesso: 'sessão tenant + classes:manage' },
         { metodo: 'GET', caminho: '/api/rotas', acesso: 'sessão tenant' },
         { metodo: 'GET', caminho: '/login', acesso: 'público' },
         { metodo: 'POST', caminho: '/login', acesso: 'desativada; use /api/tenant/auth/login' },
