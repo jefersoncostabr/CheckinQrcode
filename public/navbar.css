@@ -94,7 +94,7 @@ body.com-navbar {
 
 .linkMenu:focus-visible,
 .navbarBrand:focus-visible {
-    outline: 2px solid #b9d8f1;
+    outline: 2px solid #81d4fa;
     outline-offset: 2px;
 }
 
@@ -153,6 +153,37 @@ body.com-navbar {
     padding: 12px;
     border-radius: 6px;
     background: #7f1d1d;
+}
+
+@media (min-width: 769px) {
+    .ulMenu .linkMenu {
+        position: relative;
+        min-height: 38px;
+        border-bottom: 3px solid transparent;
+        border-radius: 3px 3px 0 0;
+        transition:
+            background-color 0.2s ease,
+            border-color 0.2s ease,
+            color 0.2s ease;
+    }
+
+    .ulMenu .linkMenu:hover {
+        border-bottom-color: rgba(129, 212, 250, 0.72);
+        background: rgba(129, 212, 250, 0.1);
+    }
+
+    .ulMenu .linkMenu.navbarLinkActive {
+        border-bottom-color: #81d4fa;
+        background: rgba(129, 212, 250, 0.22);
+        color: #fff;
+        font-weight: 700;
+    }
+
+    .ulMenu .navbarLogout,
+    .ulMenu .navbarLogout:hover {
+        border-bottom-color: transparent;
+        border-radius: 5px;
+    }
 }
 
 @media (max-width: 768px) {

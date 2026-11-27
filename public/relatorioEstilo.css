@@ -25,7 +25,8 @@ ul {
     padding: 0;
 }
 
-li {
+#listaNomes > li,
+#listaSalasCadastradas > li {
     background: #fff;
     border-bottom: 1px solid #eee;
     padding: 10px;
@@ -34,7 +35,8 @@ li {
     align-items: center;
 }
 
-li:nth-child(even) {
+#listaNomes > li:nth-child(even),
+#listaSalasCadastradas > li:nth-child(even) {
     background-color: #f9f9f9;
 }
 

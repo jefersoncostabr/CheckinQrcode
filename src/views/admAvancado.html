@@ -18,13 +18,25 @@
         </div>
 
         <section class="card" aria-labelledby="tituloPeriodos">
-            <h2 id="tituloPeriodos">Períodos de check-in</h2>
-            <div class="checkins-header">
-                <p>Histórico de abertura e fechamento das salas.</p>
-                <button id="btnAtualizarPeriodos" class="btn-primary" type="button" aria-label="Atualizar períodos de check-in" title="Atualizar períodos de check-in">Atualizar</button>
+            <div class="periodos-card-heading">
+                <h2 id="tituloPeriodos">Períodos de check-in</h2>
+                <div class="periodos-toggle-opcoes" role="group" aria-label="Opções de ícone para recolher ou expandir os períodos">
+                    <button class="periodos-toggle-btn" type="button" data-toggle-variant="triangulo" aria-expanded="true" aria-controls="periodosConteudo" aria-label="Recolher períodos de check-in" title="Recolher ou expandir períodos de check-in">▲</button>
+                </div>
             </div>
-            <ul id="listaPeriodos" class="periodos-lista" aria-live="polite"></ul>
-            <p id="periodosVazio" class="checkins-empty" role="status">Carregando...</p>
+            <div id="periodosConteudo">
+                <div class="checkins-header">
+                    <p>Histórico de abertura e fechamento das salas.</p>
+                    <button id="btnAtualizarPeriodos" class="btn-primary" type="button" aria-label="Atualizar períodos de check-in" title="Atualizar períodos de check-in">Atualizar</button>
+                </div>
+                <ul id="listaPeriodos" class="periodos-lista" aria-live="polite"></ul>
+                <p id="periodosVazio" class="checkins-empty" role="status">Carregando...</p>
+            </div>
+        </section>
+
+        <section class="card" id="biometricManagementCard" aria-labelledby="biometricManagementTitle">
+            <h2 id="biometricManagementTitle">Perfis biométricos desta organização</h2>
+            <ul id="listaPerfisFaciais" aria-live="polite"></ul>
         </section>
     </main>
 
@@ -35,6 +47,12 @@
             const listaEl = document.getElementById('listaPeriodos');
             const vazioEl = document.getElementById('periodosVazio');
             const atualizarEl = document.getElementById('btnAtualizarPeriodos');
+            const listaPerfisFaciaisEl = document.getElementById('listaPerfisFaciais');
+            const periodosConteudoEl = document.getElementById('periodosConteudo');
+            const botoesTogglePeriodos = document.querySelectorAll('[data-toggle-variant]');
+            const iconesToggle = {
+                triangulo: { expandido: '▲', recolhido: '▼' },
+            };
 
             function atualizarStatus(message, type = 'info') {
                 statusEl.className = 'status-message';
@@ -54,6 +72,95 @@
                     dateStyle: 'short',
                     timeStyle: 'short',
                 }).format(date);
+            }
+
+            function definirEstadoPeriodos(expandido) {
+                periodosConteudoEl.hidden = !expandido;
+
+                botoesTogglePeriodos.forEach(botao => {
+                    const icone = iconesToggle[botao.dataset.toggleVariant];
+                    botao.textContent = expandido ? icone.expandido : icone.recolhido;
+                    botao.setAttribute('aria-expanded', String(expandido));
+                    botao.setAttribute(
+                        'aria-label',
+                        `${expandido ? 'Recolher' : 'Expandir'}`,
+                    );
+                });
+            }
+
+            botoesTogglePeriodos.forEach(botao => {
+                botao.addEventListener('click', () => {
+                    const expandido = botao.getAttribute('aria-expanded') === 'true';
+                    definirEstadoPeriodos(!expandido);
+                });
+            });
+
+            definirEstadoPeriodos(true);
+
+            async function carregarPerfisFaciais() {
+                try {
+                    const response = await fetch('/api/tenant/biometrics/profiles', { cache: 'no-store' });
+                    const data = await response.json();
+
+                    if (!response.ok) {
+                        throw new Error(data.mensagem || 'Não foi possível carregar os perfis biométricos.');
+                    }
+
+                    const pessoas = Array.isArray(data.pessoas) ? data.pessoas : [];
+                    listaPerfisFaciaisEl.replaceChildren();
+
+                    if (pessoas.length === 0) {
+                        const item = document.createElement('li');
+                        item.textContent = 'Nenhum perfil cadastrado.';
+                        listaPerfisFaciaisEl.appendChild(item);
+                        return;
+                    }
+
+                    pessoas.forEach(pessoa => {
+                        if (!pessoa.temRosto) return;
+
+                        const item = document.createElement('li');
+                        item.textContent = pessoa.nome;
+
+                        const button = document.createElement('button');
+                        button.type = 'button';
+                        button.className = 'action-button btn-danger';
+                        button.textContent = 'Excluir biometria';
+                        button.title = 'Exclui o perfil biométrico cadastrado desta pessoa.';
+
+                        button.addEventListener('click', async () => {
+                            if (!confirm(`Excluir o perfil biométrico de "${pessoa.nome}"?`)) return;
+
+                            try {
+                                const deleteResponse = await fetch(
+                                    `/api/tenant/biometrics/profiles/${encodeURIComponent(pessoa.perfilId)}`,
+                                    { method: 'DELETE' },
+                                );
+                                const deleteData = deleteResponse.status === 204
+                                    ? {}
+                                    : await deleteResponse.json();
+
+                                if (!deleteResponse.ok) {
+                                    throw new Error(deleteData.mensagem || 'Não foi possível excluir o perfil biométrico.');
+                                }
+
+                                atualizarStatus(
+                                    deleteData.mensagem || 'Perfil biométrico excluído.',
+                                    'success',
+                                );
+                                await carregarPerfisFaciais();
+                            } catch (error) {
+                                atualizarStatus(`Erro: ${error.message}`, 'error');
+                            }
+                        });
+
+                        item.append(' ', button);
+                        listaPerfisFaciaisEl.appendChild(item);
+                    });
+                } catch (error) {
+                    listaPerfisFaciaisEl.replaceChildren();
+                    atualizarStatus(`Erro: ${error.message}`, 'error');
+                }
             }
 
             async function carregarPeriodos() {
@@ -117,6 +224,7 @@
 
             atualizarEl.addEventListener('click', carregarPeriodos);
             carregarPeriodos();
+            carregarPerfisFaciais();
         });
     </script>
 </body>

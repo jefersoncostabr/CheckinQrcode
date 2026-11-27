@@ -10,7 +10,28 @@ document.addEventListener('DOMContentLoaded', () => {
     const qrsVazioEl = document.getElementById('qrsVazio');
     const resumoQrsEl = document.getElementById('resumoQrs');
     const btnCriarQrDisponivel = document.getElementById('btnCriarQrDisponivel');
-    const listaPerfisFaciaisEl = document.getElementById('listaPerfisFaciais');
+    document.querySelectorAll('[data-painel-toggle]').forEach(botao => {
+        const conteudo = document.getElementById(botao.getAttribute('aria-controls'));
+        let expandido = true;
+
+        function atualizarToggle() {
+            conteudo.hidden = !expandido;
+            botao.textContent = expandido ? '\u25B2' : '\u25BC';
+            botao.setAttribute('aria-expanded', String(expandido));
+
+            const acao = expandido ? 'Recolher' : 'Expandir';
+            const nomePainel = botao.dataset.painelToggle;
+            botao.setAttribute('aria-label', `${acao} ${nomePainel}`);
+            botao.title = `${acao} ${nomePainel}`;
+        }
+
+        atualizarToggle();
+
+        botao.addEventListener('click', () => {
+            expandido = !expandido;
+            atualizarToggle();
+        });
+    });
     let qrCodesTenant = [];
     let podeConsultarQrs = false;
     let salasTenant = [];
@@ -138,7 +159,6 @@ document.addEventListener('DOMContentLoaded', () => {
         btnAddPresenca.hidden = !podeVerAcoesPresenca;
         btnCadastrarUsuario.hidden = !podeVerAcoesPresenca;
         document.getElementById('roomManagementCard').hidden = !manage;
-        document.getElementById('biometricManagementCard').hidden = !manage;
         qrManagementCard.hidden = !manage;
         btnCriarQrDisponivel.hidden = !manage;
         btnCriarQrDisponivel.disabled = !manage;
@@ -815,39 +835,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    async function carregarPerfisFaciais() {
-        if (!listaPerfisFaciaisEl || document.getElementById('biometricManagementCard').hidden) return
-        await apiRequest('/api/tenant/biometrics/profiles', { method: 'GET' }, data => {
-            listaPerfisFaciaisEl.replaceChildren()
-            const pessoas = Array.isArray(data.pessoas) ? data.pessoas : []
-            if (!pessoas.length) {
-                const item = document.createElement('li')
-                item.textContent = 'Nenhum perfil cadastrado.'
-                listaPerfisFaciaisEl.appendChild(item)
-                return
-            }
-            pessoas.forEach(pessoa => {
-                if (!pessoa.temRosto) return
-                const item = document.createElement('li')
-                item.textContent = pessoa.nome
-                const button = document.createElement('button')
-                button.className = 'action-button btn-danger'
-                button.textContent = 'Excluir biometria'
-                button.addEventListener('click', async () => {
-                    if (!confirm(`Excluir o perfil biométrico de "${pessoa.nome}"?`)) return
-                    await apiRequest(`/api/tenant/biometrics/profiles/${pessoa.perfilId}`, {
-                        method: 'DELETE',
-                    }, async () => {
-                        updateStatus('Perfil biométrico excluído.', 'success')
-                        await carregarPerfisFaciais()
-                    })
-                })
-                item.append(' ', button)
-                listaPerfisFaciaisEl.appendChild(item)
-            })
-        })
-    }
-
     btnAddSala.addEventListener('click', adicionarSala);
     btnCriarQrDisponivel.addEventListener('click', criarQrDisponivel);
 
@@ -855,7 +842,6 @@ document.addEventListener('DOMContentLoaded', () => {
     configurarSessaoTenant().then(() => {
         atualizarCheckins();
         carregarSalas();
-        carregarPerfisFaciais();
         window.setInterval(atualizarCheckins, 60 * 1000);
     }).catch(error => {
         console.error('[adm] Erro ao inicializar o painel:', error);

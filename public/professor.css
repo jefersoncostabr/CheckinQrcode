@@ -32,6 +32,50 @@ h2 {
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
+.periodos-card-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.periodos-card-heading h2 {
+    margin: 0;
+}
+
+.periodos-toggle-opcoes {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.professor-container .periodos-toggle-opcoes .periodos-toggle-btn {
+    min-width: 31.5px;
+    min-height: 31.5px;
+    padding: 6px;
+    border: 1px solid #23384d;
+    background: #23384d;
+    color: #fff;
+    font-size: 0.8rem;
+    font-weight: 700;
+    line-height: 1;
+    margin-bottom: 8px;
+    transition:
+        background-color 0.3s,
+        transform 0.2s;
+}
+
+.professor-container .periodos-toggle-opcoes .periodos-toggle-btn:hover:not(:disabled) {
+    background: #36536f;
+    transform: none;
+}
+
+.professor-container .periodos-toggle-opcoes .periodos-toggle-btn:focus-visible {
+    outline: 3px solid #81d4fa;
+    outline-offset: 2px;
+}
+
 #form-aula {
     display: grid;
     gap: 8px;
@@ -77,6 +121,16 @@ label {
     font-weight: bold;
 }
 
+.seletores-sala {
+    display: grid;
+}
+
+.campo-selecao-sala {
+    display: grid;
+    gap: 4px;
+    min-width: 0;
+}
+
 input,
 select {
     width: 100%;
@@ -112,7 +166,7 @@ button:disabled {
 button:focus-visible,
 input:focus-visible,
 select:focus-visible {
-    outline: 3px solid #3478b5;
+    outline: 3px solid #81d4fa;
     outline-offset: 2px;
 }
 
@@ -122,6 +176,11 @@ select:focus-visible {
 }
 
 @media (min-width: 700px) {
+    .seletores-sala {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0 16px;
+    }
+
     #form-aula {
         grid-template-columns: minmax(0, 1.5fr) repeat(2, minmax(110px, 1fr));
         align-items: end;

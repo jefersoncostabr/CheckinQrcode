@@ -222,6 +222,10 @@ router.get('/session', async (req, res, next) => {
 
         return res.json({
             sucesso: true,
+            user: {
+                id: membership.userId,
+                name: membership.userName,
+            },
             tenant: {
                 id: membership.tenantId,
                 membershipId: membership.membershipId,

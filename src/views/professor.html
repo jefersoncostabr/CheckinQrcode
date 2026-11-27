@@ -14,70 +14,76 @@
         <h1>Área do professor</h1>
 
         <section class="card" aria-labelledby="titulo-cadastro">
-            <h2 id="titulo-cadastro">Cadastrar aula</h2>
-            <form id="form-aula">
-                <div class="campo-nome-aula">
-                    <label for="nome-aula">Nome da aula</label>
-                    <input id="nome-aula" name="name" maxlength="120" required>
+            <div class="periodos-card-heading">
+                <h2 id="titulo-cadastro">Cadastrar aula</h2>
+                <div class="periodos-toggle-opcoes">
+                    <button class="periodos-toggle-btn" type="button" data-professor-toggle="cadastro da aula" aria-expanded="true" aria-controls="conteudoCadastroAula" aria-label="Recolher cadastro da aula" title="Recolher cadastro da aula">&#9650;</button>
                 </div>
-
-                <div class="horarios-aula" role="group" aria-label="Horário da aula">
-                    <div class="campo-horario">
-                        <label for="inicio-aula">Início</label>
-                        <input id="inicio-aula" name="startTime" type="time" required>
+            </div>
+            <div id="conteudoCadastroAula">
+                <form id="form-aula">
+                    <div class="campo-nome-aula">
+                        <label for="nome-aula">Nome da aula</label>
+                        <input id="nome-aula" name="name" maxlength="120" required>
                     </div>
 
-                    <div class="campo-horario">
-                        <label for="fim-aula">Fim</label>
-                        <input id="fim-aula" name="endTime" type="time" required>
-                    </div>
-                </div>
+                    <div class="horarios-aula" role="group" aria-label="Horário da aula">
+                        <div class="campo-horario">
+                            <label for="inicio-aula">Início</label>
+                            <input id="inicio-aula" name="startTime" type="time" required>
+                        </div>
 
-                <button type="submit" title="Salva a aula com o nome e os horários informados.">
-                    Cadastrar aula
-                </button>
-            </form>
+                        <div class="campo-horario">
+                            <label for="fim-aula">Fim</label>
+                            <input id="fim-aula" name="endTime" type="time" required>
+                        </div>
+                    </div>
+
+                    <button type="submit" title="Salva a aula com o nome e os horários informados.">
+                        Cadastrar aula
+                    </button>
+                </form>
+            </div>
         </section>
 
         <section class="card" aria-labelledby="titulo-controle">
-            <h2 id="titulo-controle">Controle da sala</h2>
-
-            <label for="selecao-aula">Escolha a aula</label>
-            <select id="selecao-aula"></select>
-
-            <label for="sala-aula">Sala para iniciar</label>
-            <select id="sala-aula" required></select>
-
-            <p id="estado-sala" role="status" aria-live="polite"></p>
-
-            <div class="acoes">
-                <button
-                    id="iniciar-aula"
-                    type="button"
-                    title="Abre a sala e inicia o período de check-in da aula selecionada."
-                >Iniciar aula</button>
-                <button
-                    id="gerar-qr"
-                    type="button"
-                    title="Gera um QR válido por 2 minutos; escaneie-o no monitor facial para abrir a sala."
-                >Gerar QR de início</button>
-                <button
-                    id="encerrar-aula"
-                    type="button"
-                    title="Encerra a aula e fecha o período de check-in em andamento."
-                >Encerrar aula</button>
+            <div class="periodos-card-heading">
+                <h2 id="titulo-controle">Controle da sala</h2>
+                <div class="periodos-toggle-opcoes">
+                    <button class="periodos-toggle-btn" type="button" data-professor-toggle="controle da sala" aria-expanded="true" aria-controls="conteudoControleSala" aria-label="Recolher controle da sala" title="Recolher controle da sala">&#9650;</button>
+                </div>
             </div>
+            <div id="conteudoControleSala">
+                <div class="seletores-sala">
+                    <div class="campo-selecao-sala">
+                        <label for="selecao-aula">Escolha a aula</label>
+                        <select id="selecao-aula"></select>
+                    </div>
+                    <div class="campo-selecao-sala">
+                        <label for="sala-aula">Sala para iniciar</label>
+                        <select id="sala-aula" required></select>
+                    </div>
+                </div>
 
-            <section id="area-qr" class="card qr-area" hidden aria-labelledby="titulo-qr">
-                <h3 id="titulo-qr">QR Code de abertura</h3>
-                <img id="imagem-qr" alt="QR Code de abertura da aula">
-                <p id="prazo-qr" role="status" aria-live="polite"></p>
-                <p id="orientacao-qr" role="status" aria-live="polite">
-                    Leia este QR Code no monitor facial da sala para abrir o período de check-in.
-                </p>
-            </section>
+                <p id="estado-sala" role="status" aria-live="polite"></p>
 
-            <p id="mensagem" role="status" aria-live="polite"></p>
+                <div class="acoes">
+                    <button id="iniciar-aula" type="button" title="Abre a sala e inicia o período de check-in da aula selecionada.">Iniciar aula</button>
+                    <button id="gerar-qr" type="button" title="Gera um QR válido por 2 minutos; escaneie-o no monitor facial para abrir a sala.">Gerar QR de início</button>
+                    <button id="encerrar-aula" type="button" title="Encerra a aula e fecha o período de check-in em andamento.">Encerrar aula</button>
+                </div>
+
+                <section id="area-qr" class="card qr-area" hidden aria-labelledby="titulo-qr">
+                    <h3 id="titulo-qr">QR Code de abertura</h3>
+                    <img id="imagem-qr" alt="QR Code de abertura da aula">
+                    <p id="prazo-qr" role="status" aria-live="polite"></p>
+                    <p id="orientacao-qr" role="status" aria-live="polite">
+                        Leia este QR Code no monitor facial da sala para abrir o período de check-in.
+                    </p>
+                </section>
+
+                <p id="mensagem" role="status" aria-live="polite"></p>
+            </div>
         </section>
     </main>
 </body>

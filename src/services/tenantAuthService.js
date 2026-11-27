@@ -32,6 +32,7 @@ export async function findActiveMembership(userId, tenantId, membershipId) {
     return {
         membershipId: String(membership._id),
         userId: String(membership.userId._id),
+        userName: membership.userId.name,
         tenantId: String(membership.tenantId._id),
         tenantName: membership.tenantId.name,
         role: membership.role,

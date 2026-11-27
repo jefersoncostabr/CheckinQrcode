@@ -7,7 +7,7 @@ const menuItems = [
     { label: 'Relatório', href: '/adm/relatorio', roles: ['owner', 'admin', 'viewer'] },
 ]
 
-function createNavbar(tenant) {
+function createNavbar(tenant, user) {
     const nav = document.createElement('nav')
     nav.className = 'wraperNavegacao'
     nav.setAttribute('aria-label', 'Navegação principal')
@@ -22,7 +22,14 @@ function createNavbar(tenant) {
 
     const tenantName = document.createElement('span')
     tenantName.className = 'navbarTenant'
-    tenantName.textContent = `${tenant.name} · ${tenant.role}`
+
+    const firstName = typeof user?.name === 'string'
+        ? user.name.trim().split(/\s+/).filter(Boolean)[0]
+        : ''
+
+    tenantName.textContent = [firstName, tenant.name, tenant.role]
+        .filter(Boolean)
+        .join(' · ')
 
     const toggle = document.createElement('button')
     toggle.className = 'menuHamburger'
@@ -38,15 +45,24 @@ function createNavbar(tenant) {
     menu.className = 'ulMenu'
     menu.id = 'ulMenu'
 
+    const currentPath = window.location.pathname.replace(/\/+$/, '') || '/'
+
     menuItems
         .filter(item => item.roles.includes(tenant.role))
         .forEach(item => {
             const listItem = document.createElement('li')
             listItem.className = 'listMenu'
             const link = document.createElement('a')
-            link.className = 'linkMenu'
+            const isActive = currentPath === item.href
+            link.className = isActive
+                ? 'linkMenu navbarLinkActive'
+                : 'linkMenu'
             link.href = item.href
             link.textContent = item.label
+
+            if (isActive) {
+                link.setAttribute('aria-current', 'page')
+            }
             listItem.appendChild(link)
             menu.appendChild(listItem)
         })
@@ -124,7 +140,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
         const data = await response.json()
         if (!response.ok) throw new Error(data.mensagem || 'Não foi possível carregar a navegação.')
-        createNavbar(data.tenant)
+        createNavbar(data.tenant, data.user)
     } catch (error) {
         console.error('Erro ao carregar navegação:', error)
         const status = document.createElement('p')

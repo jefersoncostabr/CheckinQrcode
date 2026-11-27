@@ -201,53 +201,67 @@
         </div>
 
         <div class="card" id="attendanceDashboardCard">
-            <h2>Check-ins</h2>
-            <div class="checkins-header">
-                <p>Atualização automática a cada minuto.</p>
-                <div class="checkins-refresh">
-                    <span>Última atualização: <time id="atualizacaoContagem">--:--:--</time></span>
-                    <button id="btnAtualizarQtd" class="btn-primary" aria-label="Atualizar check-ins" title="Atualizar check-ins">Atualizar</button>
+            <div class="periodos-card-heading">
+                <h2>Check-ins</h2>
+                <div class="periodos-toggle-opcoes">
+                    <button class="periodos-toggle-btn" type="button" data-painel-toggle="check-ins" aria-expanded="true" aria-controls="painelCheckinsConteudo" aria-label="Recolher check-ins" title="Recolher check-ins">▲</button>
                 </div>
             </div>
-            <ul id="listaCheckins" class="checkins-list" aria-live="polite"></ul>
-            <p id="checkinsVazio" class="checkins-empty" role="status">Carregando...</p>
-            <div class="actions" style="margin-top: 20px;">
-                <button id="btnAddPresenca" class="btn-primary" aria-label="Adicionar presença manual" title="Adicionar presença manual">+Presença</button>
-                <button id="btnCadastrarUsuario" class="btn-primary" type="button" aria-label="Cadastrar usuário facial" title="Cadastrar usuário facial">+Usuário</button>
-                <a id="btnTestarBiometria" hidden href="/teste-rosto" class="btn-secondary" target="_blank" rel="noopener" aria-label="Testar reconhecimento facial" title="Testar reconhecimento facial">Teste Facial</a>
-                <a id="btnRelatorio" hidden href="/relatorio" class="btn-secondary" target="_blank" rel="noopener" aria-label="Abrir relatório de presença" title="Abrir relatório de presença">Relatório</a>
+            <div id="painelCheckinsConteudo">
+                <div class="checkins-header">
+                    <p>Atualização automática a cada minuto.</p>
+                    <div class="checkins-refresh">
+                        <span>Última atualização: <time id="atualizacaoContagem">--:--:--</time></span>
+                        <button id="btnAtualizarQtd" class="btn-primary" aria-label="Atualizar check-ins" title="Atualizar check-ins">Atualizar</button>
+                    </div>
+                </div>
+                <ul id="listaCheckins" class="checkins-list" aria-live="polite"></ul>
+                <p id="checkinsVazio" class="checkins-empty" role="status">Carregando...</p>
+                <div class="actions" style="margin-top: 20px;">
+                    <button id="btnAddPresenca" class="btn-primary" aria-label="Adicionar presença manual" title="Adicionar presença manual">+Presença</button>
+                    <button id="btnCadastrarUsuario" class="btn-primary" type="button" aria-label="Cadastrar usuário facial" title="Cadastrar usuário facial">+Usuário</button>
+                    <a id="btnTestarBiometria" hidden href="/teste-rosto" class="btn-secondary" target="_blank" rel="noopener" aria-label="Testar reconhecimento facial" title="Testar reconhecimento facial">Teste Facial</a>
+                    <a id="btnRelatorio" hidden href="/relatorio" class="btn-secondary" target="_blank" rel="noopener" aria-label="Abrir relatório de presença" title="Abrir relatório de presença">Relatório</a>
+                </div>
             </div>
         </div>
 
         <div class="card" id="roomManagementCard">
-            <h2>Salas do Evento</h2>
-            <div class="actions">
-                <input type="text" id="salaInput" placeholder="Nome da sala" style="flex: 1; min-width: 180px;" />
-                <button id="btnAddSala" class="btn-primary" aria-label="Adicionar nova sala" title="Adicionar nova sala">Adicionar Sala</button>
+            <div class="periodos-card-heading">
+                <h2>Salas do Evento</h2>
+                <div class="periodos-toggle-opcoes">
+                    <button class="periodos-toggle-btn" type="button" data-painel-toggle="salas do evento" aria-expanded="true" aria-controls="painelSalasConteudo" aria-label="Recolher salas do evento" title="Recolher salas do evento">▲</button>
+                </div>
             </div>
-            <ul id="listaSalas" style="margin-top: 10px; padding-left: 20px;"></ul>
+            <div id="painelSalasConteudo">
+                <div class="actions">
+                    <input type="text" id="salaInput" placeholder="Nome da sala" style="flex: 1; min-width: 180px;" />
+                    <button id="btnAddSala" class="btn-primary" aria-label="Adicionar nova sala" title="Adicionar nova sala">Adicionar Sala</button>
+                </div>
+                <ul id="listaSalas" style="margin-top: 10px; padding-left: 20px;"></ul>
+            </div>
         </div>
 
         <section class="card" id="qrManagementCard" aria-labelledby="qrManagementTitle">
-            <div class="qr-management-header">
-                <div>
-                    <h2 id="qrManagementTitle">Gerenciar QR Codes</h2>
-                    <p id="resumoQrs">Carregando QR Codes...</p>
+            <div class="periodos-card-heading">
+                <h2 id="qrManagementTitle">Gerenciar QR Codes</h2>
+                <div class="periodos-toggle-opcoes">
+                    <button class="periodos-toggle-btn" type="button" data-painel-toggle="QR Codes" aria-expanded="true" aria-controls="painelQrConteudo" aria-label="Recolher QR Codes" title="Recolher QR Codes">▲</button>
                 </div>
-                <button id="btnCriarQrDisponivel" class="btn-primary" type="button" aria-label="Criar QR Code disponível para associação" title="Criar QR Code disponível para associação">
-                    + QR Code reutilizável
-                </button>
             </div>
-            <ul id="listaQrCodes" class="qr-codes-list" aria-live="polite"></ul>
-            <p id="qrsVazio" class="checkins-empty" role="status">
-                Carregando QR Codes...
-            </p>
+            <div id="painelQrConteudo">
+                <div class="qr-management-header">
+                    <p id="resumoQrs">Carregando QR Codes...</p>
+                    <button id="btnCriarQrDisponivel" class="btn-primary" type="button" aria-label="Criar QR Code disponível para associação" title="Criar QR Code disponível para associação">
+                        + QR Code reutilizável
+                    </button>
+                </div>
+                <ul id="listaQrCodes" class="qr-codes-list" aria-live="polite"></ul>
+                <p id="qrsVazio" class="checkins-empty" role="status">
+                    Carregando QR Codes...
+                </p>
+            </div>
         </section>
-
-        <div class="card" id="biometricManagementCard">
-            <h2>Perfis biométricos desta organização</h2>
-            <ul id="listaPerfisFaciais"></ul>
-        </div>
 
         <dialog id="cadastroUsuarioDialog" aria-labelledby="cadastroUsuarioTitulo">
             <form id="cadastroUsuarioForm">

@@ -41,8 +41,6 @@ h2 {
     margin-bottom: 25px;
 }
 
-
-
 .checkins-header,
 .checkins-refresh {
     display: flex;
@@ -54,6 +52,66 @@ h2 {
 
 .checkins-header p {
     margin: 0;
+}
+
+.periodos-card-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.periodos-toggle-opcoes {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.periodos-card-heading h2 {
+    margin: 0;
+    border-bottom: 0;
+    padding-bottom: 0;
+}
+
+.periodos-toggle-opcoes .periodos-toggle-btn {
+    min-width: 31.5px;
+    min-height: 31.5px;
+    padding: 6px;
+    border: 1px solid #bdc3c7;
+    background: #f4f7f6;
+    color: #2c3e50;
+    font-size: 0.8rem;
+    line-height: 1;
+    margin-bottom: 8px;
+}
+
+.periodos-toggle-opcoes .periodos-toggle-btn:hover {
+    background: #e8eef2;
+    transform: none;
+}
+
+.periodos-toggle-opcoes .periodos-toggle-btn:focus-visible {
+    outline: 3px solid #3498db;
+    outline-offset: 2px;
+}
+
+input:not([type="checkbox"]):not([type="radio"]),
+select {
+    box-sizing: border-box;
+    min-height: 33px;
+    padding: 8px 12px;
+    border: 1px solid #8797a5;
+    border-radius: 5px;
+    background-color: #fff;
+    color: #222;
+    font: inherit;
+}
+
+input:not([type="checkbox"]):not([type="radio"]):focus-visible,
+select:focus-visible {
+    outline: 3px solid #81d4fa;
+    outline-offset: 2px;
 }
 
 .checkins-refresh {
@@ -189,32 +247,24 @@ button:hover,
     transform: translateY(-2px);
 }
 
-
 #btnCadastrarUsuario {
-
 }
 
 .btn-danger {
-
 }
 .btn-danger:hover {
-
 }
 
 .btn-success {
-
 }
 
 .btn-success:hover {
-
 }
 
 .btn-warning {
-
 }
 
 .btn-warning:hover {
-
 }
 
 .action-button {

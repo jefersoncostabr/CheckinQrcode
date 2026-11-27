@@ -54,7 +54,6 @@ async function iniciarPainel({ qrcodes = [], comAula = false } = {}) {
             data = { qrcode: { id: qrPatch[1], qrCodeDataUri: 'data:image/png;base64,abc', apelido: body.apelido ?? null } }
         }
         else if (url.match(/^\/api\/tenant\/qrcodes\/[^\/]+\/visual$/) && method === 'GET') data = { qrcode: { qrCodeDataUri: 'data:image/png;base64,abc' } }
-        else if (url === '/api/tenant/biometrics/profiles') data = { pessoas: [] }
         else throw new Error(`URL inesperada: ${url} ${method}`)
         return { ok: true, status: 200, json: async () => data }
     })

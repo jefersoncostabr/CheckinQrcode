@@ -13,6 +13,30 @@ document.addEventListener('DOMContentLoaded', () => {
     const areaQr = document.getElementById('area-qr')
     const imagemQr = document.getElementById('imagem-qr')
     const prazoQr = document.getElementById('prazo-qr')
+    if (typeof document.querySelectorAll === 'function') {
+        document.querySelectorAll('[data-professor-toggle]').forEach(botao => {
+        const conteudo = document.getElementById(botao.getAttribute('aria-controls'));
+        const nomeBloco = botao.dataset.professorToggle;
+        let expandido = true;
+
+        function atualizarToggle() {
+            conteudo.hidden = !expandido;
+            botao.textContent = expandido ? '\u25B2' : '\u25BC';
+            botao.setAttribute('aria-expanded', String(expandido));
+
+            const acao = expandido ? 'Recolher' : 'Expandir';
+            botao.setAttribute('aria-label', `${acao} ${nomeBloco}`);
+            botao.title = `${acao} ${nomeBloco}`;
+        }
+
+        atualizarToggle();
+
+        botao.addEventListener('click', () => {
+            expandido = !expandido;
+            atualizarToggle();
+        });
+        });
+    }
 
     let salas = []
     let aulas = []
